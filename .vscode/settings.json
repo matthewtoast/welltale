@@ -1,0 +1,41 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.suggestionActions.enabled": true,
+  "typescript.referencesCodeLens.showOnAllFunctions": true,
+  "typescript.referencesCodeLens.enabled": true,
+  "typescript.implementationsCodeLens.enabled": true,
+  "eslint.codeActionsOnSave.mode": "all",
+  "eslint.run": "onType",
+  "search.useIgnoreFiles": true,
+  "search.useGlobalIgnoreFiles": false,
+  "files.associations": {
+    "*.h": "objective-c",
+    "*.m": "objective-c",
+    "*.swift": "swift",
+    "Podfile": "ruby",
+    "Makefile": "makefile"
+  },
+  "search.exclude": {
+    "**/Pods": true,
+    "**/DerivedData": true,
+    "**/.build": true,
+    "**/ios/build": true
+  },
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/ios/build": true,
+    "**/Pods": true
+  },
+  "swift.diagnostics": true,
+  "C_Cpp.default.includePath": [
+    "${workspaceFolder}/ios/",
+    "${workspaceFolder}/ios/Pods/**",
+    "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/**"
+  ]
+}

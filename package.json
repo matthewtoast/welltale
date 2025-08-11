@@ -1,0 +1,46 @@
+{
+  "name": "aisatsu-shodomi",
+  "version": "1.0.0",
+  "private": true,
+  "license": "PROPRIETARY",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "ts": "npx tsx --"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.0.10",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^18.2.22",
+    "@types/seedrandom": "^3.0.8",
+    "@types/unzipper": "^0.10.11",
+    "@types/yargs": "^17.0.33",
+    "prettier": "^3.4.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@types/lodash": "^4.17.20",
+    "dotenv": "^17.2.0",
+    "esbuild": "^0.25.6",
+    "expr-eval": "^2.0.2",
+    "glob": "^10.3.12",
+    "gray-matter": "^4.0.3",
+    "hast-util-from-html": "^2.0.3",
+    "js-yaml": "^4.1.0",
+    "lodash": "^4.17.21",
+    "mathjs": "^14.6.0",
+    "micromark": "^4.0.2",
+    "micromark-extension-frontmatter": "^2.0.0",
+    "openai": "^5.3.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "seedrandom": "^3.0.5",
+    "unzipper": "^0.12.3",
+    "yargs": "17.7.2",
+    "zod": "^3.24.1"
+  }
+}

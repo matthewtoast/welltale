@@ -1,0 +1,124 @@
+import crypto from "crypto";
+
+export const BR = "<br><br>";
+
+export function sha1(input: string): string {
+  return crypto.createHash("sha1").update(input).digest("hex");
+}
+
+export function despace(s: string): string {
+  return s.trim().replaceAll(/\s+/g, "_");
+}
+
+export function smoosh(s: string): string {
+  return s.trim().replaceAll(/\s+/g, " ");
+}
+
+export function fence() {
+  return "```";
+}
+
+const charsToEncode =
+  " ~`!@#$%^&*()+={}|[]\\/:\":'<>?,.、。！？「」『』・«»—¡¿„“‚".split("");
+
+export function slugify(txt: string, ch: string = "_"): string {
+  let encoded = txt;
+  charsToEncode.forEach((char) => {
+    encoded = encoded.split(char).join(ch);
+  });
+  const re = new RegExp(`${ch}+`, "g");
+  return encoded.replaceAll(re, ch);
+}
+
+export function parameterize(txt: string, ch: string = "_") {
+  return txt.replaceAll(/[^a-zA-Z0-9]/g, ch);
+}
+
+export const COMMA_RE = /[、,]/;
+
+export function isBlank(v: any) {
+  if (typeof v === "string") {
+    return v.match(/^\s*$/);
+  }
+  if (Array.isArray(v)) {
+    return v.length < 1;
+  }
+  if (v && typeof v === "object") {
+    return Object.keys(v).length < 1;
+  }
+  return !v;
+}
+export function isPresent<T>(v: T): v is NonNullable<T> {
+  return !isBlank(v);
+}
+
+export function removeLeading(t: string, c: string): string {
+  if (t.startsWith(c)) {
+    return removeLeading(t.slice(1), c) as string;
+  }
+  return t;
+}
+
+export function cleanLines(s: string) {
+  return s
+    .split("\n")
+    .map((s) => s.trim())
+    .filter((s) => !!s);
+}
+
+export function stripHTMLTags(str: string) {
+  return str.replace(/<[^>]*>/g, "");
+}
+
+export function splitAsCleanLines(s: string) {
+  return s
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(isPresent);
+}
+
+export function randAlphaNum() {
+  return Math.random().toString(36).slice(2);
+}
+
+export function titleize(str: string, exclusions: string[] = []): string {
+  if (!str) return "";
+  const exclusionSet = new Set(exclusions.map((word) => word.toLowerCase()));
+  return str
+    .split(" ")
+    .map((word, index, words) => {
+      const isExcluded = exclusionSet.has(word.toLowerCase());
+      const isFirstOrLast = index === 0 || index === words.length - 1;
+      return isFirstOrLast || !isExcluded
+        ? capitalizeWord(word)
+        : word.toLowerCase();
+    })
+    .join(" ");
+}
+
+export function capitalizeWord(word: string): string {
+  if (!word) return "";
+  return word[0].toUpperCase() + word.slice(1).toLowerCase();
+}
+
+export function toPcStr(pc: number) {
+  return `${Math.round(pc)}%`;
+}
+
+export function railsTimestamp() {
+  const now = new Date();
+  const pad = (num: number) => String(num).padStart(2, "0");
+  const year = now.getFullYear();
+  const month = pad(now.getMonth() + 1); // Months are 0-indexed
+  const day = pad(now.getDate());
+  const hours = pad(now.getHours());
+  const minutes = pad(now.getMinutes());
+  const seconds = pad(now.getSeconds());
+  return `${year}${month}${day}${hours}${minutes}${seconds}`;
+}
+
+export function extractParentheticals(s: string): string[] {
+  const parentheticals = s.match(/\(([^)]+)\)/g) || [];
+  const cleaned = s.replace(/\(([^)]+)\)/g, "").trim();
+  return [...parentheticals.map((s) => s.slice(1, -1).trim()), cleaned.trim()];
+}
