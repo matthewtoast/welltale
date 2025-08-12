@@ -4,11 +4,7 @@ import { z } from "zod";
 // Load environment variables from .env file
 config();
 
-const ZEnvSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-});
+const ZEnvSchema = z.object({});
 
 export type Env = z.infer<typeof ZEnvSchema>;
 
@@ -27,5 +23,3 @@ const loadEnv = (): Env => {
     throw error;
   }
 };
-
-export const ENV = loadEnv();

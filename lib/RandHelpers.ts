@@ -28,16 +28,32 @@ export class PRNG {
     return this.rng();
   }
 
-  reset(seed: string | number, cycle: number = 0): void {
-    this.rng = seedrandom(seed.toString());
-    this.cycle = 0;
-    for (let i = 0; i < cycle; i++) {
-      this.rng();
-    }
+  draw<T>(s: T[]): T {
+    return this.shuffle(s)[0];
   }
 
-  takeRandom<T>(s: T[]): T {
-    return this.shuffle(s)[0];
+  coinToss(prob: number = 0.5): boolean {
+    return this.next() < prob;
+  }
+
+  dice(sides: number = 6): number {
+    return this.getRandomInt(1, sides);
+  }
+
+  rollMultipleDice(rolls: number, sides: number = 6): number[] {
+    const results: number[] = [];
+    for (let i = 0; i < rolls; i++) {
+      results.push(this.dice(sides));
+    }
+    return results;
+  }
+
+  randomElement<T>(arr: readonly T[]): T {
+    return arr[Math.floor(this.next() * arr.length)];
+  }
+
+  randomBoolean(): boolean {
+    return this.next() < 0.5;
   }
 
   getRandomFloat(min: number, max: number): number {

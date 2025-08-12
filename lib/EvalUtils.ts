@@ -1,15 +1,28 @@
-import { Parser } from "expr-eval";
+import { Parser, type Value as ExprValue } from "expr-eval";
 import { isPresent } from "./TextHelpers";
+import { PRNG } from "./RandHelpers";
 
 export type Tag = { name: string; rule: string; args: string[] };
 
 const tokRE = /\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\b/g;
-const num = (v: unknown) => (v === true ? 1 : typeof v === "number" && isFinite(v) ? v : 0);
+const isNum = (v: unknown) =>
+  v === true ? 1 : typeof v === "number" && isFinite(v) ? v : 0;
 
-export const buildTagger = (defs: Tag[], fns: Record<string, (...a: number[]) => number | boolean> = {}) => {
+export const buildTagger = (
+  defs: Tag[],
+  fns: Record<string, (...a: number[]) => number | boolean> = {}
+) => {
   const parser = new Parser();
   const fnNames = new Set(Object.keys(fns));
-  const compiled = new Map(defs.map(({ name, rule }) => [name, { expr: parser.parse(rule), toks: Array.from(new Set(rule.match(tokRE) ?? [])) }]));
+  const compiled = new Map(
+    defs.map(({ name, rule }) => [
+      name,
+      {
+        expr: parser.parse(rule),
+        toks: Array.from(new Set(rule.match(tokRE) ?? [])),
+      },
+    ])
+  );
   const cache = new Map<number, Map<string, number>>();
 
   const resolve = (id: number, tag: string, seen: Set<string>): number => {
@@ -39,7 +52,7 @@ export const buildTagger = (defs: Tag[], fns: Record<string, (...a: number[]) =>
 
     let val = 0;
     try {
-      val = num(rec.expr.evaluate(env as any));
+      val = isNum(rec.expr.evaluate(env as any));
     } catch {}
     memo.set(tag, val);
     seen.delete(key);
@@ -57,7 +70,11 @@ export const buildTagger = (defs: Tag[], fns: Record<string, (...a: number[]) =>
   return { rule, tags };
 };
 
-export const rawToTags = (raw: string, assign: string = "->", delim: string = ";"): Tag[] => {
+export const rawToTags = (
+  raw: string,
+  assign: string = "->",
+  delim: string = ";"
+): Tag[] => {
   const lines = raw
     .trim()
     .split(delim)
@@ -70,4 +87,254 @@ export const rawToTags = (raw: string, assign: string = "->", delim: string = ";
     const [name, rule, ...args] = line.split(assign).map((l) => l.trim());
     return { name, rule, args };
   });
+};
+
+type Primitive = number | boolean | string | null;
+type EvalResult = Primitive | Primitive[];
+type Scope = Record<string, Extract<ExprValue, Primitive | Primitive[]>>;
+
+type P = number | boolean | string | null;
+type A = P | P[];
+
+const isP = (v: unknown): v is P =>
+  v === null || ["number", "string", "boolean"].includes(typeof v);
+const toArr = (v: A): P[] => (Array.isArray(v) ? v : [v]);
+const num = (v: P) => (typeof v === "number" ? v : Number(v as any));
+const cmp = (a: P, b: P) => (a === b ? 0 : a! < b! ? -1 : 1);
+const eq = (a: A, b: A): boolean => {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++)
+      if (!eq(a[i] as any, b[i] as any)) return false;
+    return true;
+  }
+  return a === b;
+};
+const uniq = (arr: P[]) => {
+  const out: P[] = [];
+  for (const v of arr) if (!out.some((x) => eq(x, v))) out.push(v);
+  return out;
+};
+const flatDeep = (arr: any[], d: number): any[] =>
+  d <= 0
+    ? arr.slice()
+    : arr.reduce<any[]>(
+        (r, v) => r.concat(Array.isArray(v) ? flatDeep(v, d - 1) : v),
+        []
+      );
+
+export const arrayHelpers: Record<string, (...args: any[]) => P | P[]> = {
+  len: (a: A) => toArr(a).length,
+  first: (a: A) => toArr(a)[0] ?? null,
+  last: (a: A) => {
+    const t = toArr(a);
+    return t[t.length - 1] ?? null;
+  },
+  nth: (a: A, i: P) => toArr(a)[num(i) | 0] ?? null,
+  slice: (a: A, s: P, e?: P) =>
+    toArr(a).slice(num(s) | 0, e == null ? undefined : num(e) | 0),
+  take: (a: A, n: P) => toArr(a).slice(0, num(n) | 0),
+  drop: (a: A, n: P) => toArr(a).slice(num(n) | 0),
+  concat: (a: A, b: A) => toArr(a).concat(toArr(b)),
+  reverse: (a: A) => toArr(a).slice().reverse(),
+  sort: (a: A) => toArr(a).slice().sort(cmp),
+  sortDesc: (a: A) =>
+    toArr(a)
+      .slice()
+      .sort((x, y) => -cmp(x, y)),
+  uniq: (a: A) => uniq(toArr(a)),
+  flatten: (a: A) =>
+    toArr(a).reduce<P[]>((r, v) => r.concat(Array.isArray(v) ? v : [v]), []),
+  flattenDeep: (a: A, depth?: P) =>
+    flatDeep(toArr(a) as any[], depth == null ? 1 / 0 : num(depth) | 0),
+  includes: (a: A, v: A) => toArr(a).some((x) => eq(x, v)),
+  indexOf: (a: A, v: A) => {
+    const t = toArr(a);
+    for (let i = 0; i < t.length; i++) if (eq(t[i], v)) return i;
+    return -1;
+  },
+  count: (a: A, v: A) =>
+    toArr(a).reduce((c, x) => (c as number) + (eq(x, v) ? 1 : 0), 0),
+  compact: (a: A) => toArr(a).filter((x) => !!x),
+  sum: (a: A) => toArr(a).reduce((s, x) => (s as number) + num(x ?? 0), 0),
+  mean: (a: A) => {
+    const t = toArr(a);
+    return t.length
+      ? (t.reduce((s, x) => (s as number) + num(x ?? 0), 0) as number) /
+          t.length
+      : 0;
+  },
+  min: (a: A) => {
+    const t = toArr(a);
+    if (!t.length) return null;
+    return t.slice().sort(cmp)[0];
+  },
+  max: (a: A) => {
+    const t = toArr(a);
+    if (!t.length) return null;
+    return t.slice().sort(cmp)[t.length - 1];
+  },
+  median: (a: A) => {
+    const t = toArr(a).slice().sort(cmp);
+    const n = t.length;
+    if (!n) return null;
+    return n % 2 ? t[(n - 1) / 2] : (num(t[n / 2 - 1]) + num(t[n / 2])) / 2;
+  },
+  sumBy: (a: A, k: P) =>
+    toArr(a).reduce(
+      (s, x) =>
+        (s as number) +
+        num(Array.isArray(x) ? ((x[num(k ?? 0) | 0] as P) ?? 0) : (x ?? 0)),
+      0
+    ),
+  mapAdd: (a: A, n: P) => toArr(a).map((x) => num(x) + num(n)),
+  mapSub: (a: A, n: P) => toArr(a).map((x) => num(x) - num(n)),
+  mapMul: (a: A, n: P) => toArr(a).map((x) => num(x) * num(n)),
+  mapDiv: (a: A, n: P) => toArr(a).map((x) => num(x) / num(n)),
+  gt: (a: P, b: P) => num(a) > num(b),
+  lt: (a: P, b: P) => num(a) < num(b),
+  gte: (a: P, b: P) => num(a) >= num(b),
+  lte: (a: P, b: P) => num(a) <= num(b),
+  equals: (a: A, b: A) => eq(a, b),
+  union: (a: A, b: A) => uniq(toArr(a).concat(toArr(b))),
+  intersection: (a: A, b: A) => {
+    const tb = toArr(b);
+    return uniq(toArr(a).filter((x) => tb.some((y) => eq(x, y))));
+  },
+  difference: (a: A, b: A) => {
+    const tb = toArr(b);
+    return toArr(a).filter((x) => !tb.some((y) => eq(x, y)));
+  },
+};
+
+const toStr = (v: P) => (v == null ? "" : String(v));
+const capFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const unCapFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+const kebab = (s: string) =>
+  s
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
+    .replace(/\s+/g, "-")
+    .toLowerCase();
+const snake = (s: string) =>
+  s
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .replace(/\s+/g, "_")
+    .toLowerCase();
+const camel = (s: string) => {
+  return s
+    .replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ""))
+    .replace(/^(.)/, (m) => m.toLowerCase());
+};
+
+export const stringHelpers: Record<string, (...args: any[]) => P> = {
+  lower: (v: P) => toStr(v).toLowerCase(),
+  upper: (v: P) => toStr(v).toUpperCase(),
+  capitalize: (v: P) => capFirst(toStr(v).toLowerCase()),
+  uncapitalize: (v: P) => unCapFirst(toStr(v)),
+  trim: (v: P) => toStr(v).trim(),
+  trimStart: (v: P) => toStr(v).trimStart(),
+  trimEnd: (v: P) => toStr(v).trimEnd(),
+  padStart: (v: P, len: P, pad?: P) =>
+    toStr(v).padStart(Number(len) || 0, toStr(pad ?? " ")),
+  padEnd: (v: P, len: P, pad?: P) =>
+    toStr(v).padEnd(Number(len) || 0, toStr(pad ?? " ")),
+  repeat: (v: P, n: P) => toStr(v).repeat(Number(n) || 0),
+  replace: (v: P, search: P, repl: P) =>
+    toStr(v).split(toStr(search)).join(toStr(repl)),
+  includes: (v: P, sub: P) => toStr(v).includes(toStr(sub)),
+  startsWith: (v: P, sub: P) => toStr(v).startsWith(toStr(sub)),
+  endsWith: (v: P, sub: P) => toStr(v).endsWith(toStr(sub)),
+  substring: (v: P, start: P, end?: P) =>
+    toStr(v).substring(
+      Number(start) || 0,
+      end == null ? undefined : Number(end) || 0
+    ),
+  slice: (v: P, start: P, end?: P) =>
+    toStr(v).slice(
+      Number(start) || 0,
+      end == null ? undefined : Number(end) || 0
+    ),
+  indexOf: (v: P, sub: P) => toStr(v).indexOf(toStr(sub)),
+  lastIndexOf: (v: P, sub: P) => toStr(v).lastIndexOf(toStr(sub)),
+  kebabCase: (v: P) => kebab(toStr(v)),
+  snakeCase: (v: P) => snake(toStr(v)),
+  camelCase: (v: P) => camel(toStr(v)),
+  concat: (a: P, b: P) => toStr(a) + toStr(b),
+  join: (...args: any[]) => {
+    const sep = toStr(args.pop());
+    return args.map(toStr).join(sep);
+  },
+  split: (v: P, sep: P) => toStr(v).split(toStr(sep)) as any,
+  reverseStr: (v: P) => toStr(v).split("").reverse().join(""),
+  length: (v: P) => toStr(v).length,
+};
+
+export const createRandomHelpers = (prng: PRNG): Record<string, (...args: any[]) => P | P[]> => ({
+  random: () => prng.next(),
+  randInt: (min: P, max: P) => prng.getRandomInt(num(min), num(max)),
+  randFloat: (min: P, max: P) => prng.getRandomFloat(num(min), num(max)),
+  randNormal: (min: P, max: P) => prng.getRandomFloatNormal(num(min), num(max)),
+  randIntNormal: (min: P, max: P) => prng.getRandomIntNormal(num(min), num(max)),
+  coinToss: (prob?: P) => prng.coinToss(prob == null ? 0.5 : num(prob)),
+  dice: (sides?: P) => prng.dice(sides == null ? 6 : num(sides)),
+  rollDice: (rolls: P, sides?: P) => prng.rollMultipleDice(num(rolls), sides == null ? 6 : num(sides)),
+  randElement: (arr: A) => {
+    const t = toArr(arr);
+    return t.length ? prng.randomElement(t) : null;
+  },
+  shuffle: (arr: A) => prng.shuffle(toArr(arr)),
+  randAlphaNum: (len: P) => prng.randAlphaNum(num(len)),
+  weightedRandom: (weights: P[]) => {
+    const w = toArr(weights);
+    if (!w.length) return null;
+    const obj: Record<string, number> = {};
+    w.forEach((v, i) => { obj[i.toString()] = num(v ?? 0); });
+    return Number(prng.weightedRandomKey(obj));
+  },
+  sample: (arr: A, n: P) => {
+    const t = toArr(arr);
+    const size = Math.min(num(n), t.length);
+    const shuffled = prng.shuffle(t);
+    return shuffled.slice(0, size);
+  },
+});
+
+type Func = (...args: Primitive[]) => EvalResult;
+
+export const evalExpr = (
+  expr: string,
+  vars: Scope = {},
+  funcs: Record<string, Func> = {},
+  prng: PRNG,
+  prev: Parser = new Parser()
+): EvalResult => {
+  const parser = getParser(funcs, prng, prev);
+  const node = parser.parse(expr);
+  return node.evaluate(vars) as EvalResult;
+};
+
+export function getParser(
+  funcs: Record<string, Func> = {},
+  prng: PRNG,
+  parser: Parser = new Parser()
+) {
+  const randomHelpers = createRandomHelpers(prng);
+  Object.assign(parser.functions, arrayHelpers, stringHelpers, randomHelpers, funcs);
+  return parser;
+}
+
+export const findMissingFuncs = (
+  expr: string,
+  funcs: Record<string, Func> = {},
+  prng: PRNG,
+  parser: Parser = new Parser()
+) => {
+  const p = getParser(funcs, prng, parser);
+  Object.assign(p.functions, funcs);
+  const called = new Set<string>();
+  const re = /([A-Za-z_]\w*)\s*\(/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(expr))) called.add(m[1]);
+  const defined = new Set(Object.keys(p.functions));
+  return [...called].filter((n) => !defined.has(n));
 };

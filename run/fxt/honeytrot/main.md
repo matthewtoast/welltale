@@ -1,120 +1,132 @@
 ---
 voices:
+  Host: elevenlabs.440b8s
   Robert: elevenlabs.e07b98
 content:
-  debriefing: |
+  codenames:
+    - Apex
+    - Blaze
+    - Cipher
+    - Drift
+    - Echo
+    - Frost
+    - Ghost
+    - Halo
+    - Ivy
+    - Jinx
+    - Kilo
+    - Lynx
+    - Mako
+    - Nova
+    - Onyx
+    - Pulse
+    - Quill
+    - Rune
+    - Sable
+    - Talon
+    - Umbra
+    - Vex
+    - Wisp
+    - Xeno
+    - Yara
+    - Zephyr
+  debriefing_main: |
     Your target's name is Steven Warner. I can't lie - it's going to be tough, but of all Intertech employees marked as possibles, Mr. Barndes is the only who has high enough security clearance to get us access to the R&D wing. Here's what we know about him. 42 years old, been working at InterTech since he graduated with a Ph.D in robotics at age 22. You heard that right. Intelligent, focused, and meticulously organized. This guy's garbage is pristine. Even his used-up toothpaste tube was washed and folded. He does have one weak point, though. He's unmarried and, evidently looking for a partner. He has an active profile on a the Doorways dating app. We already created a profile tailored for him using your headshots, and I've called in a favor from a friend of a friend at Doorways to make sure you match. My team handle getting the first date. You'll be sent all the chat logs, of course. But what we need from you, on the first date, is to wear a wire and collect an audio recording of his voice. You see, InterTech uses a voice-based passphrase system. To access what Mr. Warner can access, we need his voice. But not just his voice - a very particular passphrase. The passphrase is "My name is Steven Warner, my voice is my passport. Verify me." Now, we don't need him to say this whole phrase. All we need are the words, in any order. My team can splice it together after. But we do need all 9 unique words. So, your job is to get him talking. Ideally in an environment with low background noise. Once we have all the words recorded, it's up to you how to end the date. And keep in mind we have a time window here. There can't be a second date. Use your wit and charm to make sure he says every word on the list. Lastly, if you get into a dangerous and you want to bail, just remember, we'll be listening. Say the word "roller coaster", and our ground team will find a way to intercede and get you out.
+  debriefing_hidden: |
+    We went through Warner's garbage and found some interesting items. He goes through about a box of cereal every day, a different one each time. The man loves cereal, if that can be an advantage, use it. On the flip side, we also found a hard drive. Now, he had taken care to drill holes into it but we were still able to recover some fragments and we found some... interesting material. It appears he may have something of a foot fetish. Much of the photography we found featured red nail polish. However, be careful about using this information. If played wrong it could go south quickly. If he suspects he's being extorted he might leave or alert InterTech. I trust you to make the right judgment call.
   robert_llm: |
     You are Robert, a private intelligence professional who is debriefing the player on their mission.
     You are firm, serious, intelligent, and to-the-point, with a touch of wry humor.
     Your reply should be as Robert, in a brief, single paragraph.
+  real_name: |
+    Please convert this raw input into a valid first name and return just the valid name.
+    If it is already valid, just return the name.
 ---
 
 # main
 
-<!--
-code name
-real name
-alias
+<audio gen="modern high tech spy thriller intro music, subtle, intriguing" background="true">
 
-user can make a mistake and say their wrong name
+<wait for="2s">
 
+## intro
 
-also "secret debriefing" adds extra content for the player to discover
--->
+You're playing Honeytrot, by Matthew Trost.
 
-Host: You're playing Honeytrot, by Matthew Trost. Before we begin, what's your name?
+<audio fade-out>
+
+## get name
+
+Before we begin, what's your first name?
 
 <input to="maybeName">
 
 <llm to="validName">
-  Please convert this raw input into a valid first name and return just the valid name.
-  If it is already valid, just return the name.
+  {{real_name}}
   Raw input: {{maybeName}}
 </llm>
 
-Host: All right, {{validName}}. Let's begin.
+## get alias
 
-<jump to="intro">
+What will be your alias?
+
+<input to="maybeAlias">
+
+<llm to="validAlias">
+  {{real_name}}
+  Raw input: {{maybeAlias}}
+</llm>
+
+<if cond="validAlias == validName">
+  Sorry. Your alias must be different than your real name.
+  <go to="get alias">
+</if>
+
+<set op="draw(codenames)" to="validCodename">
+
+Host: All right, {{validName}}. Your alias is {{validAlias}}. You've been assigned the code name {{validCodename}}. Let's begin.
 
 ## intro
 
-<gen-audio prompt="birds chirping in a public park" to="url">
+<audio gen="birds chirping in a public park" background="true">
 
-<play-audio url="{{url}}" background="true">
+Robert: I'm sorry about the short notice, but this is urgent. Let's to the chase, {{validName}}. Were you already debriefed?
 
-Robert: Let's to the chase, {{validName}}. Were you already debriefed?
+<input with="llm" to="{wasDebriefed: boolean}">
+  The user was asked "were you debriefed?". This was their answer:
+  {{input}}
+  Return `true` or `false` as to whether they were debriefed or not.
+</input>
 
-<input>
+<if cond="wasDebriefed">
 
-{wasDebriefed: boolean} = {
-The user was asked "were you debriefed?". This was their answer:
-{{input}}
-Return `true` or `false`.
-}
+<go to="skip debrief">
 
-<jump to="skip debrief" if="wasDebriefed">
-<jump to="hear debrief">
+</if>
+
+<go to="hear debrief">
 
 ### skip debrief
 
-Robert: Good. I'll skip the detail then. Just remember - you must get Warner to say all nine words. Any questions?
+Robert: Good. I'll skip the detail then. Just remember - you _must_ get Warner to say all nine words. Any questions?
 
-<jump to="any questions">
+<go to="asking questions">
 
 ### hear debrief
 
-Robert: {{debriefing}} All right, I think that covers it. We're counting on you. Any questions?
+Robert: {{debriefing_main}}
 
-<jump to="any questions">
+Robert: All right, I think that covers it. Any questions? | I think that's all. Do you have questions?
 
-### any questions
+<go to="asking questions">
 
-<input>
+{{> asking-questions}}
 
-{questions: string[]} = {
-Convert the user's input to a list of 0 or more questions.
-If they said something like "nope" or "no questions", return an empty array.
-User input: {{input}}
-}
+{{> before-the-date}}
 
-<jump to="no-more-questions" if="length(questions) < 1">
-
-<llm>
-  Speaking as Robert, in a brief single paragraph, please answer the player's question(s): {{questions}}
-  For context, here is what you already told the player: {{debriefing}}
-  For any question unrelated to this mission, indicate it's not relevant and to stay on topic.
-</llm>
-
-Robert: {{_}}
-
-Robert: What else? | Anything else? | Any other questions?
-
-<jump to="any questions">
-
-### no more questions
-
-Robert: Great. In that case, good luck. We're counting on you!
-
-<jump to="the date">
-
-## the date
-
-<gen-audio prompt="the din of a Chinese restaurant" to="url">
-
-<play-audio url="{{url}}" background="true">
-
-It's 5:55pm on Friday night. You just arrived at the Kong Sihk Tong restaurant. Your date with Steven was scheduled for 6, but of course Steven is already here and seated. Steven is balding but not unhansome, however his brown out-of-fashion suit and poor posture decrease his romantic marketability. He doesn't seem to notice you approaching - probably because he's busy putting contact drops into his eyes. A strange feeling of sympathy for this evidently lonely, innocent man hits you as you observe him - but you try to shake it off, remembering your objective. You stand at the table and say...:
-
-<input timer="5s">
+{{> the-date}}
 
 <!--
-if no answer, he notices you
--->
-
-<!--
-consistent syntax or more options to do same thing?
-
 how do we store what stanza the user was on?
 
 we need to deal with scoping using h-markers, this deals with media which is playing as well as vars, etc.
@@ -160,4 +172,8 @@ asset generation on prompts needs SHA to avoid repeat
 
 should use lambda for this stuff
 
+-->
+
+<!--
+also "secret debriefing" adds extra content for the player to discover
 -->

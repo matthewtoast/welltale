@@ -12,7 +12,7 @@ export type Stanza = {
   body: string;
 };
 
-export type Chapter = {
+export type StorySource = {
   metadata: Record<string, any>;
   stanzas: Stanza[];
 };
