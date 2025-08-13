@@ -1,11 +1,26 @@
-import { WelltaleAdapter } from "lib/adapters/WelltaleAdapter";
+import { WelltaleAdapter, WelltaleState } from "lib/adapters/WelltaleAdapter";
 import { walkDirectory } from "lib/FileUtils";
+import { Playthru, step } from "lib/StoryRunner";
 
 async function go() {
+  const id = "honeytrot";
+  const cartridge = await walkDirectory(__dirname + `/fxt/${id}`);
   const adapter = new WelltaleAdapter();
-  const sources = await adapter.compile(
-    await walkDirectory(__dirname + "/fxt/honeytrot")
-  );
-  console.log(sources[2].stanzas);
+  const playthru: Playthru<WelltaleState> = {
+    id: "1",
+    engine: "",
+    time: Date.now(),
+    turn: 0,
+    seed: "abc",
+    cycle: 0,
+    state: {
+      section: "main.md",
+      cursor: "0.0",
+    },
+    genie: {},
+    beats: [],
+  };
+
+  await step({ id, cartridge }, playthru, "", adapter);
 }
 go();

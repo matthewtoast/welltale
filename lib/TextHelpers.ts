@@ -1,4 +1,7 @@
 import crypto from "crypto";
+import Handlebars from "handlebars";
+import { evalExpr } from "./EvalUtils";
+import { PRNG } from "./RandHelpers";
 
 export const BR = "<br><br>";
 
@@ -121,4 +124,26 @@ export function extractParentheticals(s: string): string[] {
   const parentheticals = s.match(/\(([^)]+)\)/g) || [];
   const cleaned = s.replace(/\(([^)]+)\)/g, "").trim();
   return [...parentheticals.map((s) => s.slice(1, -1).trim()), cleaned.trim()];
+}
+
+export function renderHandlebars(
+  template: string,
+  variables: Record<string, any>,
+  prng: PRNG
+): string {
+  // First pass: process ${...} expressions with evalExpr
+  let preprocessed = template.replace(/\$\{([^}]+)\}/g, (match, expr) => {
+    try {
+      const result = evalExpr(expr.trim(), variables, {}, prng);
+      return String(result);
+    } catch {
+      return match;
+    }
+  });
+
+  // Compile and execute the template with Handlebars
+  const compiledTemplate = Handlebars.compile(preprocessed);
+  const result = compiledTemplate(variables);
+
+  return result;
 }

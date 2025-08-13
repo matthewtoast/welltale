@@ -48,6 +48,18 @@ export function toInt(value: string): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+export function parseNumberOrNull(value: string): number | null {
+  const parsed = Number(value);
+  if (
+    typeof parsed !== "number" ||
+    Number.isNaN(parsed) ||
+    !Number.isFinite(parsed)
+  ) {
+    return null;
+  }
+  return parsed;
+}
+
 export const stringToHash32 = (s: string): number => {
   let hash = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {

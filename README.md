@@ -50,7 +50,7 @@ The main game loop works as follows:
 4. Server creates output beat container; sends beat id to client.
 5. Client begins polling next output beat (static file) for chunks.
 6. (Server starts job to generate chunks for the given output beat.)
-7. Client renders each chunks as it is received, until some kind of end or await-input chunk is reached.
+7. Client renders each chunks as it is received, until some kind of end or input chunk is reached.
 8. Goto 1.
 
 ## Creating Stories

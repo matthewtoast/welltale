@@ -22,14 +22,14 @@ export interface StoryBeat {
 
 export type Cartridge = Record<string, Buffer | string>;
 
-export interface Playthru {
+export interface Playthru<T extends Record<string, TSerial>> {
   id: string;
   engine: string; // Name of preferred playback engine (e.g. Ink)
   time: number; // Real-world Unix time of current game step
   turn: number; // Current turn i.e. game step
   seed: string; // Seed value for PRNG
   cycle: number; // Cycle value for PRNG (to resume at previous point)
-  state: Record<string, TSerial>; // Generic container for any game state
+  state: T; // Generic container for any game state
   genie: Cartridge; // Like Game Genie we can monkeypatch the cartridge
   beats: StoryBeat[]; // Full or truncated history of story beats
 }
@@ -39,18 +39,26 @@ export interface Story {
   cartridge: Cartridge;
 }
 
+export type Op =
+  | { type: "input"; key: string; limit: number | null }
+  | { type: "wait"; duration: number }
+  | { type: "llm-request"; prompt: string; schema: string }
+  | { type: "render-words"; content: string; [key: string]: string | number }
+  | { type: "play-sound"; url: string }
+  | { type: "gen-sound"; prompt: string };
+
 export abstract class PlaybackAdapter {
   abstract step(
     rng: PRNG,
     story: Story,
-    state: Playthru,
+    state: Playthru<any>,
     input: string
-  ): Promise<void>;
+  ): Promise<Op[]>;
 }
 
 export async function step(
   story: Story,
-  state: Playthru,
+  state: Playthru<any>,
   input: string,
   adapter: PlaybackAdapter
 ) {

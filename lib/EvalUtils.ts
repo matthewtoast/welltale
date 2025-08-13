@@ -1,6 +1,6 @@
-import { Parser, type Value as ExprValue } from "expr-eval";
-import { isPresent } from "./TextHelpers";
+import { Parser } from "expr-eval";
 import { PRNG } from "./RandHelpers";
+import { isPresent } from "./TextHelpers";
 
 export type Tag = { name: string; rule: string; args: string[] };
 
@@ -89,9 +89,9 @@ export const rawToTags = (
   });
 };
 
-type Primitive = number | boolean | string | null;
-type EvalResult = Primitive | Primitive[];
-type Scope = Record<string, Extract<ExprValue, Primitive | Primitive[]>>;
+export type Primitive = number | boolean | string | null;
+export type EvalResult = Primitive | Primitive[];
+export type Scope = Record<string, Primitive | Primitive[]>;
 
 type P = number | boolean | string | null;
 type A = P | P[];
@@ -269,15 +269,19 @@ export const stringHelpers: Record<string, (...args: any[]) => P> = {
   length: (v: P) => toStr(v).length,
 };
 
-export const createRandomHelpers = (prng: PRNG): Record<string, (...args: any[]) => P | P[]> => ({
+export const createRandomHelpers = (
+  prng: PRNG
+): Record<string, (...args: any[]) => P | P[]> => ({
   random: () => prng.next(),
   randInt: (min: P, max: P) => prng.getRandomInt(num(min), num(max)),
   randFloat: (min: P, max: P) => prng.getRandomFloat(num(min), num(max)),
   randNormal: (min: P, max: P) => prng.getRandomFloatNormal(num(min), num(max)),
-  randIntNormal: (min: P, max: P) => prng.getRandomIntNormal(num(min), num(max)),
+  randIntNormal: (min: P, max: P) =>
+    prng.getRandomIntNormal(num(min), num(max)),
   coinToss: (prob?: P) => prng.coinToss(prob == null ? 0.5 : num(prob)),
   dice: (sides?: P) => prng.dice(sides == null ? 6 : num(sides)),
-  rollDice: (rolls: P, sides?: P) => prng.rollMultipleDice(num(rolls), sides == null ? 6 : num(sides)),
+  rollDice: (rolls: P, sides?: P) =>
+    prng.rollMultipleDice(num(rolls), sides == null ? 6 : num(sides)),
   randElement: (arr: A) => {
     const t = toArr(arr);
     return t.length ? prng.randomElement(t) : null;
@@ -288,7 +292,9 @@ export const createRandomHelpers = (prng: PRNG): Record<string, (...args: any[])
     const w = toArr(weights);
     if (!w.length) return null;
     const obj: Record<string, number> = {};
-    w.forEach((v, i) => { obj[i.toString()] = num(v ?? 0); });
+    w.forEach((v, i) => {
+      obj[i.toString()] = num(v ?? 0);
+    });
     return Number(prng.weightedRandomKey(obj));
   },
   sample: (arr: A, n: P) => {
@@ -310,7 +316,7 @@ export const evalExpr = (
 ): EvalResult => {
   const parser = getParser(funcs, prng, prev);
   const node = parser.parse(expr);
-  return node.evaluate(vars) as EvalResult;
+  return node.evaluate(vars as any) as EvalResult;
 };
 
 export function getParser(
@@ -319,7 +325,13 @@ export function getParser(
   parser: Parser = new Parser()
 ) {
   const randomHelpers = createRandomHelpers(prng);
-  Object.assign(parser.functions, arrayHelpers, stringHelpers, randomHelpers, funcs);
+  Object.assign(
+    parser.functions,
+    arrayHelpers,
+    stringHelpers,
+    randomHelpers,
+    funcs
+  );
   return parser;
 }
 

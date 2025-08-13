@@ -45,21 +45,19 @@ content:
 
 # main
 
-<audio gen="modern high tech spy thriller intro music, subtle, intriguing" background="true">
+<sound gen="modern high tech spy thriller intro music, subtle, intriguing" background="true" />
 
-<wait for="2s">
+<wait for="2000"/>
 
 ## intro
 
 You're playing Honeytrot, by Matthew Trost.
 
-<audio fade-out>
-
 ## get name
 
 Before we begin, what's your first name?
 
-<input to="maybeName">
+<input to="maybeName" />
 
 <llm to="validName">
   {{real_name}}
@@ -70,7 +68,7 @@ Before we begin, what's your first name?
 
 What will be your alias?
 
-<input to="maybeAlias">
+<input to="maybeAlias" />
 
 <llm to="validAlias">
   {{real_name}}
@@ -79,16 +77,16 @@ What will be your alias?
 
 <if cond="validAlias == validName">
   Sorry. Your alias must be different than your real name.
-  <go to="get alias">
+  <go to="get alias" />
 </if>
 
-<set op="draw(codenames)" to="validCodename">
+<set op="draw(codenames)" to="validCodename"></set>
 
 Host: All right, {{validName}}. Your alias is {{validAlias}}. You've been assigned the code name {{validCodename}}. Let's begin.
 
 ## intro
 
-<audio gen="birds chirping in a public park" background="true">
+<sound gen="birds chirping in a public park" background="true" />
 
 Robert: I'm sorry about the short notice, but this is urgent. Let's to the chase, {{validName}}. Were you already debriefed?
 
@@ -100,17 +98,17 @@ Robert: I'm sorry about the short notice, but this is urgent. Let's to the chase
 
 <if cond="wasDebriefed">
 
-<go to="skip debrief">
+<go to="skip debrief" />
 
 </if>
 
-<go to="hear debrief">
+<go to="hear debrief" />
 
 ### skip debrief
 
 Robert: Good. I'll skip the detail then. Just remember - you _must_ get Warner to say all nine words. Any questions?
 
-<go to="asking questions">
+<go to="asking questions" />
 
 ### hear debrief
 
@@ -118,7 +116,7 @@ Robert: {{debriefing_main}}
 
 Robert: All right, I think that covers it. Any questions? | I think that's all. Do you have questions?
 
-<go to="asking questions">
+<go to="asking questions" />
 
 {{> asking-questions}}
 
