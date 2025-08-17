@@ -147,3 +147,13 @@ export function renderHandlebars(
 
   return result;
 }
+
+export function generatePredictableKey(
+  prefix: string,
+  prompt: string,
+  suffix: string
+): string {
+  const slug = slugify(prompt).substring(0, 32);
+  const hash = sha1(prompt).substring(0, 8);
+  return `${prefix}/${slug}-${hash}.${suffix}`;
+}

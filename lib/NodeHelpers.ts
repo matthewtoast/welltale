@@ -16,6 +16,7 @@ export type Node = {
   atts: Record<string, string>;
   kids: Node[];
   text: string;
+  parent: Node | null;
 };
 
 export function traverseNodeTree(
@@ -144,9 +145,24 @@ export function shouldContainOnlyText(node: HastNode) {
   return !hierarchical;
 }
 
-export function hastNodeToNodeInfo(node: HastNode, id: string): Node {
+export function hastNodeToNodeInfo(
+  node: HastNode,
+  id: string,
+  parent: Node | null = null
+): Node {
+  // Create the node first without kids
+  const result: Node = {
+    id,
+    tag: "",
+    atts: {},
+    text: "",
+    kids: [],
+    parent,
+  };
+
+  // Now create kids with this node as parent
   const kids = (node.children ?? []).map((hn, nidx) =>
-    hastNodeToNodeInfo(hn, `${id}.${nidx}`)
+    hastNodeToNodeInfo(hn, `${id}.${nidx}`, result)
   );
 
   let text = node.value ?? "";
@@ -188,11 +204,128 @@ export function hastNodeToNodeInfo(node: HastNode, id: string): Node {
       }
     }
   }
-  return {
-    id,
-    tag: node.tagName ?? node.type,
-    atts,
-    text,
-    kids,
-  };
+  // Update the result with the final values
+  result.tag = node.tagName ?? node.type;
+  result.atts = atts;
+  result.text = text;
+  result.kids = kids;
+
+  return result;
+}
+
+export function skipBlock(
+  blockNode: Node,
+  section: Section
+): { node: Node; section: Section } | null {
+  // Skip past the entire block by going to its next sibling
+  return nextNode(blockNode, section, false);
+}
+
+export function nextNode(
+  curr: Node,
+  section: Section,
+  useKids: boolean
+): { node: Node; section: Section } | null {
+  // If useKids is true and current node has children, go to first child
+  if (useKids && curr.kids.length > 0) {
+    return { node: curr.kids[0], section };
+  }
+
+  // Find the next sibling by traversing up the tree
+  let current = curr;
+  let parent = current.parent;
+
+  while (parent) {
+    // Find current node's position in parent's children
+    const siblingIndex = parent.kids.findIndex(
+      (child) => child.id === current.id
+    );
+
+    // If there's a next sibling, return it
+    if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
+      const nextSibling = parent.kids[siblingIndex + 1];
+
+      // Special case: if we're leaving a when block and next sibling is also when,
+      // skip to parent's next (exit the case)
+      if (current.tag === "when" && nextSibling.tag === "when") {
+        current = parent;
+        parent = parent.parent;
+        continue;
+      }
+
+      return { node: nextSibling, section };
+    }
+
+    // No next sibling, move up to parent and continue
+    current = parent;
+    parent = parent.parent;
+  }
+
+  // Reached the root with no next sibling found
+  return null;
+}
+
+export function searchInSection(
+  section: Section,
+  searchTerm: string
+): Node | null {
+  return findNode(section.root, (node) => {
+    // 1. Exact node ID match
+    if (node.id === searchTerm) return true;
+
+    // 2. Attribute ID match
+    if (node.atts.id === searchTerm) return true;
+
+    // 3. Heading text match (case insensitive)
+    if (/^h[1-6]$/.test(node.tag)) {
+      const headingText = node.text.trim().toLowerCase();
+      if (headingText === searchTerm.toLowerCase()) return true;
+
+      // 4. Slugified heading match
+      const slugified = headingText
+        .replace(/[^\w\s-]/g, "") // Remove special chars except spaces and hyphens
+        .replace(/\s+/g, "-") // Replace spaces with hyphens
+        .toLowerCase();
+      if (slugified === searchTerm.toLowerCase()) return true;
+    }
+
+    return false;
+  });
+}
+
+export function searchNode(
+  sections: Section[],
+  currentSection: Section,
+  flex: string | null | undefined
+): { node: Node; section: Section } | null {
+  if (!flex || isBlank(flex)) {
+    return null;
+  }
+
+  // Parse scoped identifier like "blah.md.0.0.12"
+  const scopedMatch = flex.match(/^(.+\.md)\.(.+)$/);
+  if (scopedMatch) {
+    const [, sectionPath, nodeId] = scopedMatch;
+    const targetSection = sections.find((s) => s.path === sectionPath);
+    if (targetSection) {
+      const node = searchInSection(targetSection, nodeId);
+      if (node) return { node, section: targetSection };
+    }
+    return null;
+  }
+
+  // Search starting with current section, then others
+  const sectionsToSearch = [
+    currentSection,
+    ...sections.filter((s) => s.path !== currentSection.path),
+  ];
+
+  for (const section of sectionsToSearch) {
+    const node = searchInSection(section, flex);
+    if (node) {
+      return { node, section };
+    }
+  }
+
+  return null;
 }

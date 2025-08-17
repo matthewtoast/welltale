@@ -1,8 +1,5 @@
 # Instructions
 
-Read the @README.md first.
-Then run `git log --oneline -10`.
-
 ## General
 
 - Keep code simple, minimal, and DRY
@@ -11,16 +8,23 @@ Then run `git log --oneline -10`.
 - Don't add comments
 - Don't add console.log(), print(), etc
 - Ask clarifying questions before making changes
+- Use pure functions with explicit arguments
+- Prefer early return over conditional
+- Array properties should default to empty arrays, not nil
+- Prefer libraries' actual types over writing your own
+- Don't create classes (unless instructed)
+- When researching APIs and docs, use latest content (2025)
+- Put reusable/generit utility functions in separate files
 
 ## JavaScript & TypeScript
 
 - Use yarn (not npm)
+- Check for type errors after making changes
 - Use function declaration style (`function foo() {...}`)
 - Don't use 'any' type
-- Run "yarn typecheck" after making changes
+- Don't add try/catch blocks
+- Don't throw; instead, log warning and return null
 
 ## Swift & iOS
 
-- Array properties should default to empty arrays, not nil
 - Use computed properties for complex data storage in SwiftData models
-- Prefer non-optional arrays

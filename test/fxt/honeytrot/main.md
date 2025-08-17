@@ -80,7 +80,7 @@ What will be your alias?
   <go to="get alias" />
 </if>
 
-<set op="draw(codenames)" to="validCodename"></set>
+<set op="randElement(codenames)" to="validCodename"></set>
 
 Host: All right, {{validName}}. Your alias is {{validAlias}}. You've been assigned the code name {{validCodename}}. Let's begin.
 
