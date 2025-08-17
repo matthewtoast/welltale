@@ -2,8 +2,10 @@ import { parseTaggedSpeakerLine } from "lib/DialogHelpers";
 import { autoFindPresetVoice } from "lib/ElevenLabsUtils";
 import { evalExpr } from "lib/EvalUtils";
 import { simplifySchema } from "lib/JSONHelpers";
+import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
 import { parseSchemaString } from "lib/SchemaParser";
+import { sha1, slugify, parameterize, isBlank, generatePredictableKey } from "lib/TextHelpers";
 import zodToJsonSchema from "zod-to-json-schema";
 import { expect } from "./TestUtils";
 
@@ -108,6 +110,30 @@ async function test() {
     autoFindPresetVoice("", ["nonexistent", "tags"]),
     "21m00Tcm4TlvDq8ikWAM"
   );
+
+  // TextHelpers tests
+  expect(sha1("hello"), "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
+  expect(slugify("Hello World! @#$"), "Hello_World_");
+  expect(slugify("test spaces", "-"), "test-spaces");
+  expect(parameterize("Hello-World_123!"), "Hello_World_123_");
+  expect(isBlank(""), true);
+  expect(isBlank("  "), true);
+  expect(isBlank("content"), false);
+  expect(isBlank([]), true);
+  expect(isBlank(["item"]), false);
+  expect(isBlank({}), true);
+  expect(isBlank({ key: "value" }), false);
+  expect(
+    generatePredictableKey("test", "hello world", "txt"),
+    "test/hello_world-2aae6c35.txt"
+  );
+
+  // MathHelpers tests  
+  expect(parseNumberOrNull("42"), 42);
+  expect(parseNumberOrNull("3.14"), 3.14);
+  expect(parseNumberOrNull("invalid"), null);
+  expect(parseNumberOrNull(""), null);
+  expect(parseNumberOrNull("  123  "), 123);
 }
 
 test();
