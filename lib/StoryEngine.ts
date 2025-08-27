@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import { evalExpr } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import {
@@ -11,6 +12,7 @@ import {
 } from "lib/NodeHelpers";
 import { PRNG } from "lib/RandHelpers";
 import { cleanSplit, isBlank, renderHandlebars } from "lib/TextHelpers";
+import { omit } from "lodash";
 import { TScalar } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
@@ -97,12 +99,25 @@ export type OP =
   | { type: "play-sound"; audio: string }
   | { type: "play-line"; audio: string; speaker: string; line: string };
 
+export type AdvanceOptions = {
+  mode: StepMode;
+  verbose: boolean;
+  doGenerateSpeech: boolean;
+  doGenerateSounds: boolean;
+};
+
 export async function advance(
   provider: ServiceProvider,
   story: Story,
   playthru: Playthru,
-  mode: StepMode = StepMode.SINGLE
+  options: AdvanceOptions
 ) {
+  function log(...args: any[]) {
+    if (options.verbose) {
+      console.info(chalk.gray(...args.map((a) => JSON.stringify(a, null, 2))));
+    }
+  }
+
   const out: OP[] = [];
 
   const rng = new PRNG(playthru.seed, playthru.cycle % 10_000);
@@ -112,17 +127,29 @@ export async function advance(
   const sections = await compile(story.cartridge);
   const { state } = playthru;
   state[state.__inputKey] = state.input;
-  playthru.history.push(createEvent(PLAYER_ID, state.input));
+  if (!isBlank(state.input)) {
+    playthru.history.push(createEvent(PLAYER_ID, state.input));
+  }
+
+  log(
+    `ADVANCE:`,
+    story.id,
+    state.input,
+    options.mode,
+    omit(playthru, "history")
+  );
 
   while (true) {
     let section = sections.find((s) => s.path === state.__section);
     if (!section) {
+      console.warn(`Section ${state.__section} not found`);
       break;
     }
     let node: Node | null = section
       ? findNode(section.root, (n) => n.id === state.__cursor)
       : null;
     if (!node) {
+      console.warn(`Node ${state.__cursor} not found in ${section.path}`);
       break;
     }
 
@@ -148,7 +175,10 @@ export async function advance(
       }
     }
 
+    log(`NODE:`, `${section.path} <${node.tag} ${node.id}>${renderedText}</>`);
+
     const context: ActionContext = {
+      options,
       node,
       section,
       sections,
@@ -169,13 +199,15 @@ export async function advance(
         state.__cursor = DEFAULT_CURSOR;
         state.__section = DEFAULT_SECTION;
       }
+      log("STOP-BEFORE:", state.__section, state.__cursor);
       break;
     }
 
-    const handler = ACTION_HANDLERS.find((h) => h.match(node));
-    const result = await handler!.execute(context, provider);
-
+    const handler = ACTION_HANDLERS.find((h) => h.match(node))!;
+    const result = await handler.execute(context, provider);
     out.push(...result.ops);
+
+    log(`ACTION (${handler.type}) result:`, result.ops);
 
     // Update cursor position
     if (result.next) {
@@ -198,20 +230,30 @@ export async function advance(
     if (renderedAttributes.stopAfter || handler?.type === ActionType.STOP) {
       break;
     }
-
     const shouldContinue = !handler || handler.type === ActionType.SYNC;
-    if (!shouldContinue) break;
-    if (mode === StepMode.SINGLE) break;
+    if (!shouldContinue) {
+      break;
+    }
+    if (options.mode === StepMode.SINGLE) {
+      break;
+    }
     if (
-      mode === StepMode.UNTIL_CLIENT &&
+      options.mode === StepMode.UNTIL_CLIENT &&
       handler?.type === ActionType.CLIENT_DEPENDENT
-    )
+    ) {
       break;
-    if (mode === StepMode.UNTIL_BLOCKING && handler?.type !== ActionType.SYNC)
+    }
+    if (
+      options.mode === StepMode.UNTIL_BLOCKING &&
+      handler?.type !== ActionType.SYNC
+    ) {
       break;
+    }
   }
 
   playthru.cycle = rng.cycle;
+
+  log("DONE:", out);
 
   return out;
 }
@@ -231,6 +273,7 @@ export async function compile(cartridge: Cartridge) {
 }
 
 export interface ActionContext {
+  options: AdvanceOptions;
   node: Node;
   section: Section;
   sections: Section[];
@@ -315,7 +358,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     execute: async (ctx, provider) => {
       const prompt = ctx.text ?? ctx.atts.prompt ?? "";
       if (!isBlank(prompt)) {
-        const { url } = await provider.generateSound(prompt);
+        const { url } = ctx.options.doGenerateSounds
+          ? await provider.generateSound(prompt)
+          : { url: "" };
         return {
           ops: [{ type: "play-sound", audio: url }],
           next: nextNode(ctx.node, ctx.section, false),
@@ -456,13 +501,25 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    type: ActionType.SYNC,
+    match: (node: Node) => node.tag.startsWith("h"), // <h*>, <header>, <head>, <hr>
+    execute: async (ctx) => {
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, false),
+      };
+    },
+  },
+  {
     type: ActionType.ASYNC_BLOCKING,
     match: (node: Node) => node.tag === "text" || node.tag === "p",
     execute: async (ctx, provider) => {
       const ops: OP[] = [];
       if (!isBlank(ctx.text)) {
         const line = parseTaggedSpeakerLine(ctx.text);
-        const { url } = await provider.generateSpeech(line);
+        const { url } = ctx.options.doGenerateSpeech
+          ? await provider.generateSpeech(line)
+          : { url: "" };
         ops.push({
           type: "play-line",
           audio: url,
@@ -555,6 +612,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     execute: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, false),
+    }),
+  },
+  {
+    type: ActionType.SYNC,
+    match: (node) => node.tag === "root",
+    execute: async (ctx) => ({
+      ops: [],
+      next: nextNode(ctx.node, ctx.section, true),
     }),
   },
   {

@@ -9,8 +9,8 @@ import {
   generateSpeechClip,
 } from "./ElevenLabsUtils";
 import { generateJson } from "./OpenAIUtils";
-import { parseSchemaString } from "./SchemaParser";
 import { generatePredictableKey } from "./TextHelpers";
+import { parseSchemaString } from "./ZodHelpers";
 
 export interface ServiceProvider {
   generateJson(prompt: string, schema: string): Promise<Record<string, any>>;
@@ -42,9 +42,9 @@ export class DefaultServiceProvider implements ServiceProvider {
         const zodSchema = parseSchemaString(schema);
         const result = await generateJson(
           this.config.openai,
-          prompt,
+          `${prompt}\n\nReturn only JSON per the schema:`,
           zodSchema,
-          "gpt-4o"
+          "gpt-4.1"
         );
         if (!result) {
           console.warn("Failed to generate completion");

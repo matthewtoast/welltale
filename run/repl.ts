@@ -67,7 +67,7 @@ const provider = new DefaultServiceProvider({
   eleven: new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY! }),
   s3: new S3Client({ region: process.env.AWS_REGION! }),
   openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
-  bucket: "welltale-storage",
+  bucket: "welltale-dev",
 });
 
 async function start(basedir: string) {
@@ -89,7 +89,12 @@ async function start(basedir: string) {
       if (!isBlank(fixed)) {
         playthru.state.input = fixed;
       }
-      const ops = await advance(provider, story, playthru, StepMode.SINGLE);
+      const ops = await advance(provider, story, playthru, {
+        mode: StepMode.UNTIL_CLIENT,
+        verbose: true,
+        doGenerateSpeech: false,
+        doGenerateSounds: false,
+      });
       savePlaythru(playthru, playthruAbspath);
       function render() {
         for (let i = 0; i < ops.length; i++) {
