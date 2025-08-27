@@ -90,7 +90,7 @@ async function start(basedir: string) {
         playthru.state.input = fixed;
       }
       const ops = await advance(provider, story, playthru, {
-        mode: StepMode.UNTIL_CLIENT,
+        mode: StepMode.UNTIL_WAITING,
         verbose: true,
         doGenerateSpeech: false,
         doGenerateSounds: false,

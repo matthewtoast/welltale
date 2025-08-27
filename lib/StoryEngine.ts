@@ -20,10 +20,11 @@ import { ServiceProvider } from "./ServiceProvider";
 export const DEFAULT_SECTION = "main.md";
 export const DEFAULT_CURSOR = "0";
 export const PLAYER_ID = "player";
+export const FALLBACK_SPEAKER = "host";
 
 export enum StepMode {
   SINGLE = "single",
-  UNTIL_CLIENT = "until_client",
+  UNTIL_WAITING = "until_waiting",
   UNTIL_BLOCKING = "until_blocking",
 }
 
@@ -106,6 +107,10 @@ export type AdvanceOptions = {
   doGenerateSounds: boolean;
 };
 
+function shouldJsonify(a: any) {
+  return Array.isArray(a) || (a && typeof a === "object");
+}
+
 export async function advance(
   provider: ServiceProvider,
   story: Story,
@@ -114,7 +119,13 @@ export async function advance(
 ) {
   function log(...args: any[]) {
     if (options.verbose) {
-      console.info(chalk.gray(...args.map((a) => JSON.stringify(a, null, 2))));
+      console.info(
+        chalk.gray(
+          ...args.map((a) =>
+            shouldJsonify(a) ? JSON.stringify(a, null, 2) : a
+          )
+        )
+      );
     }
   }
 
@@ -131,13 +142,7 @@ export async function advance(
     playthru.history.push(createEvent(PLAYER_ID, state.input));
   }
 
-  log(
-    `ADVANCE:`,
-    story.id,
-    state.input,
-    options.mode,
-    omit(playthru, "history")
-  );
+  log(`ADV`, story.id, state.input, options.mode, omit(playthru, "history"));
 
   while (true) {
     let section = sections.find((s) => s.path === state.__section);
@@ -175,7 +180,7 @@ export async function advance(
       }
     }
 
-    log(`NODE:`, `${section.path} <${node.tag} ${node.id}>${renderedText}</>`);
+    log(`NODE`, `${section.path} <${node.tag} ${node.id}>${renderedText}</>`);
 
     const context: ActionContext = {
       options,
@@ -199,7 +204,6 @@ export async function advance(
         state.__cursor = DEFAULT_CURSOR;
         state.__section = DEFAULT_SECTION;
       }
-      log("STOP-BEFORE:", state.__section, state.__cursor);
       break;
     }
 
@@ -207,7 +211,7 @@ export async function advance(
     const result = await handler.execute(context, provider);
     out.push(...result.ops);
 
-    log(`ACTION (${handler.type}) result:`, result.ops);
+    log(`ACT (${result.flow})`, result.ops);
 
     // Update cursor position
     if (result.next) {
@@ -226,26 +230,30 @@ export async function advance(
       }
     }
 
-    // Check for stopAfter attribute or stop tag
-    if (renderedAttributes.stopAfter || handler?.type === ActionType.STOP) {
+    // Check for stopAfter attribute
+    if (renderedAttributes.stopAfter) {
       break;
     }
-    const shouldContinue = !handler || handler.type === ActionType.SYNC;
-    if (!shouldContinue) {
+
+    // Check flow type and mode
+    if (result.flow === FlowType.BLOCKING) {
       break;
     }
+
     if (options.mode === StepMode.SINGLE) {
       break;
     }
+
     if (
-      options.mode === StepMode.UNTIL_CLIENT &&
-      handler?.type === ActionType.CLIENT_DEPENDENT
+      options.mode === StepMode.UNTIL_WAITING &&
+      result.flow === FlowType.WAITING
     ) {
       break;
     }
+
     if (
       options.mode === StepMode.UNTIL_BLOCKING &&
-      handler?.type !== ActionType.SYNC
+      result.flow !== FlowType.CONTINUE
     ) {
       break;
     }
@@ -253,7 +261,7 @@ export async function advance(
 
   playthru.cycle = rng.cycle;
 
-  log("DONE:", out);
+  log("DONE", out);
 
   return out;
 }
@@ -284,20 +292,19 @@ export interface ActionContext {
   text: string;
 }
 
+export enum FlowType {
+  CONTINUE = "continue",
+  BLOCKING = "blocking",
+  WAITING = "waiting",
+}
+
 export interface ActionResult {
   ops: OP[];
   next: { node: Node; section: Section } | null;
-}
-
-export enum ActionType {
-  SYNC = "sync",
-  ASYNC_BLOCKING = "async_blocking",
-  CLIENT_DEPENDENT = "client_dependent",
-  STOP = "stop",
+  flow: FlowType;
 }
 
 interface ActionHandler {
-  type: ActionType;
   match: (node: Node) => boolean;
   execute: (
     context: ActionContext,
@@ -307,7 +314,6 @@ interface ActionHandler {
 
 export const ACTION_HANDLERS: ActionHandler[] = [
   {
-    type: ActionType.CLIENT_DEPENDENT,
     match: (node: Node) => node.tag === "input",
     execute: async (ctx) => ({
       ops: [
@@ -318,10 +324,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         },
       ],
       next: nextNode(ctx.node, ctx.section, false),
+      flow: FlowType.WAITING,
     }),
   },
   {
-    type: ActionType.ASYNC_BLOCKING,
     match: (node: Node) => node.tag === "llm",
     execute: async (ctx, provider) => {
       let schema = ctx.atts.to ?? ctx.atts.schema;
@@ -336,11 +342,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.BLOCKING,
       };
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "sound" && !!node.atts.url,
     execute: async (ctx) => ({
       ops: [
@@ -350,10 +356,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         },
       ],
       next: nextNode(ctx.node, ctx.section, false),
+      flow: FlowType.CONTINUE,
     }),
   },
   {
-    type: ActionType.ASYNC_BLOCKING,
     match: (node: Node) => node.tag === "sound" && !!node.atts.gen,
     execute: async (ctx, provider) => {
       const prompt = ctx.text ?? ctx.atts.prompt ?? "";
@@ -364,16 +370,17 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return {
           ops: [{ type: "play-sound", audio: url }],
           next: nextNode(ctx.node, ctx.section, false),
+          flow: FlowType.BLOCKING,
         };
       }
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.BLOCKING,
       };
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "wait",
     execute: async (ctx) => ({
       ops: [
@@ -383,10 +390,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         },
       ],
       next: nextNode(ctx.node, ctx.section, false),
+      flow: FlowType.CONTINUE,
     }),
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "go",
     execute: async (ctx) => {
       let next;
@@ -398,11 +405,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next,
+        flow: FlowType.CONTINUE,
       };
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "case",
     execute: async (ctx) => {
       // Find first when child where cond is true
@@ -416,11 +423,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               return {
                 ops: [],
                 next: { node: child.kids[0], section: ctx.section },
+                flow: FlowType.CONTINUE,
               };
             } else {
               return {
                 ops: [],
                 next: nextNode(child, ctx.section, false),
+                flow: FlowType.CONTINUE,
               };
             }
           }
@@ -430,11 +439,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.CONTINUE,
       };
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "when",
     execute: async (ctx) => {
       // When encountered directly (not via case), check condition
@@ -444,18 +453,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return {
           ops: [],
           next: nextNode(ctx.node, ctx.section, true),
+          flow: FlowType.CONTINUE,
         };
       } else {
         // Skip to next sibling
         return {
           ops: [],
           next: nextNode(ctx.node, ctx.section, false),
+          flow: FlowType.CONTINUE,
         };
       }
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "if",
     execute: async (ctx) => {
       let next;
@@ -470,11 +480,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next,
+        flow: FlowType.CONTINUE,
       };
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "set",
     execute: async (ctx) => {
       ctx.state[ctx.atts.var ?? ctx.atts.to] = evalExpr(
@@ -486,72 +496,77 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.CONTINUE,
       };
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "code",
     execute: async (ctx) => {
       evalExpr(ctx.text, ctx.state, {}, ctx.rng);
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.CONTINUE,
       };
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag.startsWith("h"), // <h*>, <header>, <head>, <hr>
     execute: async (ctx) => {
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.CONTINUE,
       };
     },
   },
   {
-    type: ActionType.ASYNC_BLOCKING,
     match: (node: Node) => node.tag === "text" || node.tag === "p",
     execute: async (ctx, provider) => {
+      const next = nextNode(ctx.node, ctx.section, false);
       const ops: OP[] = [];
-      if (!isBlank(ctx.text)) {
-        const line = parseTaggedSpeakerLine(ctx.text);
-        const { url } = ctx.options.doGenerateSpeech
-          ? await provider.generateSpeech(line)
-          : { url: "" };
-        ops.push({
-          type: "play-line",
-          audio: url,
-          speaker: line.speaker,
-          line: line.line,
-        });
-        const to: string[] = ctx.node.atts["to"]
-          ? cleanSplit(ctx.node.atts["to"], ",")
-          : [PLAYER_ID];
-        const obs: string[] = ctx.node.atts["obs"]
-          ? cleanSplit(ctx.node.atts["to"], ",")
-          : [];
-        ctx.playthru.history.push(
-          createEvent(line.speaker, line.line, to, obs)
-        );
+      // Skip spurious empty nodes
+      if (isBlank(ctx.text)) {
+        return {
+          ops,
+          next,
+          flow: FlowType.CONTINUE,
+        };
       }
+      const line = parseTaggedSpeakerLine(ctx.text);
+      const { url } = ctx.options.doGenerateSpeech
+        ? await provider.generateSpeech(line)
+        : { url: "" };
+      ops.push({
+        type: "play-line",
+        audio: url,
+        speaker: line.speaker,
+        line: line.line,
+      });
+      const to: string[] = ctx.node.atts["to"]
+        ? cleanSplit(ctx.node.atts["to"], ",")
+        : [PLAYER_ID];
+      const obs: string[] = ctx.node.atts["obs"]
+        ? cleanSplit(ctx.node.atts["to"], ",")
+        : [];
+      ctx.playthru.history.push(createEvent(line.speaker, line.line, to, obs));
       return {
         ops,
-        next: nextNode(ctx.node, ctx.section, false),
+        next,
+        flow: FlowType.BLOCKING,
       };
     },
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "block",
     execute: async (ctx) => ({
       ops: [],
       next: skipBlock(ctx.node, ctx.section),
+      flow: FlowType.CONTINUE,
     }),
   },
   {
-    type: ActionType.SYNC,
     match: (node: Node) => node.tag === "yield",
     execute: async (ctx) => {
       const targetBlockId = ctx.atts.to;
@@ -560,6 +575,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return {
           ops: [],
           next: nextNode(ctx.node, ctx.section, false),
+          flow: FlowType.CONTINUE,
         };
       }
       // Find the target block
@@ -568,6 +584,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return {
           ops: [],
           next: nextNode(ctx.node, ctx.section, false),
+          flow: FlowType.CONTINUE,
         };
       }
       // Determine return address
@@ -597,37 +614,39 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             node: blockResult.node.kids[0],
             section: blockResult.section,
           },
+          flow: FlowType.CONTINUE,
         };
       } else {
         return {
           ops: [],
           next: nextNode(blockResult.node, blockResult.section, false),
+          flow: FlowType.CONTINUE,
         };
       }
     },
   },
   {
-    type: ActionType.STOP,
     match: (node: Node) => node.tag === "stop",
     execute: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, false),
+      flow: FlowType.BLOCKING,
     }),
   },
   {
-    type: ActionType.SYNC,
     match: (node) => node.tag === "root",
     execute: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, true),
+      flow: FlowType.CONTINUE,
     }),
   },
   {
-    type: ActionType.SYNC,
     match: () => true,
     execute: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, false),
+      flow: FlowType.CONTINUE,
     }),
   },
 ];
