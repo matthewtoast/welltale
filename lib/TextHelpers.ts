@@ -41,7 +41,7 @@ export const COMMA_RE = /[、,]/;
 
 export function isBlank(v: any) {
   if (typeof v === "string") {
-    return v.match(/^\s*$/);
+    return /^\s*$/.test(v);
   }
   if (Array.isArray(v)) {
     return v.length < 1;
@@ -62,22 +62,15 @@ export function removeLeading(t: string, c: string): string {
   return t;
 }
 
-export function cleanLines(s: string) {
+export function cleanSplit(s: string, sep: string = "\n") {
   return s
-    .split("\n")
+    .split(sep)
     .map((s) => s.trim())
     .filter((s) => !!s);
 }
 
 export function stripHTMLTags(str: string) {
   return str.replace(/<[^>]*>/g, "");
-}
-
-export function splitAsCleanLines(s: string) {
-  return s
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(isPresent);
 }
 
 export function randAlphaNum() {

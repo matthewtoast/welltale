@@ -1,6 +1,6 @@
+import { S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { OpenAI } from "openai";
-import { z } from "zod";
 import { getOrCreateObject } from "./AWSUtils";
 import { TaggedLine } from "./DialogHelpers";
 import {
@@ -8,80 +8,43 @@ import {
   generateSoundEffect,
   generateSpeechClip,
 } from "./ElevenLabsUtils";
-import { fetchCompletionJson } from "./OpenAIUtils";
+import { generateJson } from "./OpenAIUtils";
 import { parseSchemaString } from "./SchemaParser";
 import { generatePredictableKey } from "./TextHelpers";
 
 export interface ServiceProvider {
-  generateCompletionJson(
-    prompt: string,
-    schema: string
-  ): Promise<Record<string, any>>;
-  generateSoundEffect(prompt: string): Promise<{ url: string }>;
+  generateJson(prompt: string, schema: string): Promise<Record<string, any>>;
+  generateSound(prompt: string): Promise<{ url: string }>;
   generateSpeech(line: TaggedLine): Promise<{ url: string }>;
 }
 
-export class StubServiceProvider implements ServiceProvider {
-  async generateCompletionJson(
-    prompt: string,
-    schema: string
-  ): Promise<Record<string, any>> {
-    const zodSchema = parseSchemaString(schema);
-    const schemaShape = zodSchema.shape;
-    const result: Record<string, any> = {};
-    for (const [key, value] of Object.entries(schemaShape)) {
-      if (value instanceof z.ZodString) {
-        result[key] = `stub_${key}_value`;
-      } else if (value instanceof z.ZodNumber) {
-        result[key] = 42;
-      } else if (value instanceof z.ZodBoolean) {
-        result[key] = true;
-      } else if (value instanceof z.ZodArray) {
-        result[key] = ["stub_item_1", "stub_item_2"];
-      } else {
-        result[key] = `stub_${key}`;
-      }
-    }
-    return result;
-  }
-
-  async generateSoundEffect(prompt: string): Promise<{ url: string }> {
-    const key = generatePredictableKey("sound-effects", prompt, "mp3");
-    return { url: `https://stub-audio.test/${key}` };
-  }
-
-  async generateSpeech(line: TaggedLine): Promise<{ url: string }> {
-    const prompt = `${line.speaker}:${line.tags.join(",")}:${line.line}`;
-    const key = generatePredictableKey("speech", prompt, "mp3");
-    return { url: `https://stub-audio.test/${key}` };
-  }
+export interface ServiceProviderConfig {
+  openai: OpenAI;
+  eleven: ElevenLabsClient;
+  s3: S3Client;
+  bucket: string;
 }
 
-export class RealServiceProvider implements ServiceProvider {
-  constructor(
-    public openai: OpenAI,
-    public elevenlabs: ElevenLabsClient,
-    public region: string,
-    public bucket: string
-  ) {}
+export class DefaultServiceProvider implements ServiceProvider {
+  constructor(public config: ServiceProviderConfig) {}
 
-  async generateCompletionJson(
+  async generateJson(
     prompt: string,
     schema: string
   ): Promise<Record<string, any>> {
     const cacheKey = `${prompt}\n---SCHEMA---\n${schema}`;
     const key = generatePredictableKey("json", cacheKey, "json");
     const url = await getOrCreateObject(
-      this.region,
-      this.bucket,
+      this.config.s3,
+      this.config.bucket,
       key,
       async () => {
         const zodSchema = parseSchemaString(schema);
-        const result = await fetchCompletionJson(
-          this.openai,
+        const result = await generateJson(
+          this.config.openai,
           prompt,
-          "gpt-4o",
-          zodSchema
+          zodSchema,
+          "gpt-4o"
         );
         if (!result) {
           console.warn("Failed to generate completion");
@@ -96,15 +59,15 @@ export class RealServiceProvider implements ServiceProvider {
     return await response.json();
   }
 
-  async generateSoundEffect(prompt: string): Promise<{ url: string }> {
+  async generateSound(prompt: string): Promise<{ url: string }> {
     const key = generatePredictableKey("sfx", prompt, "mp3");
     const url = await getOrCreateObject(
-      this.region,
-      this.bucket,
+      this.config.s3,
+      this.config.bucket,
       key,
       async () => {
         return await generateSoundEffect({
-          client: this.elevenlabs,
+          client: this.config.eleven,
           text: prompt,
           durationSeconds: 5,
         });
@@ -119,12 +82,12 @@ export class RealServiceProvider implements ServiceProvider {
     const prompt = `${line.speaker}:${line.tags.join(",")}:${line.line}`;
     const key = generatePredictableKey("vox", prompt, "mp3");
     const url = await getOrCreateObject(
-      this.region,
-      this.bucket,
+      this.config.s3,
+      this.config.bucket,
       key,
       async () => {
         return await generateSpeechClip({
-          client: this.elevenlabs,
+          client: this.config.eleven,
           voiceId,
           text: line.line,
         });

@@ -10,13 +10,14 @@ import {
   skipBlock,
 } from "lib/NodeHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { isBlank, renderHandlebars } from "lib/TextHelpers";
+import { cleanSplit, isBlank, renderHandlebars } from "lib/TextHelpers";
 import { TScalar } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
 
 export const DEFAULT_SECTION = "main.md";
 export const DEFAULT_CURSOR = "0";
+export const PLAYER_ID = "player";
 
 export enum StepMode {
   SINGLE = "single",
@@ -28,20 +29,61 @@ export type Cartridge = Record<string, Buffer | string>;
 
 export interface Playthru {
   id: string;
-  engine: string; // Name of preferred playback engine (e.g. Ink)
   time: number; // Real-world Unix time of current game step
   turn: number; // Current turn i.e. game step
   seed: string; // Seed value for PRNG
   cycle: number; // Cycle value for PRNG (to resume at previous point)
   state: {
-    input: string;
-    section: string;
-    cursor: string;
+    // Protected
+    __section: string;
+    __cursor: string;
     __inputKey: string;
     __callStack: string[];
+    // Public
+    input: string;
     [key: string]: TScalar | TScalar[];
   };
-  genie: Cartridge; // Like Game Genie we can monkeypatch the cartridge
+  history: StoryEvent[];
+  genie?: Cartridge; // Like Game Genie we can monkeypatch the cartridge
+}
+
+export type StoryEvent = {
+  time: number;
+  from: string;
+  to: string[];
+  obs: string[];
+  body: string;
+};
+
+export function createEvent(
+  from: string,
+  body: string,
+  to: string[] = [],
+  obs: string[] = [],
+  time: number = Date.now()
+): StoryEvent {
+  return { from, body, to, obs, time };
+}
+
+export function createDefaultPlaythru(
+  id: string,
+  seed: string = Math.random().toString(36).slice(2)
+): Playthru {
+  return {
+    id,
+    time: Date.now(),
+    turn: 0,
+    seed,
+    cycle: 0,
+    state: {
+      input: "",
+      __section: DEFAULT_SECTION,
+      __cursor: DEFAULT_CURSOR,
+      __inputKey: "input",
+      __callStack: [],
+    },
+    history: [],
+  };
 }
 
 export interface Story {
@@ -70,14 +112,15 @@ export async function advance(
   const sections = await compile(story.cartridge);
   const { state } = playthru;
   state[state.__inputKey] = state.input;
+  playthru.history.push(createEvent(PLAYER_ID, state.input));
 
   while (true) {
-    let section = sections.find((s) => s.path === state.section);
+    let section = sections.find((s) => s.path === state.__section);
     if (!section) {
       break;
     }
     let node: Node | null = section
-      ? findNode(section.root, (n) => n.id === state.cursor)
+      ? findNode(section.root, (n) => n.id === state.__cursor)
       : null;
     if (!node) {
       break;
@@ -110,6 +153,7 @@ export async function advance(
       section,
       sections,
       state,
+      playthru,
       rng,
       atts: renderedAttributes,
       text: renderedText,
@@ -119,11 +163,11 @@ export async function advance(
     if (renderedAttributes.stopBefore) {
       const nextPos = nextNode(node, section, false);
       if (nextPos) {
-        state.cursor = nextPos.node.id;
-        state.section = nextPos.section.path;
+        state.__cursor = nextPos.node.id;
+        state.__section = nextPos.section.path;
       } else {
-        state.cursor = DEFAULT_CURSOR;
-        state.section = DEFAULT_SECTION;
+        state.__cursor = DEFAULT_CURSOR;
+        state.__section = DEFAULT_SECTION;
       }
       break;
     }
@@ -135,18 +179,18 @@ export async function advance(
 
     // Update cursor position
     if (result.next) {
-      state.cursor = result.next.node.id;
-      state.section = result.next.section.path;
+      state.__cursor = result.next.node.id;
+      state.__section = result.next.section.path;
     } else {
       // No next node - check if we should return from a block
       if (state.__callStack.length > 0) {
         const frame = state.__callStack.pop()!;
         const [returnSection, returnCursor] = frame.split("/");
-        state.cursor = returnCursor;
-        state.section = returnSection;
+        state.__cursor = returnCursor;
+        state.__section = returnSection;
       } else {
-        state.cursor = DEFAULT_CURSOR;
-        state.section = DEFAULT_SECTION;
+        state.__cursor = DEFAULT_CURSOR;
+        state.__section = DEFAULT_SECTION;
       }
     }
 
@@ -191,6 +235,7 @@ export interface ActionContext {
   section: Section;
   sections: Section[];
   state: Playthru["state"];
+  playthru: Playthru;
   rng: PRNG;
   atts: Record<string, string>;
   text: string;
@@ -242,7 +287,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       const prompt = ctx.text ?? ctx.atts.prompt;
       if (!isBlank(prompt)) {
-        const result = await provider.generateCompletionJson(prompt, schema);
+        const result = await provider.generateJson(prompt, schema);
         Object.assign(ctx.state, result);
       }
       return {
@@ -270,7 +315,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     execute: async (ctx, provider) => {
       const prompt = ctx.text ?? ctx.atts.prompt ?? "";
       if (!isBlank(prompt)) {
-        const { url } = await provider.generateSoundEffect(prompt);
+        const { url } = await provider.generateSound(prompt);
         return {
           ops: [{ type: "play-sound", audio: url }],
           next: nextNode(ctx.node, ctx.section, false),
@@ -400,6 +445,17 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    type: ActionType.SYNC,
+    match: (node: Node) => node.tag === "code",
+    execute: async (ctx) => {
+      evalExpr(ctx.text, ctx.state, {}, ctx.rng);
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, false),
+      };
+    },
+  },
+  {
     type: ActionType.ASYNC_BLOCKING,
     match: (node: Node) => node.tag === "text" || node.tag === "p",
     execute: async (ctx, provider) => {
@@ -413,6 +469,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           speaker: line.speaker,
           line: line.line,
         });
+        const to: string[] = ctx.node.atts["to"]
+          ? cleanSplit(ctx.node.atts["to"], ",")
+          : [PLAYER_ID];
+        const obs: string[] = ctx.node.atts["obs"]
+          ? cleanSplit(ctx.node.atts["to"], ",")
+          : [];
+        ctx.playthru.history.push(
+          createEvent(line.speaker, line.line, to, obs)
+        );
       }
       return {
         ops,

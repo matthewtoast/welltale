@@ -1,4 +1,3 @@
-// AWSUtils.ts
 import {
   HeadObjectCommand,
   PutObjectCommand,
@@ -7,7 +6,7 @@ import {
 import { basename, extname } from "path";
 
 type PutOpts = {
-  region: string;
+  client: S3Client;
   bucket: string;
   key?: string;
   cacheControl?: string;
@@ -70,14 +69,15 @@ export const mimeFromPath = (
 };
 
 export const s3PublicUrl = ({
-  region,
+  client,
   bucket,
   key,
 }: {
-  region: string;
+  client: S3Client;
   bucket: string;
   key: string;
 }) => {
+  const region = client.config.region as string;
   const host =
     region === "us-east-1" ? "s3.amazonaws.com" : `s3.${region}.amazonaws.com`;
   const k = key.split("/").map(encodeURIComponent).join("/");
@@ -90,10 +90,9 @@ const resolveKey = (key: string | undefined, filePath: string) => {
   return key.replace(/^\/+/, "");
 };
 
-const s3 = (region: string) => new S3Client({ region });
 
 export const uploadBufferToS3 = async ({
-  region,
+  client,
   bucket,
   key,
   cacheControl = "public, max-age=31536000, immutable",
@@ -105,7 +104,6 @@ export const uploadBufferToS3 = async ({
   fallbackFileName?: string;
 }) => {
   const Key = resolveKey(key, fallbackFileName);
-  const client = s3(region);
   const cmd = new PutObjectCommand({
     Bucket: bucket,
     Key,
@@ -117,17 +115,16 @@ export const uploadBufferToS3 = async ({
   const res = await client.send(cmd);
   return {
     key: Key,
-    url: s3PublicUrl({ region, bucket, key: Key }),
+    url: s3PublicUrl({ client, bucket, key: Key }),
     etag: res.ETag ?? null,
   };
 };
 
 export async function s3ObjectExists(
-  region: string,
+  client: S3Client,
   bucket: string,
   key: string
 ): Promise<boolean> {
-  const client = new S3Client({ region });
   try {
     await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
     return true;
@@ -140,20 +137,20 @@ export async function s3ObjectExists(
 }
 
 export async function getOrCreateObject(
-  region: string,
+  client: S3Client,
   bucket: string,
   key: string,
   generateContent: () => Promise<Buffer | Uint8Array | string>,
   contentType: string
 ): Promise<string> {
-  const url = s3PublicUrl({ region: region, bucket: bucket, key });
-  if (await s3ObjectExists(region, bucket, key)) {
+  const url = s3PublicUrl({ client, bucket, key });
+  if (await s3ObjectExists(client, bucket, key)) {
     return url;
   }
   const data = await generateContent();
   await uploadBufferToS3({
-    region: region,
-    bucket: bucket,
+    client,
+    bucket,
     key,
     data,
     contentType,

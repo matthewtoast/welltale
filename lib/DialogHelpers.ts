@@ -172,43 +172,61 @@ export function inferGenderFromName(name: string): Gender | null {
 export type TaggedLine = ReturnType<typeof parseTaggedSpeakerLine>;
 
 /**
- * Parses a line with optional speaker, tags, and text.
+ * Parses a line with optional speaker, tags, recipients, and text.
  * Examples:
  *   "This is the narrator speaking."
- *     -> { speaker: "", tags: [], line: "This is the narrator speaking." }
+ *     -> { speaker: "", tags: [], line: "This is the narrator speaking.", to: [] }
  *   "#female:This is a woman."
- *     -> { speaker: "", tags: ["female"], line: "This is a woman." }
+ *     -> { speaker: "", tags: ["female"], line: "This is a woman.", to: [] }
  *   "Bob#old,male: This is [sarcastically] a guy speaking."
- *     -> { speaker: "Bob", tags: ["old", "male"], line: "This is [sarcastically] a guy speaking." }
+ *     -> { speaker: "Bob", tags: ["old", "male"], line: "This is [sarcastically] a guy speaking.", to: [] }
  *   "Sarah#SomeVoiceD: I love you."
- *     -> { speaker: "Sarah", tags: ["SomeVoiceD"], line: "I love you." }
+ *     -> { speaker: "Sarah", tags: ["SomeVoiceD"], line: "I love you.", to: [] }
  *   "Kay#EXAV123: Oh really?"
- *     -> { speaker: "Kay", tags: ["EXAV123"], line: "Oh really?" }
+ *     -> { speaker: "Kay", tags: ["EXAV123"], line: "Oh really?", to: [] }
+ *   "Kay#EXAV123 (to Jim, Frank): Oh really?"
+ *     -> { speaker: "Kay", tags: ["EXAV123"], line: "Oh really?", to: ["Jim", "Frank"] }
  */
 export function parseTaggedSpeakerLine(line: string): {
   speaker: string;
   tags: string[];
   line: string;
+  to: string[];
 } {
-  // Match: [speaker][#tags]: text
-  // speaker: optional, tags: optional, text: required
+  // Match: [speaker][#tags][ (to recipient1, recipient2)]: text
+  // speaker: optional, tags: optional, to: optional, text: required
   // First check if there's a colon to indicate speaker/tags
-  const colonIndex = line.indexOf(':');
-  
+  const colonIndex = line.indexOf(":");
+
   if (colonIndex === -1) {
     // No colon, so no speaker or tags
-    return { speaker: "", tags: [], line: line.trim() };
+    return { speaker: "", tags: [], line: line.trim(), to: [] };
   }
-  
+
   const beforeColon = line.substring(0, colonIndex);
   const afterColon = line.substring(colonIndex + 1).trim();
+
+  // Check for "(to ...)" pattern
+  let to: string[] = [];
+  let beforeColonWithoutTo = beforeColon;
   
-  // Now parse the part before the colon for speaker and tags
-  const speakerTagMatch = beforeColon.match(/^(?<speaker>[^#]+)?(?:#(?<tags>.+))?$/);
-  
+  const toMatch = beforeColon.match(/^(.*?)\s*\(to\s+([^)]+)\)\s*$/);
+  if (toMatch) {
+    beforeColonWithoutTo = toMatch[1];
+    to = toMatch[2]
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean);
+  }
+
+  // Now parse the part before the colon (and without "to") for speaker and tags
+  const speakerTagMatch = beforeColonWithoutTo.match(
+    /^(?<speaker>[^#]+)?(?:#(?<tags>.+))?$/
+  );
+
   let speaker = "";
   let tags: string[] = [];
-  
+
   if (speakerTagMatch && speakerTagMatch.groups) {
     speaker = (speakerTagMatch.groups.speaker || "").trim();
     tags = speakerTagMatch.groups.tags
@@ -232,5 +250,5 @@ export function parseTaggedSpeakerLine(line: string): {
     }
   }
 
-  return { speaker, tags, line: afterColon };
+  return { speaker, tags, line: afterColon, to };
 }

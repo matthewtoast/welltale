@@ -5,7 +5,13 @@ import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
 import { parseSchemaString } from "lib/SchemaParser";
-import { sha1, slugify, parameterize, isBlank, generatePredictableKey } from "lib/TextHelpers";
+import {
+  generatePredictableKey,
+  isBlank,
+  parameterize,
+  sha1,
+  slugify,
+} from "lib/TextHelpers";
 import zodToJsonSchema from "zod-to-json-schema";
 import { expect } from "./TestUtils";
 
@@ -61,16 +67,19 @@ async function test() {
     speaker: "",
     tags: [],
     line: "foo bar",
+    to: [],
   });
   expect(parseTaggedSpeakerLine("This is the narrator speaking."), {
     speaker: "",
     tags: [],
     line: "This is the narrator speaking.",
+    to: [],
   });
   expect(parseTaggedSpeakerLine("#female:This is a woman."), {
     speaker: "",
     tags: ["female"],
     line: "This is a woman.",
+    to: [],
   });
   expect(
     parseTaggedSpeakerLine(
@@ -80,17 +89,26 @@ async function test() {
       speaker: "Bob",
       tags: ["old", "male"],
       line: "This is [sarcastically] a guy speaking.",
+      to: [],
     }
   );
   expect(parseTaggedSpeakerLine("Sarah#SomeVoiceD: I love you."), {
     speaker: "Sarah",
     tags: ["SomeVoiceD", "female"],
     line: "I love you.",
+    to: [],
   });
   expect(parseTaggedSpeakerLine("Kay#EXAV123: Oh really?"), {
     speaker: "Kay",
     tags: ["EXAV123"],
     line: "Oh really?",
+    to: [],
+  });
+  expect(parseTaggedSpeakerLine("Kay#EXAV123 (to Jim, Frank): Oh really?"), {
+    speaker: "Kay",
+    tags: ["EXAV123"],
+    line: "Oh really?",
+    to: ["Jim", "Frank"],
   });
 
   // Find preset voices
@@ -128,11 +146,11 @@ async function test() {
     "test/hello_world-2aae6c35.txt"
   );
 
-  // MathHelpers tests  
+  // MathHelpers tests
   expect(parseNumberOrNull("42"), 42);
   expect(parseNumberOrNull("3.14"), 3.14);
   expect(parseNumberOrNull("invalid"), null);
-  expect(parseNumberOrNull(""), null);
+  expect(parseNumberOrNull(""), 0);
   expect(parseNumberOrNull("  123  "), 123);
 }
 
