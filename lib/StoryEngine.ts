@@ -336,6 +336,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
+    match: (node) => node.tag === "ul" || node.tag === "ol",
+    exec: async (ctx) => ({
+      ops: [],
+      next: nextNode(ctx.node, ctx.section, true),
+      flow: FlowType.CONTINUE,
+    }),
+  },
+  {
     match: (node: Node) => node.tag.startsWith("h"), // <h*>, <header>, <head>, <hr>
     exec: async (ctx) => {
       return {
@@ -346,7 +354,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "text" || node.tag === "p",
+    match: (node: Node) =>
+      node.tag === "text" ||
+      node.tag === "p" ||
+      node.tag === "li" ||
+      node.tag === "span",
     exec: async (ctx, provider) => {
       // Check if paragraph has children (like jump tags)
       const hasChildren =
@@ -520,64 +532,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       flow: FlowType.CONTINUE,
     }),
   },
-  //
-  //
-  // -----
-  //
-  //
-  {
-    match: (node: Node) => node.tag === "llm",
-    exec: async (ctx, provider) => {
-      let schema = ctx.atts.to ?? ctx.atts.schema;
-      if (isBlank(schema)) {
-        schema = "_"; // Assigns to the _ variable
-      }
-      const prompt = ctx.text ?? ctx.atts.prompt;
-      if (!isBlank(prompt)) {
-        const result = await provider.generateJson(prompt, schema);
-        Object.assign(ctx.state, result);
-      }
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
-        flow: FlowType.BLOCKING,
-      };
-    },
-  },
-  {
-    match: (node: Node) => node.tag === "sound" && !!node.atts.url,
-    exec: async (ctx) => ({
-      ops: [
-        {
-          type: "play-sound",
-          audio: ctx.atts.url,
-        },
-      ],
-      next: nextNode(ctx.node, ctx.section, false),
-      flow: FlowType.CONTINUE,
-    }),
-  },
-  {
-    match: (node: Node) => node.tag === "sound" && !!node.atts.gen,
-    exec: async (ctx, provider) => {
-      const prompt = ctx.text ?? ctx.atts.prompt ?? "";
-      if (!isBlank(prompt)) {
-        const { url } = ctx.options.doGenerateSounds
-          ? await provider.generateSound(prompt)
-          : { url: "" };
-        return {
-          ops: [{ type: "play-sound", audio: url }],
-          next: nextNode(ctx.node, ctx.section, false),
-          flow: FlowType.BLOCKING,
-        };
-      }
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
-        flow: FlowType.BLOCKING,
-      };
-    },
-  },
   {
     match: (node: Node) => node.tag === "block",
     exec: async (ctx) => ({
@@ -643,6 +597,64 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           flow: FlowType.CONTINUE,
         };
       }
+    },
+  },
+  //
+  //
+  // -----
+  //
+  //
+  {
+    match: (node: Node) => node.tag === "llm",
+    exec: async (ctx, provider) => {
+      let schema = ctx.atts.to ?? ctx.atts.schema;
+      if (isBlank(schema)) {
+        schema = "_"; // Assigns to the _ variable
+      }
+      const prompt = ctx.text ?? ctx.atts.prompt;
+      if (!isBlank(prompt)) {
+        const result = await provider.generateJson(prompt, schema);
+        Object.assign(ctx.state, result);
+      }
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.BLOCKING,
+      };
+    },
+  },
+  {
+    match: (node: Node) => node.tag === "sound" && !!node.atts.url,
+    exec: async (ctx) => ({
+      ops: [
+        {
+          type: "play-sound",
+          audio: ctx.atts.url,
+        },
+      ],
+      next: nextNode(ctx.node, ctx.section, false),
+      flow: FlowType.CONTINUE,
+    }),
+  },
+  {
+    match: (node: Node) => node.tag === "sound" && !!node.atts.gen,
+    exec: async (ctx, provider) => {
+      const prompt = ctx.text ?? ctx.atts.prompt ?? "";
+      if (!isBlank(prompt)) {
+        const { url } = ctx.options.doGenerateSounds
+          ? await provider.generateSound(prompt)
+          : { url: "" };
+        return {
+          ops: [{ type: "play-sound", audio: url }],
+          next: nextNode(ctx.node, ctx.section, false),
+          flow: FlowType.BLOCKING,
+        };
+      }
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.BLOCKING,
+      };
     },
   },
   {

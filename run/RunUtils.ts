@@ -18,6 +18,9 @@ import {
 import { isBlank, railsTimestamp } from "lib/TextHelpers";
 import OpenAI from "openai";
 
+export const DEFAULT_GAME = "welcome";
+export const DEFAULT_SEED = "seed";
+
 loadEnv();
 
 export function loadPlaythru(id: string, abspath: string): Playthru {

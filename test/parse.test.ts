@@ -16,10 +16,11 @@ import {
 import { dumpTree } from "lib/TreeDumper";
 import { parseSchemaString } from "lib/ZodHelpers";
 import { camelCase } from "lodash";
+import { DEFAULT_SEED } from "run/RunUtils";
 import zodToJsonSchema from "zod-to-json-schema";
 import { expect } from "./TestUtils";
 
-const rng = new PRNG("test");
+const rng = new PRNG(DEFAULT_SEED);
 
 async function test() {
   // Eval expressions
@@ -75,19 +76,19 @@ async function test() {
   expect(parseTaggedSpeakerLine("foo bar"), {
     speaker: "",
     tags: [],
-    line: "foo bar",
+    body: "foo bar",
     to: [],
   });
   expect(parseTaggedSpeakerLine("This is the narrator speaking."), {
     speaker: "",
     tags: [],
-    line: "This is the narrator speaking.",
+    body: "This is the narrator speaking.",
     to: [],
   });
   expect(parseTaggedSpeakerLine("#female:This is a woman."), {
     speaker: "",
     tags: ["female"],
-    line: "This is a woman.",
+    body: "This is a woman.",
     to: [],
   });
   expect(
@@ -97,26 +98,26 @@ async function test() {
     {
       speaker: "Bob",
       tags: ["old", "male"],
-      line: "This is [sarcastically] a guy speaking.",
+      body: "This is [sarcastically] a guy speaking.",
       to: [],
     }
   );
   expect(parseTaggedSpeakerLine("Sarah#SomeVoiceD: I love you."), {
     speaker: "Sarah",
     tags: ["SomeVoiceD", "female"],
-    line: "I love you.",
+    body: "I love you.",
     to: [],
   });
   expect(parseTaggedSpeakerLine("Kay#EXAV123: Oh really?"), {
     speaker: "Kay",
     tags: ["EXAV123"],
-    line: "Oh really?",
+    body: "Oh really?",
     to: [],
   });
   expect(parseTaggedSpeakerLine("Kay#EXAV123 (to Jim, Frank): Oh really?"), {
     speaker: "Kay",
     tags: ["EXAV123"],
-    line: "Oh really?",
+    body: "Oh really?",
     to: ["Jim", "Frank"],
   });
 
@@ -166,21 +167,6 @@ async function test() {
   expect(camelCase("foo-bar"), "fooBar");
   expect(camelCase("foo_bar"), "fooBar");
   expect(camelCase("FOO_BAR"), "fooBar");
-
-  // Markdown parsing
-  expect(
-    dumpTree(
-      markdownToTree(dedent`
-    # hello
-    guy
-    ## what up
-    yo
-    ### how is it
-    <foo to="my friend">
-  `).root
-    ),
-    '<root id="0">\n  <h1 id="0.0">hello</h1>\n  <text id="0.1" />\n  <p id="0.2">guy</p>\n  <text id="0.3" />\n  <h2 id="0.4">what up</h2>\n  <text id="0.5" />\n  <p id="0.6">yo</p>\n  <text id="0.7" />\n  <h3 id="0.8">how is it</h3>\n  <text id="0.9" />\n  <foo id="0.10" to="my friend" />\n</root>'
-  );
 
   // preprocessSelfClosingTags tests
   expect(preprocessSelfClosingTags("<jump />"), "<jump></jump>");
@@ -247,6 +233,21 @@ async function test() {
   expect(
     preprocessSelfClosingTags('<jump to="section" condition="foo" />'),
     '<jump to="section" condition="foo" ></jump>'
+  );
+
+  // Markdown parsing
+  expect(
+    dumpTree(
+      markdownToTree(dedent`
+    # hello
+    guy
+    ## what up
+    yo
+    ### how is it
+    <foo to="my friend">
+  `).root
+    ),
+    '<root id="0">\n  <h1 id="0.0">hello</h1>\n  <text id="0.1" />\n  <p id="0.2">guy</p>\n  <text id="0.3" />\n  <h2 id="0.4">what up</h2>\n  <text id="0.5" />\n  <p id="0.6">yo</p>\n  <text id="0.7" />\n  <h3 id="0.8">how is it</h3>\n  <text id="0.9" />\n  <foo id="0.10" to="my friend" />\n</root>'
   );
 }
 

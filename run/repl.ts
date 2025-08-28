@@ -5,6 +5,8 @@ import { join } from "path";
 import readline from "readline";
 import { isBlank, railsTimestamp, smoosh } from "./../lib/TextHelpers";
 import {
+  DEFAULT_GAME,
+  DEFAULT_SEED,
   defaultRunnerOptions,
   defaultRunnerProvider,
   loadPlaythru,
@@ -39,9 +41,9 @@ async function go(basedir: string) {
   });
   rl.on("close", () => process.exit(0));
 
-  const game = await ask(rl, "Game Slug?", () => "test");
+  const game = await ask(rl, "Game Slug?", () => DEFAULT_GAME);
   const id = await ask(rl, "Playthru Id?", () => railsTimestamp());
-  const seed = await ask(rl, "RNG Seed?", () => "test");
+  const seed = await ask(rl, "RNG Seed?", () => DEFAULT_SEED);
   const playthruAbspath = join(basedir, `playthrus/${game}-${id}.json`);
   const cartridgeDirpath = join(basedir, `cartridges/${game}`);
   const cartridge = await loadDirRecursive(cartridgeDirpath);

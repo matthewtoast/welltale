@@ -6,6 +6,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { railsTimestamp } from "../lib/TextHelpers";
 import {
+  DEFAULT_SEED,
   defaultRunnerOptions,
   defaultRunnerProvider,
   loadPlaythru,
@@ -37,7 +38,7 @@ const argv = yargs(hideBin(process.argv))
       type: "string",
       alias: "s",
       describe: "Seed value for PRNG",
-      default: "test",
+      default: DEFAULT_SEED,
     },
   })
   .parseSync();
