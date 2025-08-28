@@ -44,7 +44,7 @@ LESS than 5... Interesting...
 
 ## mark of the beast
 
-OH NO! MARK OF THE BEAST! SECRET DOOR!
+OH NO! MARK OF THE BEAST!
 
 ## variable tests
 
@@ -61,4 +61,12 @@ Your score is {{score}} with a bonus of {{bonus}}.
 
 <sleep duration=1000 />
 
-Nice sleepy time that 'twas!
+Nice sleepy time that was!
+
+## case when test
+
+Enter your name:
+
+<input to="userName" as="string" />
+
+Your name is {{userName}} | Thy name ist {{userName}} | I dub thee {{userName}}

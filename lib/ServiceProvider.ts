@@ -79,7 +79,7 @@ export class DefaultServiceProvider implements ServiceProvider {
 
   async generateSpeech(line: TaggedLine): Promise<{ url: string }> {
     const voiceId = autoFindPresetVoice(line.speaker, line.tags);
-    const prompt = `${line.speaker}:${line.tags.join(",")}:${line.line}`;
+    const prompt = `${line.speaker}:${line.tags.join(",")}:${line.body}`;
     const key = generatePredictableKey("vox", prompt, "mp3");
     const url = await getOrCreateObject(
       this.config.s3,
@@ -89,7 +89,7 @@ export class DefaultServiceProvider implements ServiceProvider {
         return await generateSpeechClip({
           client: this.config.eleven,
           voiceId,
-          text: line.line,
+          text: line.body,
         });
       },
       "audio/mpeg"

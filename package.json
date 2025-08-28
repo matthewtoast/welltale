@@ -1,5 +1,5 @@
 {
-  "name": "aisatsu-shodomi",
+  "name": "welltale",
   "version": "1.0.0",
   "private": true,
   "license": "PROPRIETARY",
@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "ts": "npx tsx --",
     "test": "for f in $(find . -name '*.test.ts' -not -path './node_modules/*'); do echo \"Running $f\"; npx tsx \"$f\" || exit 1; done",
-    "repl": "yarn ts ./run/repl.ts"
+    "repl": "yarn ts ./run/repl.ts",
+    "study": "yarn ts ./run/study.ts"
   },
   "devDependencies": {
     "@types/dedent": "^0.7.2",

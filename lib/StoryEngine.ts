@@ -27,6 +27,7 @@ import { isEmpty, omit } from "lodash";
 import { TScalar } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
+import { dumpTree } from "./TreeDumper";
 
 export const DEFAULT_SECTION = "main.md";
 export const DEFAULT_CURSOR = "0";
@@ -44,8 +45,7 @@ export type Cartridge = Record<string, Buffer | string>;
 export interface Playthru {
   id: string;
   time: number; // Real-world Unix time of current game step
-  turn: number; // Current turn i.e. game step
-  seed: string; // Seed value for PRNG
+  turn: number; // Current turn i.e. game step (used for PRNG too)
   cycle: number; // Cycle value for PRNG (to resume at previous point)
   state: {
     // Protected
@@ -80,15 +80,11 @@ export function createEvent(
   return { from, body, to, obs, time };
 }
 
-export function createDefaultPlaythru(
-  id: string,
-  seed: string = Math.random().toString(36).slice(2)
-): Playthru {
+export function createDefaultPlaythru(id: string): Playthru {
   return {
     id,
     time: Date.now(),
     turn: 0,
-    seed,
     cycle: 0,
     state: {
       input: "",
@@ -114,9 +110,10 @@ export type OP =
   | { type: "play-line"; audio: string; speaker: string; line: string }
   | { type: "end" };
 
-export type AdvanceOptions = {
+export type PlayOptions = {
   mode: StepMode;
   verbose: boolean;
+  seed: string;
   doGenerateSpeech: boolean;
   doGenerateSounds: boolean;
 };
@@ -125,11 +122,13 @@ function shouldJsonify(a: any) {
   return Array.isArray(a) || (a && typeof a === "object");
 }
 
+let calls = 0;
+
 export async function advance(
   provider: ServiceProvider,
   story: Story,
   playthru: Playthru,
-  options: AdvanceOptions
+  options: PlayOptions
 ) {
   function log(...args: any[]) {
     if (options.verbose) {
@@ -143,11 +142,17 @@ export async function advance(
 
   const out: OP[] = [];
 
-  const rng = new PRNG(playthru.seed, playthru.cycle % 10_000);
+  const rng = new PRNG(options.seed, playthru.cycle % 10_000);
   playthru.time = Date.now();
   playthru.turn++;
 
   const sections = await compile(story.cartridge);
+
+  if (calls++ < 1) {
+    sections.forEach(({ path, root }) => {
+      log(path, "::", dumpTree(root));
+    });
+  }
 
   const { state } = playthru;
 
@@ -290,7 +295,7 @@ export async function compile(cartridge: Cartridge) {
 }
 
 export interface ActionContext {
-  options: AdvanceOptions;
+  options: PlayOptions;
   node: Node;
   section: Section;
   sections: Section[];
@@ -359,6 +364,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         };
       }
       const line = parseTaggedSpeakerLine(ctx.text);
+      // Dynamic dialog variation using pipe character
+      line.body = ctx.rng.randomElement(cleanSplit(line.body, "|"));
       const { url } = ctx.options.doGenerateSpeech
         ? await provider.generateSpeech(line)
         : { url: "" };
@@ -366,7 +373,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         type: "play-line",
         audio: url,
         speaker: line.speaker,
-        line: line.line,
+        line: line.body,
       });
       const to: string[] = ctx.node.atts["to"]
         ? cleanSplit(ctx.node.atts["to"], ",")
@@ -374,7 +381,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const obs: string[] = ctx.node.atts["obs"]
         ? cleanSplit(ctx.node.atts["to"], ",")
         : [];
-      ctx.playthru.history.push(createEvent(line.speaker, line.line, to, obs));
+      ctx.playthru.history.push(createEvent(line.speaker, line.body, to, obs));
       return {
         ops,
         next,
@@ -569,62 +576,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         next: nextNode(ctx.node, ctx.section, false),
         flow: FlowType.BLOCKING,
       };
-    },
-  },
-  {
-    match: (node: Node) => node.tag === "case",
-    exec: async (ctx) => {
-      // Find first when child where cond is true
-      for (const child of ctx.node.kids) {
-        if (child.tag === "when") {
-          const condAttr = child.atts.cond;
-          // No condition means default case (always true)
-          if (!condAttr || evalExpr(condAttr, ctx.state, {}, ctx.rng)) {
-            // Jump to the first child of when (if any), otherwise next sibling
-            if (child.kids.length > 0) {
-              return {
-                ops: [],
-                next: { node: child.kids[0], section: ctx.section },
-                flow: FlowType.CONTINUE,
-              };
-            } else {
-              return {
-                ops: [],
-                next: nextNode(child, ctx.section, false),
-                flow: FlowType.CONTINUE,
-              };
-            }
-          }
-        }
-      }
-      // No matching when - skip entire case block
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
-        flow: FlowType.CONTINUE,
-      };
-    },
-  },
-  {
-    match: (node: Node) => node.tag === "when",
-    exec: async (ctx) => {
-      // When encountered directly (not via case), check condition
-      const condAttr = ctx.atts.cond;
-      if (!condAttr || evalExpr(condAttr, ctx.state, {}, ctx.rng)) {
-        // Process children normally
-        return {
-          ops: [],
-          next: nextNode(ctx.node, ctx.section, true),
-          flow: FlowType.CONTINUE,
-        };
-      } else {
-        // Skip to next sibling
-        return {
-          ops: [],
-          next: nextNode(ctx.node, ctx.section, false),
-          flow: FlowType.CONTINUE,
-        };
-      }
     },
   },
   {

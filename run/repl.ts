@@ -1,25 +1,16 @@
-import { S3Client } from "@aws-sdk/client-s3";
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { sleep } from "lib/AsyncHelpers";
-import { loadEnv } from "lib/DotEnv";
 import { loadDirRecursive } from "lib/FileUtils";
-import { DefaultServiceProvider } from "lib/ServiceProvider";
-import {
-  advance,
-  AdvanceOptions,
-  createDefaultPlaythru,
-  FALLBACK_SPEAKER,
-  Playthru,
-  StepMode,
-  Story,
-} from "lib/StoryEngine";
-import OpenAI from "openai";
+import { Story } from "lib/StoryEngine";
 import { join } from "path";
 import readline from "readline";
-import { safeJsonParse } from "./../lib/JSONHelpers";
 import { isBlank, railsTimestamp, smoosh } from "./../lib/TextHelpers";
+import {
+  defaultRunnerOptions,
+  defaultRunnerProvider,
+  loadPlaythru,
+  renderNext,
+  savePlaythru,
+} from "./RunUtils";
 
 const CAROT = "> ";
 
@@ -40,85 +31,7 @@ async function ask(
   });
 }
 
-function loadPlaythru(id: string, abspath: string): Playthru {
-  if (isBlank(id)) {
-    id = railsTimestamp();
-  }
-  const fallback = createDefaultPlaythru(id);
-  if (!existsSync(abspath)) {
-    writeFileSync(abspath, "{}");
-  }
-  let json = safeJsonParse(readFileSync(abspath).toString()) ?? {};
-  if (typeof json !== "object") {
-    json = {};
-  }
-  return {
-    ...fallback,
-    ...json,
-  };
-}
-
-function savePlaythru(state: Playthru, abspath: string) {
-  writeFileSync(abspath, JSON.stringify(state, null, 2));
-}
-
-async function renderNext(
-  input: string,
-  playthru: Playthru,
-  story: Story,
-  options: AdvanceOptions
-): Promise<boolean> {
-  if (!isBlank(input)) {
-    playthru.state.input = input;
-  }
-  const ops = await advance(provider, story, playthru, options);
-  async function render(): Promise<boolean> {
-    for (let i = 0; i < ops.length; i++) {
-      const op = ops[i];
-      switch (op.type) {
-        case "get-input":
-          // return early to wait for input
-          return true;
-        case "play-line":
-          console.log(
-            chalk.cyan.bold(`${op.speaker || FALLBACK_SPEAKER}:`) +
-              " " +
-              chalk.cyan(`${op.line}`)
-          );
-          break;
-        case "end":
-          console.log(chalk.magenta("The end."));
-          return false;
-        case "play-sound":
-          // no-op in REPL mode
-          break;
-        case "sleep":
-          await sleep(op.duration);
-          break;
-      }
-    }
-    return true;
-  }
-  return render();
-}
-
-loadEnv();
-
-const options = {
-  mode: StepMode.UNTIL_WAITING,
-  verbose: true,
-  doGenerateSpeech: false,
-  doGenerateSounds: false,
-};
-
-const provider = new DefaultServiceProvider({
-  eleven: new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY! }),
-  s3: new S3Client({ region: process.env.AWS_REGION! }),
-  openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
-  bucket: "welltale-dev",
-});
-
-async function start(basedir: string) {
+async function go(basedir: string) {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -128,6 +41,7 @@ async function start(basedir: string) {
 
   const game = await ask(rl, "Game Slug?", () => "test");
   const id = await ask(rl, "Playthru Id?", () => railsTimestamp());
+  const seed = await ask(rl, "RNG Seed?", () => "test");
   const playthruAbspath = join(basedir, `playthrus/${game}-${id}.json`);
   const cartridgeDirpath = join(basedir, `cartridges/${game}`);
   const cartridge = await loadDirRecursive(cartridgeDirpath);
@@ -137,9 +51,15 @@ async function start(basedir: string) {
     chalk.gray(`Init game '${game}' playthru '${id}' (please wait)`)
   );
 
-  let doContinue = await renderNext("", playthru, story, options);
+  let nextInstruction = await renderNext(
+    "",
+    playthru,
+    story,
+    { ...defaultRunnerOptions, seed },
+    defaultRunnerProvider
+  );
   savePlaythru(playthru, playthruAbspath);
-  if (!doContinue) {
+  if (nextInstruction === "end") {
     rl.close();
     return;
   }
@@ -148,12 +68,18 @@ async function start(basedir: string) {
   rl.on("line", async (raw) => {
     const fixed = raw.trim();
     try {
-      doContinue = await renderNext(fixed, playthru, story, options);
+      nextInstruction = await renderNext(
+        fixed,
+        playthru,
+        story,
+        { ...defaultRunnerOptions, seed },
+        defaultRunnerProvider
+      );
       savePlaythru(playthru, playthruAbspath);
     } catch (err) {
       console.error(chalk.red(err));
     }
-    if (doContinue) {
+    if (nextInstruction !== "end") {
       rl.prompt();
     } else {
       rl.close();
@@ -161,4 +87,4 @@ async function start(basedir: string) {
   });
 }
 
-start(__dirname);
+go(__dirname);

@@ -125,6 +125,8 @@ const flatDeep = (arr: any[], d: number): any[] =>
 
 export const arrayHelpers: Record<string, (...args: any[]) => P | P[]> = {
   len: (a: A) => toArr(a).length,
+  arrayLen: (a: A) => toArr(a).length,
+  arrayLength: (a: A) => toArr(a).length,
   first: (a: A) => toArr(a)[0] ?? null,
   last: (a: A) => {
     const t = toArr(a);
@@ -231,6 +233,11 @@ export const stringHelpers: Record<string, (...args: any[]) => P> = {
   upper: (v: P) => toStr(v).toUpperCase(),
   capitalize: (v: P) => capFirst(toStr(v).toLowerCase()),
   uncapitalize: (v: P) => unCapFirst(toStr(v)),
+  titleCase: (v: P) =>
+    toStr(v).replace(
+      /\w\S*/g,
+      (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+    ),
   trim: (v: P) => toStr(v).trim(),
   trimStart: (v: P) => toStr(v).trimStart(),
   trimEnd: (v: P) => toStr(v).trimEnd(),
@@ -266,7 +273,49 @@ export const stringHelpers: Record<string, (...args: any[]) => P> = {
   },
   split: (v: P, sep: P) => toStr(v).split(toStr(sep)) as any,
   reverseStr: (v: P) => toStr(v).split("").reverse().join(""),
-  length: (v: P) => toStr(v).length,
+  length: (v: P) => (Array.isArray(v) ? v.length : toStr(v).length),
+};
+
+const isString = (v: unknown): v is string => typeof v === "string";
+const toArrOrStr = (v: A): P[] | string =>
+  isString(v) ? v : Array.isArray(v) ? v : [v];
+
+export const unifiedHelpers: Record<string, (...args: any[]) => P | P[]> = {
+  length: (v: A) => {
+    if (isString(v)) return v.length;
+    return toArr(v).length;
+  },
+  includes: (v: A, search: A) => {
+    if (isString(v) && isString(search)) return v.includes(search);
+    if (isString(v)) return false;
+    return toArr(v).some((x) => eq(x, search));
+  },
+  indexOf: (v: A, search: A) => {
+    if (isString(v) && isString(search)) return v.indexOf(search);
+    if (isString(v)) return -1;
+    const arr = toArr(v);
+    for (let i = 0; i < arr.length; i++) if (eq(arr[i], search)) return i;
+    return -1;
+  },
+  slice: (v: A, start: P, end?: P) => {
+    const s = num(start) | 0;
+    const e = end == null ? undefined : num(end) | 0;
+    if (isString(v)) return v.slice(s, e);
+    return toArr(v).slice(s, e);
+  },
+  concat: (a: A, b: A) => {
+    if (isString(a) && isString(b)) return a + b;
+    if (isString(a) || isString(b)) {
+      const aStr = Array.isArray(a) ? a.join(",") : toStr(a as P);
+      const bStr = Array.isArray(b) ? b.join(",") : toStr(b as P);
+      return aStr + bStr;
+    }
+    return toArr(a).concat(toArr(b));
+  },
+  reverse: (v: A) => {
+    if (isString(v)) return v.split("").reverse().join("");
+    return toArr(v).slice().reverse();
+  },
 };
 
 export const createRandomHelpers = (
@@ -342,6 +391,7 @@ export function getParser(
     parser.functions,
     arrayHelpers,
     stringHelpers,
+    unifiedHelpers,
     randomHelpers,
     funcs
   );

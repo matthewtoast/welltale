@@ -190,26 +190,27 @@ export type TaggedLine = ReturnType<typeof parseTaggedSpeakerLine>;
 export function parseTaggedSpeakerLine(line: string): {
   speaker: string;
   tags: string[];
-  line: string;
+  body: string;
   to: string[];
 } {
   // Match: [speaker][#tags][ (to recipient1, recipient2)]: text
   // speaker: optional, tags: optional, to: optional, text: required
-  
+
   // Look for speaker pattern at the start of the line
   // Valid patterns: "Name:", "#tag:", "Name#tag:", "Name (to X):", etc.
   // Name must start with a capital letter and be a single word
-  const speakerPattern = /^((?:[A-Z][a-zA-Z0-9]*)?(?:#[^:\s]+(?:,[^:\s]+)*)?)\s*(\(to\s+[^)]+\))?\s*:/;
+  const speakerPattern =
+    /^((?:[A-Z][a-zA-Z0-9]*)?(?:#[^:\s]+(?:,[^:\s]+)*)?)\s*(\(to\s+[^)]+\))?\s*:/;
   const match = line.match(speakerPattern);
-  
+
   // Additional check: ensure we have either a name or tags (not just ":")
   if (match && !match[1]) {
-    return { speaker: "", tags: [], line: line.trim(), to: [] };
+    return { speaker: "", tags: [], body: line.trim(), to: [] };
   }
-  
+
   if (!match) {
     // No speaker pattern found, treat entire line as content
-    return { speaker: "", tags: [], line: line.trim(), to: [] };
+    return { speaker: "", tags: [], body: line.trim(), to: [] };
   }
 
   const colonIndex = match.index! + match[0].length - 1;
@@ -219,7 +220,7 @@ export function parseTaggedSpeakerLine(line: string): {
   // Check for "(to ...)" pattern
   let to: string[] = [];
   let beforeColonWithoutTo = beforeColon;
-  
+
   const toMatch = beforeColon.match(/^(.*?)\s*\(to\s+([^)]+)\)\s*$/);
   if (toMatch) {
     beforeColonWithoutTo = toMatch[1];
@@ -260,5 +261,5 @@ export function parseTaggedSpeakerLine(line: string): {
     }
   }
 
-  return { speaker, tags, line: afterColon, to };
+  return { speaker, tags, body: afterColon, to };
 }

@@ -1,0 +1,116 @@
+{
+  "id": "20250829073328",
+  "time": 1756420409203,
+  "turn": 3,
+  "cycle": 1,
+  "state": {
+    "input": "Matt",
+    "__section": "main.md",
+    "__cursor": "0.59",
+    "__inputKey": "userName",
+    "__inputType": null,
+    "__callStack": [],
+    "someNumber": 666,
+    "total": 1332,
+    "score": 1342,
+    "bonus": 100,
+    "userName": "Matt"
+  },
+  "history": [
+    {
+      "from": "",
+      "body": "This is a test.",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420408190
+    },
+    {
+      "from": "",
+      "body": "Enter a number.",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420408190
+    },
+    {
+      "from": "USER",
+      "body": 666,
+      "to": [],
+      "obs": [],
+      "time": 1756420408194
+    },
+    {
+      "from": "",
+      "body": "You entered 666.",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420408194
+    },
+    {
+      "from": "",
+      "body": "OH NO! MARK OF THE BEAST!",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420408196
+    },
+    {
+      "from": "",
+      "body": "The total is 1332.",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420408197
+    },
+    {
+      "from": "",
+      "body": "Your score is 1342 with a bonus of 100.",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420408198
+    },
+    {
+      "from": "",
+      "body": "Nice sleepy time that was!",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420408198
+    },
+    {
+      "from": "",
+      "body": "Enter your name:",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420408199
+    },
+    {
+      "from": "USER",
+      "body": "Matt",
+      "to": [],
+      "obs": [],
+      "time": 1756420409213
+    },
+    {
+      "from": "",
+      "body": "I dub thee Matt",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756420409215
+    }
+  ]
+}
