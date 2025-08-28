@@ -127,6 +127,111 @@ export function preprocessSelfClosingTags(content: string): string {
   return processed;
 }
 
+function isFlowControlElement(node: HastNode): boolean {
+  const flowElements = [
+    "if", "else", "jump", "input", "set", "yield", "block", "llm", "sound", 
+    "wait", "sleep", "case", "unless"
+  ];
+  return flowElements.includes(node.tagName || "");
+}
+
+function isTextOrFormattingElement(node: HastNode): boolean {
+  if (node.type === "text") return true;
+  const formattingElements = [
+    "strong", "b", "em", "i", "u", "del", "s", "mark", "small", "sup", "sub", "a", "img", "code"
+  ];
+  return formattingElements.includes(node.tagName || "");
+}
+
+function createMergedTextNode(nodes: HastNode[]): HastNode {
+  let mergedText = "";
+  
+  for (const node of nodes) {
+    if (node.type === "text") {
+      mergedText += node.value || "";
+    } else if (node.tagName === "strong" || node.tagName === "b") {
+      mergedText += `**${getTextContent(node)}**`;
+    } else if (node.tagName === "em" || node.tagName === "i") {
+      mergedText += `_${getTextContent(node)}_`;
+    } else if (node.tagName === "code") {
+      mergedText += `\`${getTextContent(node)}\``;
+    } else if (node.tagName === "a") {
+      const href = node.properties?.href || "";
+      mergedText += `[${getTextContent(node)}](${href})`;
+    } else if (node.tagName === "img") {
+      const src = node.properties?.src || "";
+      const alt = node.properties?.alt || "";
+      mergedText += `![${alt}](${src})`;
+    } else {
+      // For other formatting elements, just extract text
+      mergedText += getTextContent(node);
+    }
+  }
+  
+  return {
+    type: "text",
+    value: mergedText
+  };
+}
+
+function getTextContent(node: HastNode): string {
+  if (node.type === "text") {
+    return node.value || "";
+  }
+  if (node.children) {
+    return node.children.map(getTextContent).join("");
+  }
+  return "";
+}
+
+function groupContiguousText(node: HastNode): HastNode {
+  if (!node.children) return node;
+  
+  const newChildren: HastNode[] = [];
+  let currentTextGroup: HastNode[] = [];
+  
+  function flushTextGroup() {
+    if (currentTextGroup.length > 0) {
+      if (currentTextGroup.length === 1 && currentTextGroup[0].type === "text") {
+        // Single text node, only add if it has content
+        const textNode = currentTextGroup[0];
+        if (textNode.value && textNode.value.trim()) {
+          newChildren.push(textNode);
+        }
+      } else {
+        // Multiple nodes or formatting, merge them
+        const merged = createMergedTextNode(currentTextGroup);
+        // Only add if the merged text has content
+        if (merged.value && merged.value.trim()) {
+          newChildren.push(merged);
+        }
+      }
+      currentTextGroup = [];
+    }
+  }
+  
+  for (const child of node.children) {
+    if (isFlowControlElement(child)) {
+      flushTextGroup();
+      newChildren.push(groupContiguousText(child)); // Recurse into flow elements
+    } else if (isTextOrFormattingElement(child)) {
+      // Skip completely empty text nodes
+      if (child.type === "text" && (!child.value || !child.value.trim())) {
+        continue;
+      }
+      currentTextGroup.push(child);
+    } else {
+      // Structural elements (h1, p, etc.)
+      flushTextGroup();
+      newChildren.push(groupContiguousText(child)); // Recurse
+    }
+  }
+  
+  flushTextGroup(); // Handle any remaining text group
+  
+  return { ...node, children: newChildren };
+}
+
 export function markdownToTree(md: string) {
   const { data, content } = matter(md);
   const preprocessedContent = preprocessSelfClosingTags(content);
@@ -136,7 +241,8 @@ export function markdownToTree(md: string) {
     allowDangerousHtml: true,
   });
   const tree = fromHtml(html, { fragment: true });
-  const root = hastNodeToNodeInfo(tree, "0");
+  const groupedTree = groupContiguousText(tree);
+  const root = hastNodeToNodeInfo(groupedTree, "0");
   return { root, meta: data };
 }
 
@@ -182,16 +288,20 @@ export function isNodeEmpty(node: Node): boolean {
 }
 
 export function shouldContainOnlyText(node: HastNode) {
-  const hierarchical = [
-    "ul",
-    "ol",
-    "li",
-    "root",
-    "if",
-    "case",
-    "unless",
-  ].includes(node.tagName ?? "");
-  return !hierarchical;
+  // Since we're now using groupContiguousText, we can simplify this
+  // Only paragraphs that end up with a single text child should be flattened
+  if (node.tagName === "p" && node.children && node.children.length === 1) {
+    const child = node.children[0];
+    return child.type === "text";
+  }
+  
+  // Never collapse structural elements
+  const structuralElements = [
+    "ul", "ol", "li", "root", "if", "case", "unless", "div", "section", "article",
+    "header", "footer", "main", "aside", "nav", "blockquote", "pre", "code"
+  ];
+  
+  return !structuralElements.includes(node.tagName ?? "");
 }
 
 export function hastNodeToNodeInfo(

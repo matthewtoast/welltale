@@ -402,6 +402,20 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    match: (node: Node) => [
+      "strong", "b", "em", "i", "u", "del", "s", "mark", "small", "sup", "sub", "a"
+    ].includes(node.tag),
+    exec: async (ctx) => {
+      // For inline elements, we generally want to skip over them and continue with siblings
+      // The text content will be handled by parent elements
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.CONTINUE,
+      };
+    },
+  },
+  {
     match: (node: Node) => node.tag === "input",
     exec: async (ctx) => {
       const toKey = ctx.atts.to;

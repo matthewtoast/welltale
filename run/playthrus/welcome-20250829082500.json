@@ -1,0 +1,69 @@
+{
+  "id": "20250829082500",
+  "time": 1756423500401,
+  "turn": 2,
+  "cycle": 2,
+  "state": {
+    "input": "matt",
+    "__section": "main.md",
+    "__cursor": "0.10",
+    "__inputKey": "favoriteNumber",
+    "__inputType": "number",
+    "__callStack": [],
+    "userName": "matt"
+  },
+  "history": [
+    {
+      "from": "",
+      "body": "Welcome to the Welltale tutorial! This interactive story demonstrates the core features of the framework. Let's explore how to build dynamic, branching narratives with conditional logic, user input, and reusable components.",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756423500399
+    },
+    {
+      "from": "",
+      "body": "👋 Hello! I'm your guide through this tutorial. Let's start by learning about user input and variables.",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756423500400
+    },
+    {
+      "from": "",
+      "body": "Stories can gather input from users and store it in variables for later use. Enter your name:",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756423500400
+    },
+    {
+      "from": "USER",
+      "body": "matt",
+      "to": [],
+      "obs": [],
+      "time": 1756423500413
+    },
+    {
+      "from": "",
+      "body": "Great! Nice to meet you, **matt**!",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756423500414
+    },
+    {
+      "from": "",
+      "body": "Now let's try collecting a number:",
+      "to": [
+        "USER"
+      ],
+      "obs": [],
+      "time": 1756423500414
+    }
+  ]
+}
