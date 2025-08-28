@@ -77,7 +77,7 @@ What will be your alias?
 
 <if cond="validAlias == validName">
   Sorry. Your alias must be different than your real name.
-  <go to="get alias" />
+  <jump to="get alias" />
 </if>
 
 <set op="randElement(codenames)" to="validCodename"></set>
@@ -98,17 +98,17 @@ Robert: I'm sorry about the short notice, but this is urgent. Let's to the chase
 
 <if cond="wasDebriefed">
 
-<go to="skip debrief" />
+<jump to="skip debrief" />
 
 </if>
 
-<go to="hear debrief" />
+<jump to="hear debrief" />
 
 ### skip debrief
 
 Robert: Good. I'll skip the detail then. Just remember - you _must_ get Warner to say all nine words. Any questions?
 
-<go to="asking questions" />
+<jump to="asking questions" />
 
 ### hear debrief
 
@@ -116,7 +116,7 @@ Robert: {{debriefing_main}}
 
 Robert: All right, I think that covers it. Any questions? | I think that's all. Do you have questions?
 
-<go to="asking questions" />
+<jump to="asking questions" />
 
 {{> asking-questions}}
 

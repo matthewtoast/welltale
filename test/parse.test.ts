@@ -4,7 +4,6 @@ import { evalExpr } from "lib/EvalUtils";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { parseSchemaString } from "lib/SchemaParser";
 import {
   generatePredictableKey,
   isBlank,
@@ -12,6 +11,8 @@ import {
   sha1,
   slugify,
 } from "lib/TextHelpers";
+import { parseSchemaString } from "lib/ZodHelpers";
+import { camelCase } from "lodash";
 import zodToJsonSchema from "zod-to-json-schema";
 import { expect } from "./TestUtils";
 
@@ -21,6 +22,7 @@ async function test() {
   // Eval expressions
   expect(evalExpr("2 + 2", {}, {}, rng), 4);
   expect(evalExpr("2 + a", { a: 3 }, {}, rng), 5);
+  expect(evalExpr("foo > 5", { foo: "4" }, {}, rng), true);
   expect(
     evalExpr(
       "foo() + a",
@@ -152,6 +154,11 @@ async function test() {
   expect(parseNumberOrNull("invalid"), null);
   expect(parseNumberOrNull(""), 0);
   expect(parseNumberOrNull("  123  "), 123);
+
+  // String transform
+  expect(camelCase("foo-bar"), "fooBar");
+  expect(camelCase("foo_bar"), "fooBar");
+  expect(camelCase("FOO_BAR"), "fooBar");
 }
 
 test();

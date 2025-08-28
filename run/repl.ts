@@ -7,7 +7,9 @@ import { loadDirRecursive } from "lib/FileUtils";
 import { DefaultServiceProvider } from "lib/ServiceProvider";
 import {
   advance,
+  AdvanceOptions,
   createDefaultPlaythru,
+  FALLBACK_SPEAKER,
   Playthru,
   StepMode,
   Story,
@@ -20,13 +22,11 @@ import { isBlank, railsTimestamp, smoosh } from "./../lib/TextHelpers";
 
 const CAROT = "> ";
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  prompt: chalk.cyan(CAROT),
-});
-
-async function ask(question: string, ifBlank: () => string): Promise<string> {
+async function ask(
+  rl: readline.Interface,
+  question: string,
+  ifBlank: () => string
+): Promise<string> {
   return new Promise((resolve) => {
     rl.question(chalk.green(question + CAROT), (answer) => {
       const got = smoosh(answer);
@@ -61,7 +61,52 @@ function savePlaythru(state: Playthru, abspath: string) {
   writeFileSync(abspath, JSON.stringify(state, null, 2));
 }
 
+async function renderNext(
+  input: string,
+  playthru: Playthru,
+  story: Story,
+  options: AdvanceOptions
+): Promise<boolean> {
+  if (!isBlank(input)) {
+    playthru.state.input = input;
+  }
+  const ops = await advance(provider, story, playthru, options);
+  function render(): boolean {
+    for (let i = 0; i < ops.length; i++) {
+      const op = ops[i];
+      switch (op.type) {
+        case "get-input":
+          // return early to wait for input
+          return true;
+        case "play-line":
+          console.log(
+            chalk.cyan.bold(`${op.speaker || FALLBACK_SPEAKER}:`) +
+              " " +
+              chalk.cyan(`${op.line}`)
+          );
+          break;
+        case "end":
+          console.log(chalk.magenta("The end."));
+          return false;
+        case "play-sound":
+        case "sleep":
+          // no-ops in REPL mode
+          break;
+      }
+    }
+    return true;
+  }
+  return render();
+}
+
 loadEnv();
+
+const options = {
+  mode: StepMode.UNTIL_WAITING,
+  verbose: true,
+  doGenerateSpeech: false,
+  doGenerateSounds: false,
+};
 
 const provider = new DefaultServiceProvider({
   eleven: new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY! }),
@@ -71,59 +116,46 @@ const provider = new DefaultServiceProvider({
 });
 
 async function start(basedir: string) {
-  const game = await ask("Game Slug?", () => "test");
-  const id = await ask("Playthru Id?", () => railsTimestamp());
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: chalk.greenBright(CAROT),
+  });
+  rl.on("close", () => process.exit(0));
+
+  const game = await ask(rl, "Game Slug?", () => "test");
+  const id = await ask(rl, "Playthru Id?", () => railsTimestamp());
   const playthruAbspath = join(basedir, `playthrus/${game}-${id}.json`);
   const cartridgeDirpath = join(basedir, `cartridges/${game}`);
   const cartridge = await loadDirRecursive(cartridgeDirpath);
   const story: Story = { id: game, cartridge };
   const playthru = loadPlaythru(id, playthruAbspath);
   console.info(
-    chalk.gray(`Init game "${game}" playthru "${id}" (please wait)`)
+    chalk.gray(`Init game '${game}' playthru '${id}' (please wait)`)
   );
+
+  let doContinue = await renderNext("", playthru, story, options);
   savePlaythru(playthru, playthruAbspath);
+  if (!doContinue) {
+    rl.close();
+    return;
+  }
+
   rl.prompt();
   rl.on("line", async (raw) => {
     const fixed = raw.trim();
     try {
-      if (!isBlank(fixed)) {
-        playthru.state.input = fixed;
-      }
-      const ops = await advance(provider, story, playthru, {
-        mode: StepMode.UNTIL_WAITING,
-        verbose: true,
-        doGenerateSpeech: false,
-        doGenerateSounds: false,
-      });
+      doContinue = await renderNext(fixed, playthru, story, options);
       savePlaythru(playthru, playthruAbspath);
-      function render() {
-        for (let i = 0; i < ops.length; i++) {
-          const op = ops[i];
-          switch (op.type) {
-            case "get-input":
-              // return early to wait for input
-              return;
-            case "play-line":
-              console.log(
-                chalk.cyan.bold(`${op.speaker}:`) +
-                  " " +
-                  chalk.cyan(`${op.line}`)
-              );
-              break;
-            case "play-sound":
-            case "sleep":
-              // no-ops in REPL mode
-              break;
-          }
-        }
-      }
-      render();
     } catch (err) {
       console.error(chalk.red(err));
     }
-    rl.prompt();
+    if (doContinue) {
+      rl.prompt();
+    } else {
+      rl.close();
+    }
   });
-  rl.on("close", () => process.exit(0));
 }
 
 start(__dirname);

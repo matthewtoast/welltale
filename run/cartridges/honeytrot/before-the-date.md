@@ -12,4 +12,4 @@ It's Friday night. Shortly you're going to meet Steven Warner. You're nervous, b
 
 You get dressed. Wearing your {{llmOutfitOpinion}} outfit - {{myOutfit}} - you head out to your date.
 
-<go to="the date">
+<jump to="the date">

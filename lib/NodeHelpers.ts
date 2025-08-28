@@ -1,5 +1,6 @@
 import matter from "gray-matter";
 import { fromHtml } from "hast-util-from-html";
+import { camelCase } from "lodash";
 import { micromark } from "micromark";
 import { frontmatter, frontmatterHtml } from "micromark-extension-frontmatter";
 import { isBlank } from "./TextHelpers";
@@ -78,7 +79,7 @@ function preprocessSelfClosingTags(content: string): string {
   );
 }
 
-export function parseMarkdownToSection(md: string) {
+export function markdownToTree(md: string) {
   const { data, content } = matter(md);
   const preprocessedContent = preprocessSelfClosingTags(content);
   const html = micromark(preprocessedContent, {
@@ -199,8 +200,8 @@ export function hastNodeToNodeInfo(
   const atts: Record<string, string> = {};
   if (node.properties) {
     for (const [key, value] of Object.entries(node.properties)) {
-      if (value != null) {
-        atts[key] = String(value);
+      if (value !== null) {
+        atts[camelCase(key)] = String(value);
       }
     }
   }

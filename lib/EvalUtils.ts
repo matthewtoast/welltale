@@ -316,7 +316,13 @@ export const evalExpr = (
 ): EvalResult => {
   const parser = getParser(funcs, prng, prev);
   const node = parser.parse(expr);
-  return node.evaluate(vars as any) as EvalResult;
+  try {
+    console.log(111, expr, vars);
+    return node.evaluate(vars as any) as EvalResult;
+  } catch (error) {
+    console.warn(error);
+    return false;
+  }
 };
 
 export function getParser(
@@ -350,3 +356,74 @@ export const findMissingFuncs = (
   const defined = new Set(Object.keys(p.functions));
   return [...called].filter((n) => !defined.has(n));
 };
+
+export function castToBoolean(v: any): boolean {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0 && !isNaN(v);
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (["true", "yes", "1"].includes(s)) return true;
+    if (["false", "no", "0", ""].includes(s)) return false;
+    return Boolean(s);
+  }
+  if (Array.isArray(v)) return v.length > 0;
+  if (v && typeof v === "object") return Object.keys(v).length > 0;
+  return Boolean(v);
+}
+
+export function castToNumber(v: any): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "string") {
+    const n = Number(v.trim());
+    return isNaN(n) ? 0 : n;
+  }
+  if (Array.isArray(v)) return v.length;
+  if (v && typeof v === "object") return Object.keys(v).length;
+  return 0;
+}
+
+export function castToString(v: any): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (v == null) return "";
+  if (Array.isArray(v)) return v.map(castToString).join(",");
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+export function cast(v: any, to: CastableType) {
+  switch (to) {
+    case "boolean":
+      return castToBoolean(v);
+    case "number":
+      return castToNumber(v);
+    case "string":
+      return castToString(v);
+    default:
+      throw new Error(`Unknown cast type: ${to}`);
+  }
+}
+
+export function stringToCastType(s: string): CastableType {
+  const normalized = s.trim().toLowerCase();
+  if (["bool", "boolean"].includes(normalized)) return "boolean";
+  if (["num", "number", "float", "int"].includes(normalized)) return "number";
+  if (["str", "string", "text"].includes(normalized)) return "string";
+  return "string";
+}
+
+export function looksLikeBoolean(s: string): boolean {
+  return s === "true" || s === "false";
+}
+
+export function looksLikeNumber(s: string): boolean {
+  const trimmed = s.trim();
+  if (trimmed === "") return false;
+  // Only allow if the string is a valid number and does not contain extraneous characters
+  // Disallow things like "123abc", "1.2.3", etc.
+  // Allow integers, floats, scientific notation, negative numbers
+  return /^-?(?:\d+|\d*\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmed);
+}
+
+export type CastableType = "boolean" | "number" | "string";

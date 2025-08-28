@@ -9,7 +9,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "ts": "npx tsx --",
-    "test": "for f in $(find . -name '*.test.ts' -not -path './node_modules/*'); do echo \"Running $f\"; npx tsx \"$f\" || exit 1; done"
+    "test": "for f in $(find . -name '*.test.ts' -not -path './node_modules/*'); do echo \"Running $f\"; npx tsx \"$f\" || exit 1; done",
+    "repl": "yarn ts ./run/repl.ts"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
