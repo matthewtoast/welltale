@@ -195,14 +195,24 @@ export function parseTaggedSpeakerLine(line: string): {
 } {
   // Match: [speaker][#tags][ (to recipient1, recipient2)]: text
   // speaker: optional, tags: optional, to: optional, text: required
-  // First check if there's a colon to indicate speaker/tags
-  const colonIndex = line.indexOf(":");
-
-  if (colonIndex === -1) {
-    // No colon, so no speaker or tags
+  
+  // Look for speaker pattern at the start of the line
+  // Valid patterns: "Name:", "#tag:", "Name#tag:", "Name (to X):", etc.
+  // Name must start with a capital letter and be a single word
+  const speakerPattern = /^((?:[A-Z][a-zA-Z0-9]*)?(?:#[^:\s]+(?:,[^:\s]+)*)?)\s*(\(to\s+[^)]+\))?\s*:/;
+  const match = line.match(speakerPattern);
+  
+  // Additional check: ensure we have either a name or tags (not just ":")
+  if (match && !match[1]) {
+    return { speaker: "", tags: [], line: line.trim(), to: [] };
+  }
+  
+  if (!match) {
+    // No speaker pattern found, treat entire line as content
     return { speaker: "", tags: [], line: line.trim(), to: [] };
   }
 
+  const colonIndex = match.index! + match[0].length - 1;
   const beforeColon = line.substring(0, colonIndex);
   const afterColon = line.substring(colonIndex + 1).trim();
 

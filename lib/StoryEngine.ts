@@ -18,7 +18,7 @@ import {
 } from "lib/NodeHelpers";
 import { PRNG } from "lib/RandHelpers";
 import { cleanSplit, isBlank, renderHandlebars } from "lib/TextHelpers";
-import { omit } from "lodash";
+import { isEmpty, omit } from "lodash";
 import { TScalar } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
@@ -130,9 +130,7 @@ export async function advance(
     if (options.verbose) {
       console.info(
         chalk.gray(
-          ...args.map((a) =>
-            shouldJsonify(a) ? JSON.stringify(a, null, 2) : a
-          )
+          ...args.map((a) => (shouldJsonify(a) ? JSON.stringify(a) : a))
         )
       );
     }
@@ -220,7 +218,7 @@ export async function advance(
     out.push(...result.ops);
 
     log(
-      `<${node.tag} ${node.id} ${section.path}>${renderedText}</> (${result.flow})`,
+      `<${node.tag} ${node.id}${node.tag.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(context.atts) ? "" : " " + JSON.stringify(context.atts)} ${result.flow}>`,
       result.ops
     );
 
@@ -339,7 +337,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: Node) => node.tag === "text" || node.tag === "p",
     execute: async (ctx, provider) => {
-      const next = nextNode(ctx.node, ctx.section, false);
+      // Check if paragraph has children (like jump tags)
+      const hasChildren =
+        ctx.node.kids.length > 0 && ctx.node.kids.some((k) => k.tag !== "text");
+      const next = hasChildren
+        ? nextNode(ctx.node, ctx.section, true) // Enter children
+        : nextNode(ctx.node, ctx.section, false); // Skip to next sibling
       const ops: OP[] = [];
       // Skip spurious empty nodes
       if (isBlank(ctx.text)) {
@@ -401,15 +404,23 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: Node) => node.tag === "if",
     execute: async (ctx) => {
       let next;
-      if (
-        ctx.node.kids.length > 0 &&
-        evalExpr(ctx.atts.cond, ctx.state, {}, ctx.rng)
-      ) {
-        console.log(222);
-        next = { node: ctx.node.kids[0], section: ctx.section };
+      const conditionTrue = evalExpr(ctx.atts.cond, ctx.state, {}, ctx.rng);
+      if (conditionTrue && ctx.node.kids.length > 0) {
+        // Find first non-else child
+        const firstNonElse = ctx.node.kids.find((k) => k.tag !== "else");
+        if (firstNonElse) {
+          next = { node: firstNonElse, section: ctx.section };
+        } else {
+          next = nextNode(ctx.node, ctx.section, false);
+        }
       } else {
-        next = nextNode(ctx.node, ctx.section, false);
-        console.log(333, next);
+        // Look for else block
+        const elseChild = ctx.node.kids.find((k) => k.tag === "else");
+        if (elseChild && elseChild.kids.length > 0) {
+          next = { node: elseChild.kids[0], section: ctx.section };
+        } else {
+          next = nextNode(ctx.node, ctx.section, false);
+        }
       }
       return {
         ops: [],

@@ -2,6 +2,8 @@
 
 This is a test.
 
+## get number
+
 Enter a number.
 
 <input to="someNumber" as="number" />
@@ -9,25 +11,37 @@ Enter a number.
 You entered {{someNumber}}.
 
 <if cond="someNumber > 5">
-  <jump to="bigger than 5">
+  <if cond="someNumber == 666">
+    <jump to="mark of the beast" />
+    <else>
+      <jump to="bigger than 5" />
+    </else>
+  </if>
+  <else>
+    <jump to="5 or less" />
+  </else>
 </if>
-
-## 5 or less
-
-LESS than 5... Interesting...
 
 ## in any case
 
 In any case...
 
-<jump to="more input">
+<jump to="more input" />
 
 ## bigger than 5
 
 BIGGER than 5! WOW!
 
-<jump to="in any case">
+<jump to="in any case" />
+
+## 5 or less
+
+LESS than 5... Interesting...
 
 ## more input
 
-We'll get more input here
+<jump to="get number" />
+
+## mark of the beast
+
+OH NO!

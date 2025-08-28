@@ -317,7 +317,6 @@ export const evalExpr = (
   const parser = getParser(funcs, prng, prev);
   const node = parser.parse(expr);
   try {
-    console.log(111, expr, vars);
     return node.evaluate(vars as any) as EvalResult;
   } catch (error) {
     console.warn(error);

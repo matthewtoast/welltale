@@ -51,32 +51,80 @@ export function findNode(
   return found;
 }
 
-function preprocessSelfClosingTags(content: string): string {
-  return content.replace(
+const VOID_ELEMENTS = [
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+];
+
+// List of tags that are typically self-closing in this system
+const LIKELY_SELF_CLOSING = [
+  "jump",
+  "input",
+  "wait",
+  "sound",
+  "set",
+  "code",
+  "stop",
+  "yield",
+  "call",
+  "return",
+  "break",
+  "continue",
+];
+
+export function preprocessSelfClosingTags(content: string): string {
+  // First, handle properly self-closing tags (with />)
+  let processed = content.replace(
     /<([a-zA-Z][\w-]*)\s*([^>]*?)\/>/g,
     (match, tag, attrs) => {
-      const voidElements = [
-        "area",
-        "base",
-        "br",
-        "col",
-        "embed",
-        "hr",
-        "img",
-        "input",
-        "link",
-        "meta",
-        "param",
-        "source",
-        "track",
-        "wbr",
-      ];
-      if (voidElements.includes(tag.toLowerCase())) {
+      if (VOID_ELEMENTS.includes(tag.toLowerCase())) {
         return match;
       }
       return `<${tag}${attrs ? " " + attrs : ""}></${tag}>`;
     }
   );
+
+  // Now handle tags that look like they should be self-closing
+  // This regex matches tags that are on their own line or followed by another tag/text
+  processed = processed.replace(
+    /<([a-zA-Z][\w-]*)\s*([^>]*?)>(?=\s*(?:<|$|\n|[A-Z]))/gm,
+    (match, tag, attrs, offset, str) => {
+      const tagLower = tag.toLowerCase();
+
+      // Skip if it's a void element or if it's already followed by a closing tag
+      if (VOID_ELEMENTS.includes(tagLower)) {
+        return match;
+      }
+
+      // Check if this tag has a matching closing tag
+      const closingTagRegex = new RegExp(`</${tag}\\s*>`, "i");
+      const remainingContent = str.slice(offset + match.length);
+      const hasClosingTag = closingTagRegex.test(
+        remainingContent.slice(0, 1000)
+      ); // Check next 1000 chars
+
+      // If it's a likely self-closing tag and no closing tag found nearby, convert it
+      if (LIKELY_SELF_CLOSING.includes(tagLower) && !hasClosingTag) {
+        return `<${tag}${attrs ? " " + attrs : ""}></${tag}>`;
+      }
+
+      return match;
+    }
+  );
+
+  return processed;
 }
 
 export function markdownToTree(md: string) {
