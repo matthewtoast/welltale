@@ -214,7 +214,7 @@ export async function advance(
     };
 
     const handler = ACTION_HANDLERS.find((h) => h.match(node))!;
-    const result = await handler.execute(context, provider);
+    const result = await handler.exec(context, provider);
     out.push(...result.ops);
 
     log(
@@ -309,7 +309,7 @@ export interface ActionResult {
 
 interface ActionHandler {
   match: (node: Node) => boolean;
-  execute: (
+  exec: (
     context: ActionContext,
     services: ServiceProvider
   ) => Promise<ActionResult>;
@@ -318,7 +318,7 @@ interface ActionHandler {
 export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node) => node.tag === "root",
-    execute: async (ctx) => ({
+    exec: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, true),
       flow: FlowType.CONTINUE,
@@ -326,7 +326,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag.startsWith("h"), // <h*>, <header>, <head>, <hr>
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
@@ -336,7 +336,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "text" || node.tag === "p",
-    execute: async (ctx, provider) => {
+    exec: async (ctx, provider) => {
       // Check if paragraph has children (like jump tags)
       const hasChildren =
         ctx.node.kids.length > 0 && ctx.node.kids.some((k) => k.tag !== "text");
@@ -378,7 +378,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "input",
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       const toKey = ctx.atts.to;
       if (toKey) {
         ctx.state.__inputKey = toKey;
@@ -402,7 +402,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "if",
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       let next;
       const conditionTrue = evalExpr(ctx.atts.cond, ctx.state, {}, ctx.rng);
       if (conditionTrue && ctx.node.kids.length > 0) {
@@ -431,7 +431,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "jump",
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       let next;
       if (!ctx.atts.if || evalExpr(ctx.atts.if, ctx.state, {}, ctx.rng)) {
         next = searchNode(ctx.sections, ctx.section, ctx.atts.to);
@@ -447,7 +447,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "llm",
-    execute: async (ctx, provider) => {
+    exec: async (ctx, provider) => {
       let schema = ctx.atts.to ?? ctx.atts.schema;
       if (isBlank(schema)) {
         schema = "_"; // Assigns to the _ variable
@@ -466,7 +466,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "sound" && !!node.atts.url,
-    execute: async (ctx) => ({
+    exec: async (ctx) => ({
       ops: [
         {
           type: "play-sound",
@@ -479,7 +479,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "sound" && !!node.atts.gen,
-    execute: async (ctx, provider) => {
+    exec: async (ctx, provider) => {
       const prompt = ctx.text ?? ctx.atts.prompt ?? "";
       if (!isBlank(prompt)) {
         const { url } = ctx.options.doGenerateSounds
@@ -500,7 +500,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "wait",
-    execute: async (ctx) => ({
+    exec: async (ctx) => ({
       ops: [
         {
           type: "sleep",
@@ -513,7 +513,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "case",
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       // Find first when child where cond is true
       for (const child of ctx.node.kids) {
         if (child.tag === "when") {
@@ -547,7 +547,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "when",
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       // When encountered directly (not via case), check condition
       const condAttr = ctx.atts.cond;
       if (!condAttr || evalExpr(condAttr, ctx.state, {}, ctx.rng)) {
@@ -569,7 +569,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "set",
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       ctx.state[ctx.atts.var ?? ctx.atts.to] = evalExpr(
         ctx.atts.op,
         ctx.state,
@@ -585,7 +585,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "code",
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       evalExpr(ctx.text, ctx.state, {}, ctx.rng);
       return {
         ops: [],
@@ -596,7 +596,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "block",
-    execute: async (ctx) => ({
+    exec: async (ctx) => ({
       ops: [],
       next: skipBlock(ctx.node, ctx.section),
       flow: FlowType.CONTINUE,
@@ -604,7 +604,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "yield",
-    execute: async (ctx) => {
+    exec: async (ctx) => {
       const targetBlockId = ctx.atts.to;
       const returnTo = ctx.atts.returnTo;
       if (!targetBlockId) {
@@ -663,7 +663,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) => node.tag === "stop",
-    execute: async (ctx) => ({
+    exec: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, false),
       flow: FlowType.BLOCKING,
@@ -671,7 +671,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: () => true,
-    execute: async (ctx) => ({
+    exec: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, false),
       flow: FlowType.CONTINUE,
