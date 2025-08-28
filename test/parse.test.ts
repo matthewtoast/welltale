@@ -40,6 +40,10 @@ async function test() {
     10
   );
 
+  const state = { a: 0 };
+  evalExpr("a = 1", state, {}, rng);
+  expect(state, { a: 1 });
+
   // Schema parsing
   expect(simplifySchema(zodToJsonSchema(parseSchemaString("_"))), {
     type: "object",

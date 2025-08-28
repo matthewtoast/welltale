@@ -2,6 +2,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { existsSync, readFileSync, writeFileSync } from "fs";
+import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
 import { loadDirRecursive } from "lib/FileUtils";
 import { DefaultServiceProvider } from "lib/ServiceProvider";
@@ -71,7 +72,7 @@ async function renderNext(
     playthru.state.input = input;
   }
   const ops = await advance(provider, story, playthru, options);
-  function render(): boolean {
+  async function render(): Promise<boolean> {
     for (let i = 0; i < ops.length; i++) {
       const op = ops[i];
       switch (op.type) {
@@ -89,8 +90,10 @@ async function renderNext(
           console.log(chalk.magenta("The end."));
           return false;
         case "play-sound":
+          // no-op in REPL mode
+          break;
         case "sleep":
-          // no-ops in REPL mode
+          await sleep(op.duration);
           break;
       }
     }

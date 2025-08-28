@@ -307,12 +307,20 @@ export const createRandomHelpers = (
 
 type Func = (...args: Primitive[]) => EvalResult;
 
+function makeParser() {
+  return new Parser({
+    operators: {
+      assignment: true,
+    },
+  });
+}
+
 export const evalExpr = (
   expr: string,
   vars: Scope = {},
   funcs: Record<string, Func> = {},
   prng: PRNG,
-  prev: Parser = new Parser()
+  prev: Parser = makeParser()
 ): EvalResult => {
   const parser = getParser(funcs, prng, prev);
   const node = parser.parse(expr);
@@ -327,7 +335,7 @@ export const evalExpr = (
 export function getParser(
   funcs: Record<string, Func> = {},
   prng: PRNG,
-  parser: Parser = new Parser()
+  parser: Parser = makeParser()
 ) {
   const randomHelpers = createRandomHelpers(prng);
   Object.assign(
@@ -344,7 +352,7 @@ export const findMissingFuncs = (
   expr: string,
   funcs: Record<string, Func> = {},
   prng: PRNG,
-  parser: Parser = new Parser()
+  parser: Parser = makeParser()
 ) => {
   const p = getParser(funcs, prng, parser);
   Object.assign(p.functions, funcs);

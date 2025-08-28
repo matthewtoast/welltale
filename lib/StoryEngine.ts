@@ -17,7 +17,12 @@ import {
   skipBlock,
 } from "lib/NodeHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { cleanSplit, isBlank, renderHandlebars } from "lib/TextHelpers";
+import {
+  cleanSplit,
+  cleanSplitRegex,
+  isBlank,
+  renderHandlebars,
+} from "lib/TextHelpers";
 import { isEmpty, omit } from "lodash";
 import { TScalar } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
@@ -143,6 +148,7 @@ export async function advance(
   playthru.turn++;
 
   const sections = await compile(story.cartridge);
+
   const { state } = playthru;
 
   if (state.__inputType) {
@@ -446,6 +452,73 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    match: (node: Node) => node.tag === "set",
+    exec: async (ctx) => {
+      ctx.state[ctx.atts.var ?? ctx.atts.to ?? ctx.atts.key] = evalExpr(
+        ctx.atts.op ?? ctx.atts.value,
+        ctx.state,
+        {},
+        ctx.rng
+      );
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.CONTINUE,
+      };
+    },
+  },
+  {
+    match: (node: Node) => node.tag === "pre", // <pre> often wraps <code>, so this is necessary
+    exec: async (ctx) => {
+      // TODO: If we have text children, we might want to treat this like a <p> or <text>
+      const hasChildren =
+        ctx.node.kids.length > 0 && ctx.node.kids.some((k) => k.tag !== "text");
+      const next = hasChildren
+        ? nextNode(ctx.node, ctx.section, true) // Enter children
+        : nextNode(ctx.node, ctx.section, false); // Skip to next sibling
+      return {
+        ops: [],
+        next,
+        flow: FlowType.CONTINUE,
+      };
+    },
+  },
+  {
+    match: (node: Node) => node.tag === "code",
+    exec: async (ctx) => {
+      const lines = cleanSplitRegex(ctx.text, /[;\n]/);
+      lines.forEach((line) => {
+        evalExpr(line, ctx.state, {}, ctx.rng);
+      });
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.CONTINUE,
+      };
+    },
+  },
+  {
+    match: (node: Node) => node.tag === "wait" || node.tag === "sleep",
+    exec: async (ctx) => ({
+      ops: [
+        {
+          type: "sleep",
+          duration:
+            parseNumberOrNull(
+              ctx.atts.duration ?? ctx.atts.for ?? ctx.atts.ms
+            ) ?? 1,
+        },
+      ],
+      next: nextNode(ctx.node, ctx.section, false),
+      flow: FlowType.CONTINUE,
+    }),
+  },
+  //
+  //
+  // -----
+  //
+  //
+  {
     match: (node: Node) => node.tag === "llm",
     exec: async (ctx, provider) => {
       let schema = ctx.atts.to ?? ctx.atts.schema;
@@ -497,19 +570,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         flow: FlowType.BLOCKING,
       };
     },
-  },
-  {
-    match: (node: Node) => node.tag === "wait",
-    exec: async (ctx) => ({
-      ops: [
-        {
-          type: "sleep",
-          duration: parseNumberOrNull(ctx.atts.duration ?? ctx.atts.for) ?? 1,
-        },
-      ],
-      next: nextNode(ctx.node, ctx.section, false),
-      flow: FlowType.CONTINUE,
-    }),
   },
   {
     match: (node: Node) => node.tag === "case",
@@ -565,33 +625,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           flow: FlowType.CONTINUE,
         };
       }
-    },
-  },
-  {
-    match: (node: Node) => node.tag === "set",
-    exec: async (ctx) => {
-      ctx.state[ctx.atts.var ?? ctx.atts.to] = evalExpr(
-        ctx.atts.op,
-        ctx.state,
-        {},
-        ctx.rng
-      );
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
-        flow: FlowType.CONTINUE,
-      };
-    },
-  },
-  {
-    match: (node: Node) => node.tag === "code",
-    exec: async (ctx) => {
-      evalExpr(ctx.text, ctx.state, {}, ctx.rng);
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
-        flow: FlowType.CONTINUE,
-      };
     },
   },
   {
@@ -660,14 +693,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         };
       }
     },
-  },
-  {
-    match: (node: Node) => node.tag === "stop",
-    exec: async (ctx) => ({
-      ops: [],
-      next: nextNode(ctx.node, ctx.section, false),
-      flow: FlowType.BLOCKING,
-    }),
   },
   {
     match: () => true,

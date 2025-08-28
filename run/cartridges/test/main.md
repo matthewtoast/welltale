@@ -44,4 +44,21 @@ LESS than 5... Interesting...
 
 ## mark of the beast
 
-OH NO!
+OH NO! MARK OF THE BEAST! SECRET DOOR!
+
+## variable tests
+
+<set key="total" value="someNumber * 2" />
+
+The total is {{total}}.
+
+```
+score = total + 10
+bonus = score > 50 ? 100 : 0
+```
+
+Your score is {{score}} with a bonus of {{bonus}}.
+
+<sleep duration=1000 />
+
+Nice sleepy time that 'twas!

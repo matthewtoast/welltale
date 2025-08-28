@@ -69,6 +69,13 @@ export function cleanSplit(s: string, sep: string = "\n") {
     .filter((s) => !!s);
 }
 
+export function cleanSplitRegex(s: string, sep: RegExp) {
+  return s
+    .split(sep)
+    .map((s) => s.trim())
+    .filter((s) => !!s);
+}
+
 export function stripHTMLTags(str: string) {
   return str.replace(/<[^>]*>/g, "");
 }
