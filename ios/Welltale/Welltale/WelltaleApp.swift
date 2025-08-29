@@ -12,7 +12,8 @@ import SwiftData
 struct WelltaleApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Story.self,
+            UserLibrary.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
