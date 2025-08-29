@@ -94,6 +94,29 @@ export function preprocessSelfClosingTags(content: string): string {
     }
   );
 
+  // Special handling for custom elements that might contain blank lines
+  // This prevents markdown from breaking their structure with paragraph tags
+  const elementsToWrap = [
+    'block',
+    'if',
+    'scene',
+    'chapter',
+    'act',
+    'dialog',
+    'narration',
+    'menu',
+    'choice'
+  ];
+  
+  elementsToWrap.forEach(tag => {
+    // Match opening tag, content, and closing tag
+    const regex = new RegExp(`(<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>)`, 'g');
+    processed = processed.replace(regex, (match) => {
+      // Wrap in a div to ensure proper isolation
+      return `<div class="${tag}-container">${match}</div>`;
+    });
+  });
+
   // Now handle tags that look like they should be self-closing
   // This regex matches tags that are on their own line or followed by another tag/text
   processed = processed.replace(
@@ -281,6 +304,20 @@ export function hastNodeToNodeInfo(
   id: string,
   parent: Node | null = null
 ): Node {
+  // Handle wrapped containers - unwrap them and return the inner element
+  if (node.tagName === "div") {
+    const className = node.properties?.class || node.properties?.className;
+    if (className && typeof className === "string" && className.endsWith("-container")) {
+      // Extract the tag name from the class (e.g., "block-container" -> "block")
+      const expectedTag = className.replace("-container", "");
+      // Find the matching child and return it directly
+      const wrappedChild = node.children?.find(child => child.tagName === expectedTag);
+      if (wrappedChild) {
+        return hastNodeToNodeInfo(wrappedChild, id, parent);
+      }
+    }
+  }
+
   const result: Node = {
     id,
     tag: node.tagName ?? node.type,
