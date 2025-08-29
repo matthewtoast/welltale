@@ -8,7 +8,7 @@ import {
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { findNode, markdownToTree, Node, Section } from "lib/StoryCompiler";
+import { compile, findNode, Node, Section } from "lib/StoryCompiler";
 import {
   cleanSplit,
   cleanSplitRegex,
@@ -271,20 +271,6 @@ export async function advance(
   log("DONE", omit(playthru, "history"), out);
 
   return out;
-}
-
-export async function compile(cartridge: Cartridge) {
-  const sources: Section[] = [];
-  for (let path in cartridge) {
-    const content = cartridge[path];
-    if (path.endsWith(".json")) {
-      sources.push(JSON.parse(content.toString("utf-8")));
-    } else if (path.endsWith(".md")) {
-      const { root, meta } = markdownToTree(content.toString("utf-8"));
-      sources.push({ root, meta, path });
-    }
-  }
-  return sources;
 }
 
 export interface ActionContext {
