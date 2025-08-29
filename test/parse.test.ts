@@ -1,11 +1,9 @@
-import dedent from "dedent";
 import { parseTaggedSpeakerLine } from "lib/DialogHelpers";
 import { autoFindPresetVoice } from "lib/ElevenLabsUtils";
 import { evalExpr } from "lib/EvalUtils";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { markdownToTree, preprocessSelfClosingTags } from "lib/StoryCompiler";
 import {
   generatePredictableKey,
   isBlank,
@@ -13,7 +11,6 @@ import {
   sha1,
   slugify,
 } from "lib/TextHelpers";
-import { dumpTree } from "lib/TreeDumper";
 import { parseSchemaString } from "lib/ZodHelpers";
 import { camelCase } from "lodash";
 import { DEFAULT_SEED } from "run/RunUtils";
@@ -167,88 +164,6 @@ async function test() {
   expect(camelCase("foo-bar"), "fooBar");
   expect(camelCase("foo_bar"), "fooBar");
   expect(camelCase("FOO_BAR"), "fooBar");
-
-  // preprocessSelfClosingTags tests
-  expect(preprocessSelfClosingTags("<jump />"), "<jump></jump>");
-  expect(preprocessSelfClosingTags("<jump/>"), "<jump></jump>");
-  expect(
-    preprocessSelfClosingTags('<jump to="section1" />'),
-    '<jump to="section1" ></jump>'
-  );
-  expect(
-    preprocessSelfClosingTags('<wait time="3"/>'),
-    '<wait time="3"></wait>'
-  );
-  expect(preprocessSelfClosingTags("<br />"), "<br />");
-  expect(
-    preprocessSelfClosingTags('<img src="test.jpg" />'),
-    '<img src="test.jpg" />'
-  );
-  expect(preprocessSelfClosingTags("<hr/>"), "<hr/>");
-  expect(preprocessSelfClosingTags("<jump>"), "<jump></jump>");
-  expect(preprocessSelfClosingTags("<input>"), "<input>"); // input without /> is not converted
-  expect(preprocessSelfClosingTags("<wait>"), "<wait></wait>");
-  expect(
-    preprocessSelfClosingTags('<set key="value">'),
-    '<set key="value"></set>'
-  );
-  expect(preprocessSelfClosingTags("<div>content</div>"), "<div>content</div>");
-  expect(preprocessSelfClosingTags("<jump>text</jump>"), "<jump>text</jump>");
-  expect(
-    preprocessSelfClosingTags('<p>Hello <jump to="next" /> world</p>'),
-    '<p>Hello <jump to="next" ></jump> world</p>'
-  );
-  expect(
-    preprocessSelfClosingTags(
-      '<jump />\n<wait time="5" />\n<set key="value" />'
-    ),
-    '<jump></jump>\n<wait time="5" ></wait>\n<set key="value" ></set>'
-  );
-  expect(preprocessSelfClosingTags("<div>"), "<div>");
-  expect(
-    preprocessSelfClosingTags('<span attr="value">'),
-    '<span attr="value">'
-  );
-  expect(
-    preprocessSelfClosingTags('<jump to="section" condition="x > 5" />'),
-    '<jump to="section" condition="x > 5" />'
-  );
-  expect(
-    preprocessSelfClosingTags('<meta charset="utf-8" />'),
-    '<meta charset="utf-8" />'
-  );
-  expect(
-    preprocessSelfClosingTags('<link rel="stylesheet" />'),
-    '<link rel="stylesheet" />'
-  );
-  expect(
-    preprocessSelfClosingTags("<jump>\n<wait>"),
-    "<jump></jump>\n<wait></wait>"
-  );
-  expect(preprocessSelfClosingTags("<input />"), "<input />");
-  expect(
-    preprocessSelfClosingTags('<input type="text" />'),
-    '<input type="text" />'
-  );
-  expect(
-    preprocessSelfClosingTags('<jump to="section" condition="foo" />'),
-    '<jump to="section" condition="foo" ></jump>'
-  );
-
-  // Markdown parsing
-  expect(
-    dumpTree(
-      markdownToTree(dedent`
-    # hello
-    guy
-    ## what up
-    yo
-    ### how is it
-    <foo to="my friend">
-  `).root
-    ),
-    '<root id="0">\n  <h1 id="0.0">hello</h1>\n  <text id="0.1" />\n  <p id="0.2">guy</p>\n  <text id="0.3" />\n  <h2 id="0.4">what up</h2>\n  <text id="0.5" />\n  <p id="0.6">yo</p>\n  <text id="0.7" />\n  <h3 id="0.8">how is it</h3>\n  <text id="0.9" />\n  <foo id="0.10" to="my friend" />\n</root>'
-  );
 }
 
 test();

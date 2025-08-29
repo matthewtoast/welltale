@@ -8,7 +8,14 @@ import {
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { compile, findNode, Node, Section } from "lib/StoryCompiler";
+import {
+  compile,
+  dumpTree,
+  FRAG_TAG,
+  Node,
+  Section,
+  TEXT_TAG,
+} from "lib/StoryCompiler";
 import {
   cleanSplit,
   cleanSplitRegex,
@@ -19,9 +26,8 @@ import { isEmpty, omit } from "lodash";
 import { TScalar } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
-import { dumpTree } from "./TreeDumper";
 
-export const DEFAULT_SECTION = "main.md";
+export const DEFAULT_SECTION = "main.xml";
 export const DEFAULT_CURSOR = "0";
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
@@ -175,7 +181,7 @@ export async function advance(
       break;
     }
     let node: Node | null = section
-      ? findNode(section.root, (n) => n.id === state.__cursor)
+      ? findNode(section.root, (n) => n.atts.id === state.__cursor)
       : null;
     if (!node) {
       console.warn(`Node ${state.__cursor} not found in ${section.path}`);
@@ -221,14 +227,14 @@ export async function advance(
     out.push(...result.ops);
 
     log(
-      `<${node.tag} ${node.id}${node.tag.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(context.atts) ? "" : " " + JSON.stringify(context.atts)} ${result.flow}>`,
-      `~> ${result.next?.node.id}`,
+      `<${node.tag} ${atts.id}${node.tag.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(context.atts) ? "" : " " + JSON.stringify(context.atts)} ${result.flow}>`,
+      `~> ${result.next?.node.atts.id}`,
       result.ops
     );
 
     // Update cursor position
     if (result.next) {
-      state.__cursor = result.next.node.id;
+      state.__cursor = result.next.node.atts.id;
       state.__section = result.next.section.path;
     } else {
       // No next node - check if we should return from a block
@@ -307,7 +313,7 @@ interface ActionHandler {
 
 export const ACTION_HANDLERS: ActionHandler[] = [
   {
-    match: (node) => node.tag === "root",
+    match: (node) => node.tag === "root" || node.tag === FRAG_TAG,
     exec: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, true),
@@ -323,6 +329,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
+    match: (node: Node) => node.tag === "section" || node.tag === "sec",
+    exec: async (ctx) => {
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, true),
+        flow: FlowType.CONTINUE,
+      };
+    },
+  },
+  {
     match: (node: Node) => node.tag.startsWith("h"), // <h*>, <header>, <head>, <hr>
     exec: async (ctx) => {
       return {
@@ -334,7 +350,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) =>
-      node.tag === "text" ||
+      node.tag === TEXT_TAG ||
+      node.tag === "text" || // Just in case someone wants to use <text>
       node.tag === "p" ||
       node.tag === "li" ||
       node.tag === "span",
@@ -499,7 +516,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: Node) => node.tag === "code",
     exec: async (ctx) => {
-      const codeChildren = ctx.node.kids.filter((k) => k.tag === "text");
+      const codeChildren = ctx.node.kids.filter((k) => k.tag === TEXT_TAG);
       if (codeChildren.length > 0) {
         codeChildren.forEach((tc) => {
           const lines = cleanSplitRegex(tc.text, /[;\n]/);
@@ -567,16 +584,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const returnResult = searchNode(ctx.sections, ctx.section, returnTo);
         if (returnResult) {
           returnSection = returnResult.section.path;
-          returnCursor = returnResult.node.id;
+          returnCursor = returnResult.node.atts.id;
         } else {
           const next = nextNode(ctx.node, ctx.section, false);
           returnSection = next?.section.path ?? DEFAULT_SECTION;
-          returnCursor = next?.node.id ?? DEFAULT_CURSOR;
+          returnCursor = next?.node.atts.id ?? DEFAULT_CURSOR;
         }
       } else {
         const next = nextNode(ctx.node, ctx.section, false);
         returnSection = next?.section.path ?? DEFAULT_SECTION;
-        returnCursor = next?.node.id ?? DEFAULT_CURSOR;
+        returnCursor = next?.node.atts.id ?? DEFAULT_CURSOR;
       }
       ctx.state.__callStack.push(`${returnSection}/${returnCursor}`);
       // Go to first child of block (or next sibling if no children)
@@ -684,29 +701,31 @@ export function nextNode(
     return { node: curr.kids[0], section };
   }
 
-  // Find the next sibling by traversing up the tree
-  let current = curr;
-  let parent = current.parent;
+  // Traverse the tree from the root to find the next node in document order
+  // (preorder traversal, but after curr)
+  let found = false;
+  let result: Node | null = null;
 
-  while (parent) {
-    // Find current node's position in parent's children
-    const siblingIndex = parent.kids.findIndex(
-      (child) => child.id === current.id
-    );
-
-    // If there's a next sibling, return it
-    if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
-      const nextSibling = parent.kids[siblingIndex + 1];
-
-      return { node: nextSibling, section };
+  function walk(node: Node): boolean {
+    if (result) return true; // already found
+    if (node === curr) {
+      found = true;
+    } else if (found) {
+      result = node;
+      return true; // stop traversal
     }
-
-    // No next sibling, move up to parent and continue
-    current = parent;
-    parent = parent.parent;
+    for (const kid of node.kids) {
+      if (walk(kid)) return true;
+    }
+    return false;
   }
 
-  // Reached the root with no next sibling found
+  walk(section.root);
+
+  if (result) {
+    return { node: result, section };
+  }
+  // No next node found
   return null;
 }
 
@@ -715,7 +734,7 @@ export function searchInSection(
   searchTerm: string
 ): Node | null {
   return findNode(section.root, (node) => {
-    if (node.id === searchTerm) return true;
+    if (node.atts.id === searchTerm) return true;
     if (node.atts.id === searchTerm) return true;
 
     // Heading text match (case insensitive)
@@ -749,18 +768,6 @@ export function searchNode(
     return null;
   }
 
-  // Parse scoped identifier like "blah.md.0.0.12"
-  const scopedMatch = flex.match(/^(.+\.md)\.(.+)$/);
-  if (scopedMatch) {
-    const [, sectionPath, nodeId] = scopedMatch;
-    const targetSection = sections.find((s) => s.path === sectionPath);
-    if (targetSection) {
-      const node = searchInSection(targetSection, nodeId);
-      if (node) return { node, section: targetSection };
-    }
-    return null;
-  }
-
   // Search starting with current section, then others
   const sectionsToSearch = [
     currentSection,
@@ -775,4 +782,24 @@ export function searchNode(
   }
 
   return null;
+}
+
+export function findNode(
+  root: Node,
+  predicate: (node: Node, parent: Node | null, depth: number) => boolean
+): Node | null {
+  let found: Node | null = null;
+  function walk(node: Node, parent: Node | null, depth: number) {
+    if (found) return;
+    if (predicate(node, parent, depth)) {
+      found = node;
+      return;
+    }
+    for (const child of node.kids) {
+      walk(child, node, depth + 1);
+      if (found) return;
+    }
+  }
+  walk(root, null, 0);
+  return found;
 }

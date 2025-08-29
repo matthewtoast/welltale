@@ -1,0 +1,179 @@
+<p>Welcome to Welltale!</p>
+<p>Welltale is an interactive audio story platform, and this is how stories are written.</p>
+<p>As you can see, stories are declarative XML.</p>
+<p>You use tags to control what the audio story says, get user input, branch to different story points, and more.</p>
+<p>The most basic tag is what you see here, the &lt;p&gt; tag.</p>
+<p>
+  Whatever is in a &lt;p&gt; gets spoken aloud to the listener - it could be the narrator or story character.
+  We'll get to voicing below, but for now just remember that &lt;p&gt; means someone speaking.
+  Each &lt;p&gt; is one chunk of dialog.
+  The content inside &lt;p&gt; tags can be long or short, or multi-line.
+</p>
+
+<!--
+  It's just XML, so comments like this are fine.
+  These are only visible to you, the author, and not played as content to the listener.
+-->
+
+<p>
+  To make a story iteractive, we need to get user input.
+  We do this with the &lt;input&gt; tag.
+</p>
+<p>
+  Of course, in a real story, we'd write something like "Please tell me your name."
+  And then we'd add the following &lt;input&gt; tag.
+</p>
+<input to="listenerName" />
+<p>
+  As the story plays, it will stop at the above point and cue the listener for input.
+  Then the input will be avalable as the {{listenerName}} variable.
+  We can refer to any variable using Handlebars style syntax.
+</p>
+<p>Nice to meet you, {{listenerName}}.</p>
+<p>
+  By default all user input is string.
+  But if we want a number, we can do that too using the "as" attribute.
+  We might say something like "Hey, listener! What's your favorite number?" and then grab the input as a number like so:
+</p>
+<input to="favoriteNumber" as="number" />
+
+<p>
+  Now that {{listenerName}} gave their {{favoriteNumber}}, we can use that to make the story more interesting.
+</p>
+
+<sec>
+  <p>
+    How can we make it interesting? With more interactivity.
+    As you can see, we're now in a &lt;sec&gt; tag. That is, a section.
+    You can use &lt;section&gt; too, if the idea of having lots of &lt;sec&gt;s makes you nervous.
+  </p>
+  <p>
+    Sections don't do anything alone - they're just containers, really.
+    By default they'll just flow the same way that &lt;p&gt; tags do: one after another.
+    But when you give a section an "id" attribute, it can do something powerful: logical branching.
+  </p>
+</sec>
+
+<sec id="logical-branching">
+  <p>
+    Let's see how logical (or conditional) branching works in this section.
+    Below, we have a conditional expression using &lt;if&gt; and &lt;else&gt; tags.
+    When one of the conditions is met, the story flows into the inside of that tag.
+  </p>
+  <p>
+    In this case, when we reach the inside of a particular conditional tag, we see a &lt;jump&gt; tag.
+    The &lt;jump&gt; tag lets us to jump the story flow to another... you guessed it... section!
+    The &lt;jump&gt; tag's "to" attribute points to the id of the section we want to jump to.
+  </p>
+  <p>
+    In the "cond" attribute, you can write code expressions to do pretty much any kind of logic you want.
+    (Documentation on how to use expressions is covered later.)
+    Take a close look at the conditional logic below.
+    Imagine you had been listening to this interactive story, and had said that your favorite number was 123.
+    Which section would you end up at?
+  </p>
+  <if cond="favoriteNumber == 42">
+    <jump to="easter-egg" />
+  </if>
+  <if cond="favoriteNumber > 10">
+    <jump to="big-number-path" />
+  </if>
+  <else>
+    <jump to="small-number-path" />
+  </else>
+</sec>
+
+<sec id="big-number-path">
+  <p>
+    That's right! If the {{favoriteNumber}} had been 123, you would have ended up here.
+  </p>
+  <p>
+    But don't rest on your laurels, because we're about to jump to another section.
+  </p>
+  <jump to="variable-manipulation" />
+</sec>
+
+<sec id="small-number-path">
+  <p>
+    We would have reached this point if {{favoriteNumber}} had been on the smaller side.
+    But hey, small can be powerful too.
+  </p>
+  <jump to="variable-manipulation" />
+</sec>
+
+<sec id="easter-egg">
+  <p>
+    You found the answer to life, the universe, and everything.
+    We only would have ended here if the listener's favorite number had been 42.
+  </p>
+  <p>
+    Note how this section doesn't have a jump tag.
+    That's because without one, we'll simply flow to whatever the next tag is.
+    In this case, it's the section called "variable-manipulation" which happens to be the same place we would have ended up under any of the other conditions.
+  </p>
+</sec>
+
+<p id="i-am-a-rock-i-am-an-island">
+  Actually, you can use &lt;jump&gt; to go to *any* tag that has an id - not just sections - like this one.
+  
+</p>
+
+<sec id="variable-manipulation">
+  <p>
+    Anyway. Now we've got a variable. What can we do with it?
+  </p>
+  <p>
+    We can transform it using code expressions, and create other variables.
+    The most basic way to do that is like so:
+  </p>
+  <set var="doubled" value="favoriteNumber * 2" />
+  <set var="squared" value="favoriteNumber * favoriteNumber" />
+  <p>
+    Any variable we set using the &lt;set&gt; tag can be referred to using those same Handlebars tags as above.
+    The "value" attribute of a &lt;set&gt; set is expected to be a code expression, but normal values work too.
+    The doubled value would be {{doubled}}, and the squared value would be, well, {{squared}}.
+    Just keep in mind you can only refer to these values *after* they've been set. Otherwise they'd be empty.
+  </p>
+  <p>
+    If you want to write more elaborate code, you can use the &lt;code&gt; tag:
+  </p>
+  <code>
+    magicNumber = favoriteNumber + length(listenerName)
+    isLucky = magicNumber % 7 == 0
+    luckyMessage = isLucky ? "You're lucky!" : "Not this time." ; somethingElse = 123
+  </code>
+  <p>
+    In code tags, newlines are treated as separators between individual code expressions.
+    You can also use semicolons to separate individual code expressions.
+    Now the player's magic number is {{magicNumber}}.
+    What do you think the {{luckyMessage}} will be here?
+  </p>
+</sec>
+
+<sec id="sleep">
+  <p>
+    Now, Welltale is an *audio* story platform.
+    When it comes to audio storytelling, there are times when you might want to playback to wait for half a second...
+  </p>
+  <sleep duration="500" />
+  <p>
+    ...for dramatic effect.
+    Note: The duration is a value in milliseconds.
+    If you wanted to, you could also have referred to a variable in the attribute as well.
+  </p>
+  <sleep duration="{{favoriteNumber}}" />
+  <p>
+    It's actually quite appropriate that we just had a dramatic pause.
+    Because we're about learn about another powerful tool that can be used to control your story:
+    Blocks.
+  </p>
+</sec>
+
+<block id="a-block">
+  <p>
+    This is a block. Notice it has an id, just like sections.
+    But unlike sections, block content is not played automatically.
+    Think of them as reusable content that you can visit at any time - but which are only played when you go to them.
+    Nobody points to this block, so it will never get visited.
+  </p>
+</block>
