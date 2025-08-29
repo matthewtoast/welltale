@@ -7,16 +7,8 @@ import {
   stringToCastType,
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
-import {
-  findNode,
-  markdownToTree,
-  nextNode,
-  Node,
-  searchNode,
-  Section,
-  skipBlock,
-} from "lib/NodeHelpers";
 import { PRNG } from "lib/RandHelpers";
+import { findNode, markdownToTree, Node, Section } from "lib/StoryCompiler";
 import {
   cleanSplit,
   cleanSplitRegex,
@@ -230,6 +222,7 @@ export async function advance(
 
     log(
       `<${node.tag} ${node.id}${node.tag.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(context.atts) ? "" : " " + JSON.stringify(context.atts)} ${result.flow}>`,
+      `~> ${result.next?.node.id}`,
       result.ops
     );
 
@@ -360,14 +353,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       node.tag === "li" ||
       node.tag === "span",
     exec: async (ctx, provider) => {
-      // Check if paragraph has children (like jump tags)
-      const hasChildren =
-        ctx.node.kids.length > 0 && ctx.node.kids.some((k) => k.tag !== "text");
-      const next = hasChildren
-        ? nextNode(ctx.node, ctx.section, true) // Enter children
-        : nextNode(ctx.node, ctx.section, false); // Skip to next sibling
+      const next = nextNode(ctx.node, ctx.section, true);
       const ops: OP[] = [];
-      // Skip spurious empty nodes
+      // Early exit spurious empty nodes
       if (isBlank(ctx.text)) {
         return {
           ops,
@@ -402,9 +390,21 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => [
-      "strong", "b", "em", "i", "u", "del", "s", "mark", "small", "sup", "sub", "a"
-    ].includes(node.tag),
+    match: (node: Node) =>
+      [
+        "strong",
+        "b",
+        "em",
+        "i",
+        "u",
+        "del",
+        "s",
+        "mark",
+        "small",
+        "sup",
+        "sub",
+        "a",
+      ].includes(node.tag),
     exec: async (ctx) => {
       // For inline elements, we generally want to skip over them and continue with siblings
       // The text content will be handled by parent elements
@@ -501,17 +501,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "pre", // <pre> often wraps <code>, so this is necessary
+    match: (node: Node) => node.tag === "pre", // <pre> wraps <code>, but sometimes not
     exec: async (ctx) => {
-      // TODO: If we have text children, we might want to treat this like a <p> or <text>
-      const hasChildren =
-        ctx.node.kids.length > 0 && ctx.node.kids.some((k) => k.tag !== "text");
-      const next = hasChildren
-        ? nextNode(ctx.node, ctx.section, true) // Enter children
-        : nextNode(ctx.node, ctx.section, false); // Skip to next sibling
       return {
         ops: [],
-        next,
+        next: nextNode(ctx.node, ctx.section, true),
         flow: FlowType.CONTINUE,
       };
     },
@@ -519,10 +513,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: Node) => node.tag === "code",
     exec: async (ctx) => {
-      const lines = cleanSplitRegex(ctx.text, /[;\n]/);
-      lines.forEach((line) => {
-        evalExpr(line, ctx.state, {}, ctx.rng);
-      });
+      const codeChildren = ctx.node.kids.filter((k) => k.tag === "text");
+      if (codeChildren.length > 0) {
+        codeChildren.forEach((tc) => {
+          const lines = cleanSplitRegex(tc.text, /[;\n]/);
+          lines.forEach((line) => {
+            evalExpr(line, ctx.state, {}, ctx.rng);
+          });
+        });
+      }
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
@@ -680,3 +679,114 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
 ];
+
+export function skipBlock(
+  blockNode: Node,
+  section: Section
+): { node: Node; section: Section } | null {
+  // Skip past the entire block by going to its next sibling
+  return nextNode(blockNode, section, false);
+}
+
+export function nextNode(
+  curr: Node,
+  section: Section,
+  useKids: boolean
+): { node: Node; section: Section } | null {
+  // If useKids is true and current node has children, go to first child
+  if (useKids && curr.kids.length > 0) {
+    return { node: curr.kids[0], section };
+  }
+
+  // Find the next sibling by traversing up the tree
+  let current = curr;
+  let parent = current.parent;
+
+  while (parent) {
+    // Find current node's position in parent's children
+    const siblingIndex = parent.kids.findIndex(
+      (child) => child.id === current.id
+    );
+
+    // If there's a next sibling, return it
+    if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
+      const nextSibling = parent.kids[siblingIndex + 1];
+
+      return { node: nextSibling, section };
+    }
+
+    // No next sibling, move up to parent and continue
+    current = parent;
+    parent = parent.parent;
+  }
+
+  // Reached the root with no next sibling found
+  return null;
+}
+
+export function searchInSection(
+  section: Section,
+  searchTerm: string
+): Node | null {
+  return findNode(section.root, (node) => {
+    if (node.id === searchTerm) return true;
+    if (node.atts.id === searchTerm) return true;
+
+    // Heading text match (case insensitive)
+    if (/^h[1-6]$/.test(node.tag)) {
+      let headingText = node.text.trim().toLowerCase();
+      // <h*> tags normally have one <text> child with the actual heading
+      if (isBlank(headingText)) {
+        headingText = node.kids[0].text.trim().toLowerCase();
+      }
+
+      if (headingText === searchTerm.toLowerCase()) return true;
+
+      // Slugified heading match
+      const slugified = headingText
+        .replace(/[^\w\s-]/g, "") // Remove special chars except spaces and hyphens
+        .replace(/\s+/g, "-") // Replace spaces with hyphens
+        .toLowerCase();
+      if (slugified === searchTerm.toLowerCase()) return true;
+    }
+
+    return false;
+  });
+}
+
+export function searchNode(
+  sections: Section[],
+  currentSection: Section,
+  flex: string | null | undefined
+): { node: Node; section: Section } | null {
+  if (!flex || isBlank(flex)) {
+    return null;
+  }
+
+  // Parse scoped identifier like "blah.md.0.0.12"
+  const scopedMatch = flex.match(/^(.+\.md)\.(.+)$/);
+  if (scopedMatch) {
+    const [, sectionPath, nodeId] = scopedMatch;
+    const targetSection = sections.find((s) => s.path === sectionPath);
+    if (targetSection) {
+      const node = searchInSection(targetSection, nodeId);
+      if (node) return { node, section: targetSection };
+    }
+    return null;
+  }
+
+  // Search starting with current section, then others
+  const sectionsToSearch = [
+    currentSection,
+    ...sections.filter((s) => s.path !== currentSection.path),
+  ];
+
+  for (const section of sectionsToSearch) {
+    const node = searchInSection(section, flex);
+    if (node) {
+      return { node, section };
+    }
+  }
+
+  return null;
+}

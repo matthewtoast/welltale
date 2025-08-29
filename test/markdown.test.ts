@@ -1,5 +1,5 @@
 import dedent from "dedent";
-import { markdownToTree } from "lib/NodeHelpers";
+import { markdownToTree } from "lib/StoryCompiler";
 import { dumpTree } from "lib/TreeDumper";
 
 function testCase(name: string, markdown: string) {

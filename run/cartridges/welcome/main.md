@@ -1,10 +1,10 @@
 # Welltale Story Engine Tutorial
 
-Welcome to the Welltale tutorial! This interactive story demonstrates the core features of the framework. Let's explore how to build dynamic, branching narratives with conditional logic, user input, and reusable components.
+Welcome to Welltale! This interactive story demonstrates the core features of the framework. Let's explore how to build dynamic, branching narratives with conditional logic, user input, and reusable components.
 
 ## Getting Started
 
-👋 Hello! I'm your guide through this tutorial. Let's start by learning about user input and variables.
+Let's start by learning about user input and variables.
 
 ### Collecting User Input
 
@@ -67,7 +67,7 @@ Let's do some calculations with your number:
 You can also use multi-line expressions for complex calculations:
 
 ```
-magicNumber = favoriteNumber + userName.length
+magicNumber = favoriteNumber + length(userName)
 isLucky = magicNumber % 7 == 0
 luckyMessage = isLucky ? "You're lucky!" : "Maybe next time!"
 ```
@@ -78,9 +78,9 @@ Your magic number is **{{magicNumber}}**. {{luckyMessage}}
 
 Stories can control pacing with sleep commands. Let's take a brief pause...
 
-<sleep duration="1000" />
+<sleep duration="500" />
 
-⏰ That was a 1-second pause! Use these to create dramatic effect or give readers time to absorb information.
+⏰ That was a split-second pause! Use these to create dramatic effect or give readers time to absorb information.
 
 ## Reusable Content with Blocks and Yields
 
@@ -126,26 +126,20 @@ Let's talk to them again with our new mood:
 
 <!-- Define reusable blocks at the end of the file -->
 <block id="tutorial greeting">
-  ### 📦 Inside a Reusable Block!
-  
   Hi {{userName}}! This greeting can be called from anywhere in the story.
   
   Your favorite number is still {{favoriteNumber}}, proving that blocks have access to all story variables.
 </block>
 
 <block id="calculation demo">
-  ### 🧮 Calculation Block
-  
   Let's create some computed values:
   
-  <set key="blockComputed" value="favoriteNumber * 10 + userName.length" />
+  <set key="blockComputed" value="favoriteNumber * 10 + length(userName)" />
   
   In this block, we calculated: {{favoriteNumber}} × 10 + length of "{{userName}}" = **{{blockComputed}}**
 </block>
 
 <block id="friendly npc">
-  ### 🤖 Friendly NPC Dialogue
-  
   <if cond="!playerMood">
     "Hello there, {{userName}}! I haven't seen you before. How are you feeling?"
     <else>

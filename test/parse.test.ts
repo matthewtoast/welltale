@@ -4,8 +4,8 @@ import { autoFindPresetVoice } from "lib/ElevenLabsUtils";
 import { evalExpr } from "lib/EvalUtils";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
-import { markdownToTree, preprocessSelfClosingTags } from "lib/NodeHelpers";
 import { PRNG } from "lib/RandHelpers";
+import { markdownToTree, preprocessSelfClosingTags } from "lib/StoryCompiler";
 import {
   generatePredictableKey,
   isBlank,
