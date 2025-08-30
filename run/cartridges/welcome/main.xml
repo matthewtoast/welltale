@@ -193,7 +193,6 @@
   </p>
   <p>
     Think of them as reusable content that you can visit at any time.
-    Nobody points to this block, so it will never get visited.
   </p>
   <p>
     The other critical thing about blocks is, when they're finished, they resume at the point you used &lt;yield&gt;.

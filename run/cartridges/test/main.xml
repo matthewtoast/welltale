@@ -1,0 +1,50 @@
+<p>
+  A
+</p>
+
+<sec>
+  <p>
+    B
+  </p>
+  <p>
+    C
+  </p>
+  <yield to="a-block" />
+  <p>
+    G
+  </p>
+</sec>
+
+<block id="a-block">
+  <p>
+    D
+  </p>
+  <p>
+    E
+  </p>
+  <p>
+    F
+  </p>
+</block>
+
+<sec>
+  <p>
+    H
+  </p>
+  <yield to="another-block" return="meow" />
+  <p>
+    [NOT SHOWN]
+  </p>
+</sec>
+
+<block id="another-block">
+  <p>
+    I
+  </p>
+</block>
+
+<sec id="meow">
+  <p>
+    J
+  </p>
+</sec>

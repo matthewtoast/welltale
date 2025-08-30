@@ -13,7 +13,6 @@ import {
   compile,
   dumpTree,
   FRAG_TAG,
-  Section,
   StoryNode,
   TEXT_TAG,
 } from "lib/StoryCompiler";
@@ -28,8 +27,7 @@ import { TScalar } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
 
-export const DEFAULT_SECTION = "main.xml";
-export const DEFAULT_CURSOR = "0";
+export const DEFAULT_ADDRESS = "0";
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
 
@@ -48,9 +46,8 @@ export interface Playthru {
   cycle: number; // Cycle value for PRNG (to resume at previous point)
   state: {
     // Protected
-    __section: string;
     __address: string;
-    __inputKey: string;
+    __inputKey: null | string;
     __inputType: null | string;
     __callStack: string[];
     // Public
@@ -87,8 +84,7 @@ export function createDefaultPlaythru(id: string): Playthru {
     cycle: 0,
     state: {
       input: "",
-      __section: DEFAULT_SECTION,
-      __address: DEFAULT_CURSOR,
+      __address: DEFAULT_ADDRESS,
       __inputKey: "input",
       __inputType: "string",
       __callStack: [],
@@ -146,28 +142,29 @@ export async function advance(
   playthru.time = Date.now();
   playthru.turn++;
 
-  const sections = await compile(story.cartridge);
+  const root = await compile(story.cartridge);
 
   if (calls++ < 1) {
-    sections.forEach(({ path, root }) => {
-      log(path, "::", dumpTree(root));
-    });
+    log(dumpTree(root));
   }
 
   const { state } = playthru;
 
-  if (state.__inputType) {
-    state[state.__inputKey] = cast(
-      state.input,
-      stringToCastType(state.__inputType)
-    );
-    state.__inputType = null; // Important to unset to clear for next advance()
-  } else if (looksLikeBoolean(state.input)) {
-    state[state.__inputKey] = cast(state.input, "boolean");
-  } else if (looksLikeNumber(state.input)) {
-    state[state.__inputKey] = cast(state.input, "number");
-  } else {
-    state[state.__inputKey] = state.input;
+  if (state.__inputKey) {
+    if (state.__inputType) {
+      state[state.__inputKey] = cast(
+        state.input,
+        stringToCastType(state.__inputType)
+      );
+      state.__inputType = null; // Important to unset to clear for next advance()
+    } else if (looksLikeBoolean(state.input)) {
+      state[state.__inputKey] = cast(state.input, "boolean");
+    } else if (looksLikeNumber(state.input)) {
+      state[state.__inputKey] = cast(state.input, "number");
+    } else {
+      state[state.__inputKey] = state.input;
+    }
+    state.__inputKey = null; // Important to unset to clear for next advance()
   }
 
   if (!isBlank(state.input)) {
@@ -179,22 +176,13 @@ export async function advance(
   let iters = 0;
 
   while (true) {
-    let section = sections.find((s) => s.path === state.__section);
-    if (!section) {
-      console.warn(`Section ${state.__section} not found`);
-      break;
-    }
-
-    let node: StoryNode | null = section
-      ? findNodeFromRoot(
-          section.root,
-          (node, parent, address) =>
-            node.addr === state.__address || address === state.__address
-        )
-      : null;
+    let node: StoryNode | null = findNodeFromRoot(
+      root,
+      (node) => node.addr === state.__address
+    );
 
     if (!node) {
-      console.warn(`Node ${state.__address} not found in ${section.path}`);
+      console.warn(`Node ${state.__address} not found`);
       break;
     }
 
@@ -202,10 +190,9 @@ export async function advance(
 
     const ctx: ActionContext = {
       options,
+      root,
       orig: node,
       node: rendered,
-      section,
-      sections,
       state,
       playthru,
       rng,
@@ -224,14 +211,11 @@ export async function advance(
     // Update cursor position
     if (result.next) {
       state.__address = result.next.node.addr;
-      state.__section = result.next.section.path;
     } else {
       // No next node - check if we should return from a block
       if (state.__callStack.length > 0) {
-        const frame = state.__callStack.pop()!;
-        const [returnSection, returnAddress] = frame.split("/");
+        const returnAddress = state.__callStack.pop()!;
         state.__address = returnAddress;
-        state.__section = returnSection;
       } else {
         out.push({ type: "end" });
         break;
@@ -301,10 +285,9 @@ export function nodeToRenderedNode(
 
 export interface ActionContext {
   options: PlayOptions;
+  root: StoryNode;
   orig: StoryNode;
   node: StoryNode;
-  section: Section;
-  sections: Section[];
   state: Playthru["state"];
   playthru: Playthru;
   rng: PRNG;
@@ -318,7 +301,7 @@ export enum FlowType {
 
 export interface ActionResult {
   ops: OP[];
-  next: { node: StoryNode; section: Section } | null;
+  next: { node: StoryNode } | null;
   flow: FlowType;
 }
 
@@ -334,7 +317,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node) => node.type === "root" || node.type === FRAG_TAG,
     exec: async (ctx) => {
-      const next = nextNode(ctx.node, ctx.section, true);
+      const next = nextNode(ctx.node, ctx.root, true);
       return {
         ops: [],
         next: next,
@@ -346,7 +329,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node) => node.type === "ul" || node.type === "ol",
     exec: async (ctx) => ({
       ops: [],
-      next: nextNode(ctx.node, ctx.section, true),
+      next: nextNode(ctx.node, ctx.root, true),
       flow: FlowType.CONTINUE,
     }),
   },
@@ -355,7 +338,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, true),
+        next: nextNode(ctx.node, ctx.root, true),
         flow: FlowType.CONTINUE,
       };
     },
@@ -365,7 +348,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
+        next: nextNode(ctx.node, ctx.root, false),
         flow: FlowType.CONTINUE,
       };
     },
@@ -443,7 +426,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // The text content will be handled by parent elements
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
+        next: nextNode(ctx.node, ctx.root, false),
         flow: FlowType.CONTINUE,
       };
     },
@@ -451,8 +434,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "input",
     exec: async (ctx) => {
-      const toKey = ctx.node.atts.to ?? "input";
-      ctx.state.__inputKey = toKey;
+      const toKey = ctx.node.atts.to;
+      if (toKey) {
+        ctx.state.__inputKey = toKey;
+      }
       const castType =
         ctx.node.atts.as ?? ctx.node.atts.cast ?? ctx.node.atts.type;
       if (castType) {
@@ -468,7 +453,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             charLimit: parseNumberOrNull(ctx.node.atts.charLimit),
           },
         ],
-        next: nextNode(ctx.node, ctx.section, false),
+        next: nextNode(ctx.node, ctx.root, false),
         flow: FlowType.WAITING,
       };
     },
@@ -487,17 +472,17 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         // Find first non-else child
         const firstNonElse = ctx.node.kids.find((k) => k.type !== "else");
         if (firstNonElse) {
-          next = { node: firstNonElse, section: ctx.section };
+          next = { node: firstNonElse };
         } else {
-          next = nextNode(ctx.node, ctx.section, false);
+          next = nextNode(ctx.node, ctx.root, false);
         }
       } else {
         // Look for else block
         const elseChild = ctx.node.kids.find((k) => k.type === "else");
         if (elseChild && elseChild.kids.length > 0) {
-          next = { node: elseChild.kids[0], section: ctx.section };
+          next = { node: elseChild.kids[0] };
         } else {
-          next = nextNode(ctx.node, ctx.section, false);
+          next = nextNode(ctx.node, ctx.root, false);
         }
       }
       return {
@@ -515,9 +500,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         !ctx.node.atts.if ||
         evalExpr(ctx.node.atts.if, ctx.state, {}, ctx.rng)
       ) {
-        next = searchForNode(ctx.sections, ctx.section, ctx.node.atts.to);
+        next = searchForNode(ctx.root, ctx.node.atts.to);
       } else {
-        next = nextNode(ctx.node, ctx.section, false);
+        next = nextNode(ctx.node, ctx.root, false);
       }
       return {
         ops: [],
@@ -544,7 +529,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       } catch (e) {}
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
+        next: nextNode(ctx.node, ctx.root, false),
         flow: FlowType.CONTINUE,
       };
     },
@@ -566,7 +551,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       ctx.state[key] = value;
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
+        next: nextNode(ctx.node, ctx.root, false),
         flow: FlowType.CONTINUE,
       };
     },
@@ -576,7 +561,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, true),
+        next: nextNode(ctx.node, ctx.root, true),
         flow: FlowType.CONTINUE,
       };
     },
@@ -595,7 +580,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
+        next: nextNode(ctx.node, ctx.root, false),
         flow: FlowType.CONTINUE,
       };
     },
@@ -612,7 +597,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             ) ?? 1,
         },
       ],
-      next: nextNode(ctx.node, ctx.section, false),
+      next: nextNode(ctx.node, ctx.root, false),
       flow: FlowType.CONTINUE,
     }),
   },
@@ -620,7 +605,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) => node.type === "block",
     exec: async (ctx) => ({
       ops: [],
-      next: skipBlock(ctx.node, ctx.section),
+      next: skipBlock(ctx.node, ctx.root),
       flow: FlowType.CONTINUE,
     }),
   },
@@ -632,56 +617,47 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       if (!targetBlockId) {
         return {
           ops: [],
-          next: nextNode(ctx.node, ctx.section, false),
+          next: nextNode(ctx.node, ctx.root, false),
           flow: FlowType.CONTINUE,
         };
       }
       // Find the target block
-      const blockResult = searchForNode(
-        ctx.sections,
-        ctx.section,
-        targetBlockId
-      );
+      const blockResult = searchForNode(ctx.root, targetBlockId);
       if (!blockResult || blockResult.node.type !== "block") {
         return {
           ops: [],
-          next: nextNode(ctx.node, ctx.section, false),
+          next: nextNode(ctx.node, ctx.root, false),
           flow: FlowType.CONTINUE,
         };
       }
       // Determine return address
-      let returnSection: string;
       let returnAddress: string;
       if (returnTo) {
-        const returnResult = searchForNode(ctx.sections, ctx.section, returnTo);
+        const returnResult = searchForNode(ctx.root, returnTo);
         if (returnResult) {
-          returnSection = returnResult.section.path;
           returnAddress = returnResult.node.addr;
         } else {
-          const next = nextNode(ctx.node, ctx.section, false);
-          returnSection = next?.section.path ?? DEFAULT_SECTION;
-          returnAddress = next?.node.addr ?? DEFAULT_CURSOR;
+          const next = nextNode(ctx.node, ctx.root, false);
+          returnAddress = next?.node.addr ?? DEFAULT_ADDRESS;
         }
       } else {
-        const next = nextNode(ctx.node, ctx.section, false);
-        returnSection = next?.section.path ?? DEFAULT_SECTION;
-        returnAddress = next?.node.addr ?? DEFAULT_CURSOR;
+        const next = nextNode(ctx.node, ctx.root, false);
+        returnAddress = next?.node.addr ?? DEFAULT_ADDRESS;
       }
-      ctx.state.__callStack.push(`${returnSection}/${returnAddress}`);
+      ctx.state.__callStack.push(returnAddress);
       // Go to first child of block (or next sibling if no children)
       if (blockResult.node.kids.length > 0) {
         return {
           ops: [],
           next: {
             node: blockResult.node.kids[0],
-            section: blockResult.section,
           },
           flow: FlowType.CONTINUE,
         };
       } else {
         return {
           ops: [],
-          next: nextNode(blockResult.node, blockResult.section, false),
+          next: nextNode(blockResult.node, ctx.root, false),
           flow: FlowType.CONTINUE,
         };
       }
@@ -701,7 +677,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
+        next: nextNode(ctx.node, ctx.root, false),
         flow: FlowType.BLOCKING,
       };
     },
@@ -715,7 +691,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           audio: ctx.node.atts.url,
         },
       ],
-      next: nextNode(ctx.node, ctx.section, false),
+      next: nextNode(ctx.node, ctx.root, false),
       flow: FlowType.CONTINUE,
     }),
   },
@@ -729,102 +705,133 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           : { url: "" };
         return {
           ops: [{ type: "play-sound", audio: url }],
-          next: nextNode(ctx.node, ctx.section, false),
+          next: nextNode(ctx.node, ctx.root, false),
           flow: FlowType.BLOCKING,
         };
       }
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.section, false),
+        next: nextNode(ctx.node, ctx.root, false),
         flow: FlowType.BLOCKING,
       };
     },
   },
   {
     match: () => true,
-    exec: async (ctx) => ({
-      ops: [],
-      next: nextNode(ctx.node, ctx.section, false),
-      flow: FlowType.CONTINUE,
-    }),
+    exec: async (ctx) => {
+      // Check if we're at a point where we should return from a block
+      if (ctx.state.__callStack.length > 0) {
+        // Check if nextNode would take us outside of our current block
+        const parent = parentNodeOf(ctx.node, ctx.root);
+        if (parent) {
+          const siblingIndex = parent.kids.findIndex((k) => k.addr === ctx.node.addr);
+          const isLastChild = siblingIndex === parent.kids.length - 1;
+          
+          if (ctx.node.addr === "0.2.2.0") {
+            console.log(`DEBUG: Node ${ctx.node.addr} (${ctx.node.type} text="${ctx.node.text}"), parent=${parent.addr} (${parent.type}), isLastChild=${isLastChild}, callStack.length=${ctx.state.__callStack.length}`);
+          }
+          
+          // If we're the last child of our parent
+          if (isLastChild) {
+            // Check if any ancestor is a block
+            let current: StoryNode | null = parent;
+            while (current) {
+              if (current.type === "block") {
+                // We're at the end of a block, return null to trigger call stack pop
+                console.log(`DEBUG: Found block ancestor ${current.addr}, returning null`);
+                return {
+                  ops: [],
+                  next: null,
+                  flow: FlowType.CONTINUE,
+                };
+              }
+              // Check if this parent also has no more siblings
+              const grandparent = parentNodeOf(current, ctx.root);
+              if (grandparent) {
+                const parentIndex = grandparent.kids.findIndex((k) => k.addr === current.addr);
+                if (parentIndex < grandparent.kids.length - 1) {
+                  // Parent has siblings, so we won't exit the block
+                  break;
+                }
+              }
+              current = grandparent;
+            }
+          }
+        }
+      }
+      
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.root, false),
+        flow: FlowType.CONTINUE,
+      };
+    },
   },
 ];
 
 export function skipBlock(
   blockNode: StoryNode,
-  section: Section
-): { node: StoryNode; section: Section } | null {
+  root: StoryNode
+): { node: StoryNode } | null {
   // Skip past the entire block by going to its next sibling
-  return nextNode(blockNode, section, false);
+  return nextNode(blockNode, root, false);
 }
 
 export function nextNode(
   curr: StoryNode,
-  section: Section,
+  root: StoryNode,
   useKids: boolean
-): { node: StoryNode; section: Section } | null {
-  // Given a node and the section it is within, find the "next" node.
+): { node: StoryNode } | null {
+  // Given a node and the root of its tree, find the "next" node.
   // If useKids is true and current node has children, it's the first child
   if (useKids && curr.kids.length > 0) {
-    return { node: curr.kids[0], section };
+    return { node: curr.kids[0] };
   }
 
   // Find parent and check for next sibling
-  const parent = parentNodeOf(curr, section);
+  const parent = parentNodeOf(curr, root);
   if (!parent) return null;
 
   const siblingIndex = parent.kids.findIndex((k) => k.addr === curr.addr);
   if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
-    return { node: parent.kids[siblingIndex + 1], section };
+    return { node: parent.kids[siblingIndex + 1] };
   }
 
   // No more siblings, recurse up the tree
-  return nextNode(parent, section, false);
+  return nextNode(parent, root, false);
 }
 
 export function parentNodeOf(
   node: StoryNode,
-  section: Section
+  root: StoryNode
 ): StoryNode | null {
-  if (node.addr === section.root.addr) return null;
-
-  return findNodeFromRoot(section.root, (n) => {
+  if (node.addr === root.addr) return null;
+  return findNodeFromRoot(root, (n) => {
     return n.kids.some((k) => k.addr === node.addr);
   });
 }
 
-export function searchInSection(
-  section: Section,
-  term: string
-): StoryNode | null {
-  return findNodeFromRoot(section.root, (node, parent, address) => {
-    if (node.atts.id === term) return true;
-    if (node.addr === term) return true;
-    // TODO: Other ways to search? CSS selector? XPath?
-    return false;
-  });
-}
-
 export function searchForNode(
-  sections: Section[],
-  current: Section,
-  flex: string | null | undefined
-): { node: StoryNode; section: Section } | null {
-  if (!flex || isBlank(flex)) {
+  root: StoryNode,
+  term: string | null | undefined
+): { node: StoryNode } | null {
+  if (!term || isBlank(term)) {
     return null;
   }
-  // Search starting with current section, then expand
-  const searchables = [
-    current,
-    ...sections.filter((s) => s.path !== current.path),
-  ];
-  for (const section of searchables) {
-    const node = searchInSection(section, flex);
-    if (node) {
-      return { node, section };
+  let found: StoryNode | null = null;
+  function walk(node: StoryNode) {
+    if (found) return;
+    if (node.atts.id === term) {
+      found = node;
+      return;
+    }
+    for (const kid of node.kids) {
+      walk(kid);
+      if (found) return;
     }
   }
-  return null;
+  walk(root);
+  return found ? { node: found } : null;
 }
 
 export function findNodeFromRoot(
