@@ -210,7 +210,14 @@ export async function advance(
 
     // Update cursor position
     if (result.next) {
-      state.__address = result.next.node.addr;
+      // Check if we're currently in a yielded block and the next node escapes it
+      if (state.__callStack.length > 0 && wouldEscapeCurrentBlock(node, result.next.node, root)) {
+        // Pop from callstack instead of using the next node
+        const returnAddress = state.__callStack.pop()!;
+        state.__address = returnAddress;
+      } else {
+        state.__address = result.next.node.addr;
+      }
     } else {
       // No next node - check if we should return from a block
       if (state.__callStack.length > 0) {
@@ -768,6 +775,35 @@ export function parentNodeOf(
   return findNodeFromRoot(root, (n) => {
     return n.kids.some((k) => k.addr === node.addr);
   });
+}
+
+export function wouldEscapeCurrentBlock(
+  currentNode: StoryNode,
+  nextNode: StoryNode,
+  root: StoryNode
+): boolean {
+  // Find the closest block ancestor of the current node
+  let node: StoryNode | null = currentNode;
+  let blockAncestor: StoryNode | null = null;
+  
+  // Walk up the tree to find the closest block ancestor
+  while (node) {
+    if (node.type === "block") {
+      blockAncestor = node;
+      break;
+    }
+    node = parentNodeOf(node, root);
+  }
+  
+  // If no block ancestor, we can't escape from a block
+  if (!blockAncestor) {
+    return false;
+  }
+  
+  // Check if the next node is outside this block's subtree
+  // A node is inside the block if its address starts with the block's address + "."
+  const blockPrefix = blockAncestor.addr + ".";
+  return !nextNode.addr.startsWith(blockPrefix);
 }
 
 export function searchForNode(
