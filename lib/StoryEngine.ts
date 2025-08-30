@@ -361,7 +361,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       node.type === "li" ||
       node.type === "span",
     exec: async (ctx, provider) => {
-      const next = nextNode(ctx.node, ctx.section, true);
+      const next = nextNode(ctx.node, ctx.root, true);
       const ops: OP[] = [];
       let text = ctx.node.text;
       // If we have a ref tag, assume it refers to a <def>
