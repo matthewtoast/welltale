@@ -48,7 +48,7 @@ export interface Playthru {
   state: {
     // Protected
     __section: string;
-    __cursor: string;
+    __address: string;
     __inputKey: string;
     __inputType: null | string;
     __callStack: string[];
@@ -87,7 +87,7 @@ export function createDefaultPlaythru(id: string): Playthru {
     state: {
       input: "",
       __section: DEFAULT_SECTION,
-      __cursor: DEFAULT_CURSOR,
+      __address: DEFAULT_CURSOR,
       __inputKey: "input",
       __inputType: "string",
       __callStack: [],
@@ -112,6 +112,7 @@ export type PlayOptions = {
   mode: StepMode;
   verbose: boolean;
   seed: string;
+  maxItersPerAdvance: number;
   doGenerateSpeech: boolean;
   doGenerateSounds: boolean;
 };
@@ -174,74 +175,60 @@ export async function advance(
 
   log(`ADV`, story.id, state.input, options.mode, omit(playthru, "history"));
 
+  let iters = 0;
+
   while (true) {
     let section = sections.find((s) => s.path === state.__section);
     if (!section) {
       console.warn(`Section ${state.__section} not found`);
       break;
     }
+
     let node: Node | null = section
-      ? findNode(section.root, (n) => n.atts.id === state.__cursor)
+      ? findNodeFromRoot(
+          section.root,
+          (node, parent, address) =>
+            node.addr === state.__address || address === state.__address
+        )
       : null;
+
     if (!node) {
-      console.warn(`Node ${state.__cursor} not found in ${section.path}`);
+      console.warn(`Node ${state.__address} not found in ${section.path}`);
       break;
     }
 
-    const { atts, text } = node;
+    const rendered = nodeToRenderedNode(node, state, rng);
 
-    // Create renderedAtts by applying handlebars and evalExpr to all attribute values
-    const renderedAttributes: Record<string, string> = {};
-    for (const [key, value] of Object.entries(atts)) {
-      try {
-        renderedAttributes[key] = renderHandlebars(value, state, rng);
-      } catch {
-        renderedAttributes[key] = value;
-      }
-    }
-
-    // Create renderedText by applying handlebars rendering
-    let renderedText = "";
-    if (typeof text === "string" && !isBlank(text)) {
-      try {
-        renderedText = renderHandlebars(text, state, rng);
-      } catch {
-        renderedText = text;
-      }
-    }
-
-    const context: ActionContext = {
+    const ctx: ActionContext = {
       options,
-      node,
+      node: rendered,
       section,
       sections,
       state,
       playthru,
       rng,
-      atts: renderedAttributes,
-      text: renderedText,
     };
 
     const handler = ACTION_HANDLERS.find((h) => h.match(node))!;
-    const result = await handler.exec(context, provider);
+    const result = await handler.exec(ctx, provider);
     out.push(...result.ops);
 
     log(
-      `<${node.tag} ${atts.id}${node.tag.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(context.atts) ? "" : " " + JSON.stringify(context.atts)} ${result.flow}>`,
-      `~> ${result.next?.node.atts.id}`,
+      `<${node.type} ${node.addr}${node.type.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)} ${result.flow}>`,
+      `~> ${result.next?.node.addr}`,
       result.ops
     );
 
     // Update cursor position
     if (result.next) {
-      state.__cursor = result.next.node.atts.id;
+      state.__address = result.next.node.addr;
       state.__section = result.next.section.path;
     } else {
       // No next node - check if we should return from a block
       if (state.__callStack.length > 0) {
         const frame = state.__callStack.pop()!;
-        const [returnSection, returnCursor] = frame.split("/");
-        state.__cursor = returnCursor;
+        const [returnSection, returnAddress] = frame.split("/");
+        state.__address = returnAddress;
         state.__section = returnSection;
       } else {
         out.push({ type: "end" });
@@ -270,6 +257,11 @@ export async function advance(
     ) {
       break;
     }
+
+    if (iters++ >= options.maxItersPerAdvance) {
+      console.warn(`Reached max iterations ${iters}`);
+      break;
+    }
   }
 
   playthru.cycle = rng.cycle;
@@ -277,6 +269,32 @@ export async function advance(
   log("DONE", omit(playthru, "history"), out);
 
   return out;
+}
+
+export function nodeToRenderedNode(
+  node: Node,
+  state: Record<string, TScalar | TScalar[]>,
+  rng: PRNG
+) {
+  const rendered = { ...node };
+
+  for (const [key, value] of Object.entries(node.atts)) {
+    try {
+      rendered.atts[key] = renderHandlebars(value, state, rng);
+    } catch {
+      rendered.atts[key] = value;
+    }
+  }
+
+  if (!isBlank(node.text)) {
+    try {
+      rendered.text = renderHandlebars(node.text, state, rng);
+    } catch {
+      rendered.text = node.text;
+    }
+  }
+
+  return rendered;
 }
 
 export interface ActionContext {
@@ -287,8 +305,6 @@ export interface ActionContext {
   state: Playthru["state"];
   playthru: Playthru;
   rng: PRNG;
-  atts: Record<string, string>;
-  text: string;
 }
 
 export enum FlowType {
@@ -313,7 +329,18 @@ interface ActionHandler {
 
 export const ACTION_HANDLERS: ActionHandler[] = [
   {
-    match: (node) => node.tag === "root" || node.tag === FRAG_TAG,
+    match: (node) => node.type === "root" || node.type === FRAG_TAG,
+    exec: async (ctx) => {
+      const next = nextNode(ctx.node, ctx.section, true);
+      return {
+        ops: [],
+        next: next,
+        flow: FlowType.CONTINUE,
+      };
+    },
+  },
+  {
+    match: (node) => node.type === "ul" || node.type === "ol",
     exec: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.section, true),
@@ -321,15 +348,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
-    match: (node) => node.tag === "ul" || node.tag === "ol",
-    exec: async (ctx) => ({
-      ops: [],
-      next: nextNode(ctx.node, ctx.section, true),
-      flow: FlowType.CONTINUE,
-    }),
-  },
-  {
-    match: (node: Node) => node.tag === "section" || node.tag === "sec",
+    match: (node: Node) => node.type === "section" || node.type === "sec",
     exec: async (ctx) => {
       return {
         ops: [],
@@ -339,7 +358,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag.startsWith("h"), // <h*>, <header>, <head>, <hr>
+    match: (node: Node) => node.type.startsWith("h"), // <h*>, <header>, <head>, <hr>
     exec: async (ctx) => {
       return {
         ops: [],
@@ -350,23 +369,23 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: Node) =>
-      node.tag === TEXT_TAG ||
-      node.tag === "text" || // Just in case someone wants to use <text>
-      node.tag === "p" ||
-      node.tag === "li" ||
-      node.tag === "span",
+      node.type === TEXT_TAG ||
+      node.type === "text" || // Just in case someone wants to use <text>
+      node.type === "p" ||
+      node.type === "li" ||
+      node.type === "span",
     exec: async (ctx, provider) => {
       const next = nextNode(ctx.node, ctx.section, true);
       const ops: OP[] = [];
       // Early exit spurious empty nodes
-      if (isBlank(ctx.text)) {
+      if (isBlank(ctx.node.text)) {
         return {
           ops,
           next,
           flow: FlowType.CONTINUE,
         };
       }
-      const line = parseTaggedSpeakerLine(ctx.text);
+      const line = parseTaggedSpeakerLine(ctx.node.text);
       // Dynamic dialog variation using pipe character
       line.body = ctx.rng.randomElement(cleanSplit(line.body, "|"));
       const { url } = ctx.options.doGenerateSpeech
@@ -407,7 +426,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         "sup",
         "sub",
         "a",
-      ].includes(node.tag),
+      ].includes(node.type),
     exec: async (ctx) => {
       // For inline elements, we generally want to skip over them and continue with siblings
       // The text content will be handled by parent elements
@@ -419,13 +438,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "input",
+    match: (node: Node) => node.type === "input",
     exec: async (ctx) => {
-      const toKey = ctx.atts.to;
+      const toKey = ctx.node.atts.to;
       if (toKey) {
         ctx.state.__inputKey = toKey;
       }
-      const castType = ctx.atts.as ?? ctx.atts.cast ?? ctx.atts.type;
+      const castType =
+        ctx.node.atts.as ?? ctx.node.atts.cast ?? ctx.node.atts.type;
       if (castType) {
         ctx.state.__inputType = castType;
       }
@@ -433,8 +453,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [
           {
             type: "get-input",
-            timeLimit: parseNumberOrNull(ctx.atts.timeLimit ?? ctx.atts.for),
-            charLimit: parseNumberOrNull(ctx.atts.charLimit),
+            timeLimit: parseNumberOrNull(
+              ctx.node.atts.timeLimit ?? ctx.node.atts.for
+            ),
+            charLimit: parseNumberOrNull(ctx.node.atts.charLimit),
           },
         ],
         next: nextNode(ctx.node, ctx.section, false),
@@ -443,13 +465,18 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "if",
+    match: (node: Node) => node.type === "if",
     exec: async (ctx) => {
       let next;
-      const conditionTrue = evalExpr(ctx.atts.cond, ctx.state, {}, ctx.rng);
+      const conditionTrue = evalExpr(
+        ctx.node.atts.cond,
+        ctx.state,
+        {},
+        ctx.rng
+      );
       if (conditionTrue && ctx.node.kids.length > 0) {
         // Find first non-else child
-        const firstNonElse = ctx.node.kids.find((k) => k.tag !== "else");
+        const firstNonElse = ctx.node.kids.find((k) => k.type !== "else");
         if (firstNonElse) {
           next = { node: firstNonElse, section: ctx.section };
         } else {
@@ -457,7 +484,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         }
       } else {
         // Look for else block
-        const elseChild = ctx.node.kids.find((k) => k.tag === "else");
+        const elseChild = ctx.node.kids.find((k) => k.type === "else");
         if (elseChild && elseChild.kids.length > 0) {
           next = { node: elseChild.kids[0], section: ctx.section };
         } else {
@@ -472,11 +499,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "jump",
+    match: (node: Node) => node.type === "jump",
     exec: async (ctx) => {
       let next;
-      if (!ctx.atts.if || evalExpr(ctx.atts.if, ctx.state, {}, ctx.rng)) {
-        next = searchNode(ctx.sections, ctx.section, ctx.atts.to);
+      if (
+        !ctx.node.atts.if ||
+        evalExpr(ctx.node.atts.if, ctx.state, {}, ctx.rng)
+      ) {
+        next = searchForNode(ctx.sections, ctx.section, ctx.node.atts.to);
       } else {
         next = nextNode(ctx.node, ctx.section, false);
       }
@@ -488,14 +518,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "set",
+    match: (node: Node) => node.type === "set",
     exec: async (ctx) => {
-      ctx.state[ctx.atts.var ?? ctx.atts.to ?? ctx.atts.key] = evalExpr(
-        ctx.atts.op ?? ctx.atts.value,
-        ctx.state,
-        {},
-        ctx.rng
-      );
+      ctx.state[ctx.node.atts.var ?? ctx.node.atts.to ?? ctx.node.atts.key] =
+        evalExpr(
+          ctx.node.atts.op ?? ctx.node.atts.value,
+          ctx.state,
+          {},
+          ctx.rng
+        );
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
@@ -504,7 +535,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "pre", // <pre> wraps <code>, but sometimes not
+    match: (node: Node) => node.type === "pre", // <pre> wraps <code>, but sometimes not
     exec: async (ctx) => {
       return {
         ops: [],
@@ -514,9 +545,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "code",
+    match: (node: Node) => node.type === "code",
     exec: async (ctx) => {
-      const codeChildren = ctx.node.kids.filter((k) => k.tag === TEXT_TAG);
+      const codeChildren = ctx.node.kids.filter((k) => k.type === TEXT_TAG);
       if (codeChildren.length > 0) {
         codeChildren.forEach((tc) => {
           const lines = cleanSplitRegex(tc.text, /[;\n]/);
@@ -533,14 +564,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "wait" || node.tag === "sleep",
+    match: (node: Node) => node.type === "wait" || node.type === "sleep",
     exec: async (ctx) => ({
       ops: [
         {
           type: "sleep",
           duration:
             parseNumberOrNull(
-              ctx.atts.duration ?? ctx.atts.for ?? ctx.atts.ms
+              ctx.node.atts.duration ?? ctx.node.atts.for ?? ctx.node.atts.ms
             ) ?? 1,
         },
       ],
@@ -549,7 +580,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
-    match: (node: Node) => node.tag === "block",
+    match: (node: Node) => node.type === "block",
     exec: async (ctx) => ({
       ops: [],
       next: skipBlock(ctx.node, ctx.section),
@@ -557,10 +588,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
-    match: (node: Node) => node.tag === "yield",
+    match: (node: Node) => node.type === "yield",
     exec: async (ctx) => {
-      const targetBlockId = ctx.atts.to;
-      const returnTo = ctx.atts.returnTo;
+      const targetBlockId = ctx.node.atts.to;
+      const returnTo = ctx.node.atts.returnTo;
       if (!targetBlockId) {
         return {
           ops: [],
@@ -569,8 +600,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         };
       }
       // Find the target block
-      const blockResult = searchNode(ctx.sections, ctx.section, targetBlockId);
-      if (!blockResult || blockResult.node.tag !== "block") {
+      const blockResult = searchForNode(
+        ctx.sections,
+        ctx.section,
+        targetBlockId
+      );
+      if (!blockResult || blockResult.node.type !== "block") {
         return {
           ops: [],
           next: nextNode(ctx.node, ctx.section, false),
@@ -579,23 +614,23 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       // Determine return address
       let returnSection: string;
-      let returnCursor: string;
+      let returnAddress: string;
       if (returnTo) {
-        const returnResult = searchNode(ctx.sections, ctx.section, returnTo);
+        const returnResult = searchForNode(ctx.sections, ctx.section, returnTo);
         if (returnResult) {
           returnSection = returnResult.section.path;
-          returnCursor = returnResult.node.atts.id;
+          returnAddress = returnResult.node.addr;
         } else {
           const next = nextNode(ctx.node, ctx.section, false);
           returnSection = next?.section.path ?? DEFAULT_SECTION;
-          returnCursor = next?.node.atts.id ?? DEFAULT_CURSOR;
+          returnAddress = next?.node.addr ?? DEFAULT_CURSOR;
         }
       } else {
         const next = nextNode(ctx.node, ctx.section, false);
         returnSection = next?.section.path ?? DEFAULT_SECTION;
-        returnCursor = next?.node.atts.id ?? DEFAULT_CURSOR;
+        returnAddress = next?.node.addr ?? DEFAULT_CURSOR;
       }
-      ctx.state.__callStack.push(`${returnSection}/${returnCursor}`);
+      ctx.state.__callStack.push(`${returnSection}/${returnAddress}`);
       // Go to first child of block (or next sibling if no children)
       if (blockResult.node.kids.length > 0) {
         return {
@@ -621,13 +656,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   //
   //
   {
-    match: (node: Node) => node.tag === "llm",
+    match: (node: Node) => node.type === "llm",
     exec: async (ctx, provider) => {
-      let schema = ctx.atts.to ?? ctx.atts.schema;
+      let schema = ctx.node.atts.to ?? ctx.node.atts.schema;
       if (isBlank(schema)) {
         schema = "_"; // Assigns to the _ variable
       }
-      const prompt = ctx.text ?? ctx.atts.prompt;
+      const prompt = ctx.node.text ?? ctx.node.atts.prompt;
       if (!isBlank(prompt)) {
         const result = await provider.generateJson(prompt, schema);
         Object.assign(ctx.state, result);
@@ -640,12 +675,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.tag === "sound" && !!node.atts.url,
+    match: (node: Node) => node.type === "sound" && !!node.atts.url,
     exec: async (ctx) => ({
       ops: [
         {
           type: "play-sound",
-          audio: ctx.atts.url,
+          audio: ctx.node.atts.url,
         },
       ],
       next: nextNode(ctx.node, ctx.section, false),
@@ -653,9 +688,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
-    match: (node: Node) => node.tag === "sound" && !!node.atts.gen,
+    match: (node: Node) => node.type === "sound" && !!node.atts.gen,
     exec: async (ctx, provider) => {
-      const prompt = ctx.text ?? ctx.atts.prompt ?? "";
+      const prompt = ctx.node.text ?? ctx.node.atts.prompt ?? "";
       if (!isBlank(prompt)) {
         const { url } = ctx.options.doGenerateSounds
           ? await provider.generateSound(prompt)
@@ -696,110 +731,81 @@ export function nextNode(
   section: Section,
   useKids: boolean
 ): { node: Node; section: Section } | null {
-  // If useKids is true and current node has children, go to first child
+  // Given a node and the section it is within, find the "next" node.
+  // If useKids is true and current node has children, it's the first child
   if (useKids && curr.kids.length > 0) {
     return { node: curr.kids[0], section };
   }
 
-  // Traverse the tree from the root to find the next node in document order
-  // (preorder traversal, but after curr)
-  let found = false;
-  let result: Node | null = null;
+  // Find parent and check for next sibling
+  const parent = parentNodeOf(curr, section);
+  if (!parent) return null;
 
-  function walk(node: Node): boolean {
-    if (result) return true; // already found
-    if (node === curr) {
-      found = true;
-    } else if (found) {
-      result = node;
-      return true; // stop traversal
-    }
-    for (const kid of node.kids) {
-      if (walk(kid)) return true;
-    }
-    return false;
+  const siblingIndex = parent.kids.findIndex(k => k.addr === curr.addr);
+  if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
+    return { node: parent.kids[siblingIndex + 1], section };
   }
 
-  walk(section.root);
-
-  if (result) {
-    return { node: result, section };
-  }
-  // No next node found
-  return null;
+  // No more siblings, recurse up the tree
+  return nextNode(parent, section, false);
 }
 
-export function searchInSection(
-  section: Section,
-  searchTerm: string
-): Node | null {
-  return findNode(section.root, (node) => {
-    if (node.atts.id === searchTerm) return true;
-    if (node.atts.id === searchTerm) return true;
+export function parentNodeOf(node: Node, section: Section): Node | null {
+  if (node.addr === section.root.addr) return null;
+  
+  return findNodeFromRoot(section.root, (n) => {
+    return n.kids.some(k => k.addr === node.addr);
+  });
+}
 
-    // Heading text match (case insensitive)
-    if (/^h[1-6]$/.test(node.tag)) {
-      let headingText = node.text.trim().toLowerCase();
-      // <h*> tags normally have one <text> child with the actual heading
-      if (isBlank(headingText)) {
-        headingText = node.kids[0].text.trim().toLowerCase();
-      }
-
-      if (headingText === searchTerm.toLowerCase()) return true;
-
-      // Slugified heading match
-      const slugified = headingText
-        .replace(/[^\w\s-]/g, "") // Remove special chars except spaces and hyphens
-        .replace(/\s+/g, "-") // Replace spaces with hyphens
-        .toLowerCase();
-      if (slugified === searchTerm.toLowerCase()) return true;
-    }
-
+export function searchInSection(section: Section, term: string): Node | null {
+  return findNodeFromRoot(section.root, (node, parent, address) => {
+    if (node.atts.id === term) return true;
+    if (node.addr === term) return true;
+    // TODO: Other ways to search? CSS selector? XPath?
     return false;
   });
 }
 
-export function searchNode(
+export function searchForNode(
   sections: Section[],
-  currentSection: Section,
+  current: Section,
   flex: string | null | undefined
 ): { node: Node; section: Section } | null {
   if (!flex || isBlank(flex)) {
     return null;
   }
-
-  // Search starting with current section, then others
-  const sectionsToSearch = [
-    currentSection,
-    ...sections.filter((s) => s.path !== currentSection.path),
+  // Search starting with current section, then expand
+  const searchables = [
+    current,
+    ...sections.filter((s) => s.path !== current.path),
   ];
-
-  for (const section of sectionsToSearch) {
+  for (const section of searchables) {
     const node = searchInSection(section, flex);
     if (node) {
       return { node, section };
     }
   }
-
   return null;
 }
 
-export function findNode(
+export function findNodeFromRoot(
   root: Node,
-  predicate: (node: Node, parent: Node | null, depth: number) => boolean
+  predicate: (node: Node, parent: Node | null, address: string) => boolean,
+  address: string = "0"
 ): Node | null {
   let found: Node | null = null;
-  function walk(node: Node, parent: Node | null, depth: number) {
+  function walk(node: Node, parent: Node | null, address: string) {
     if (found) return;
-    if (predicate(node, parent, depth)) {
+    if (predicate(node, parent, address)) {
       found = node;
       return;
     }
-    for (const child of node.kids) {
-      walk(child, node, depth + 1);
+    for (let i = 0; i < node.kids.length; i++) {
+      walk(node.kids[i], node, `${address}.${i}`);
       if (found) return;
     }
   }
-  walk(root, null, 0);
+  walk(root, null, address);
   return found;
 }

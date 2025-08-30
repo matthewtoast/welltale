@@ -89,9 +89,11 @@ export async function renderNext(
   return render();
 }
 
-export const defaultRunnerOptions = {
+export const defaultRunnerOptions: PlayOptions = {
+  seed: DEFAULT_SEED,
   mode: StepMode.UNTIL_WAITING,
   verbose: true,
+  maxItersPerAdvance: 999, // Enough?
   doGenerateSpeech: false,
   doGenerateSounds: false,
 };

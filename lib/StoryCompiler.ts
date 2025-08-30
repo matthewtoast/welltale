@@ -4,6 +4,14 @@ import { Cartridge } from "./StoryEngine";
 export const TEXT_TAG = "#text";
 export const FRAG_TAG = "#fragment";
 
+export type Node = {
+  addr: string; // e.g. 0.2.1
+  type: string;
+  atts: Record<string, string>;
+  kids: Node[];
+  text: string;
+};
+
 type BuildOpts = { skipWhitespace?: boolean };
 const gid = () =>
   globalThis.crypto?.randomUUID?.() ??
@@ -30,17 +38,18 @@ const tagOf = (n: any) =>
         ? FRAG_TAG
         : n.nodeName;
 
-const build = (n: any, parent: Node | null, o: BuildOpts): Node => {
+const build = (n: any, i: number, parent: Node | null, o: BuildOpts): Node => {
   const tag = tagOf(n);
   const text = isText(n) ? n.value : "";
   const atts = isElem(n) ? attrs(n) : {};
-  const node: Node = { tag, atts, kids: [], text };
+  const addr = parent ? `${parent.addr}.${i}` : `${i}`;
+  const node: Node = { addr, type: tag, atts, kids: [], text };
   if (isParent(n)) {
     const rawKids = n.childNodes as any[];
     const filtered = o.skipWhitespace
       ? rawKids.filter((k) => !(isText(k) && k.value.trim() === ""))
       : rawKids;
-    node.kids = filtered.map((k) => build(k, node, o));
+    node.kids = filtered.map((k, i) => build(k, i, node, o));
   }
   return node;
 };
@@ -48,18 +57,11 @@ const build = (n: any, parent: Node | null, o: BuildOpts): Node => {
 export const fromFragment = (
   html: string,
   o: BuildOpts = { skipWhitespace: true }
-) => build(parse5.parseFragment(html), null, o);
+) => build(parse5.parseFragment(html), 0, null, o);
 
 export type Section = {
   path: string;
   root: Node;
-};
-
-export type Node = {
-  tag: string;
-  atts: Record<string, string>;
-  kids: Node[];
-  text: string;
 };
 
 export async function compile(cartridge: Cartridge) {
@@ -86,45 +88,45 @@ export function dumpTree(node: Node, indent = ""): string {
   const idString = node.atts.id ? ` id="${node.atts.id}"` : "";
 
   // For text nodes, show their content inline
-  if (node.tag === TEXT_TAG) {
+  if (node.type === TEXT_TAG) {
     const textContent = node.text?.trim();
     if (textContent) {
       lines.push(
-        `${indent}<${node.tag}${idString}>${textContent}</${node.tag}>`
+        `${indent}<${node.type}${idString}>${textContent}</${node.type}>`
       );
     } else {
-      lines.push(`${indent}<${node.tag}${idString} />`);
+      lines.push(`${indent}<${node.type}${idString} />`);
     }
     return lines.join("\n");
   }
 
   // Get direct text content (from text children only)
   const directTextContent = node.kids
-    .filter((k) => k.tag === TEXT_TAG)
+    .filter((k) => k.type === TEXT_TAG)
     .map((k) => k.text?.trim())
     .filter(Boolean)
     .join("");
 
-  const hasNonTextChildren = node.kids.some((k) => k.tag !== TEXT_TAG);
+  const hasNonTextChildren = node.kids.some((k) => k.type !== TEXT_TAG);
 
   if (!hasNonTextChildren && directTextContent) {
     // Leaf node with text content
     lines.push(
-      `${indent}<${node.tag}${idString}${attrString}>${directTextContent}</${node.tag}>`
+      `${indent}<${node.type}${idString}${attrString}>${directTextContent}</${node.type}>`
     );
   } else if (node.kids.length === 0) {
     // Self-closing tag
-    lines.push(`${indent}<${node.tag}${idString}${attrString} />`);
+    lines.push(`${indent}<${node.type}${idString}${attrString} />`);
   } else {
     // Tag with children
-    lines.push(`${indent}<${node.tag}${idString}${attrString}>`);
+    lines.push(`${indent}<${node.type}${idString}${attrString}>`);
 
     // Add children
     for (const child of node.kids) {
       lines.push(dumpTree(child, indent + "  "));
     }
 
-    lines.push(`${indent}</${node.tag}>`);
+    lines.push(`${indent}</${node.type}>`);
   }
 
   return lines.join("\n");

@@ -20,8 +20,8 @@ const argv = yargs(hideBin(process.argv))
     game: {
       type: "string",
       alias: "g",
-      demandOption: true,
       describe: "Game slug to run",
+      default: "welcome",
     },
     playthru: {
       type: "string",

@@ -318,6 +318,167 @@ export const unifiedHelpers: Record<string, (...args: any[]) => P | P[]> = {
   },
 };
 
+export const mathHelpers: Record<string, (...args: any[]) => P> = {
+  abs: (v: P) => Math.abs(num(v)),
+  max: (...args: P[]) => Math.max(...args.map(num)),
+  min: (...args: P[]) => Math.min(...args.map(num)),
+  clamp: (v: P, min: P, max: P) => Math.max(num(min), Math.min(num(max), num(v))),
+  avg: (...args: P[]) => {
+    if (!args.length) return 0;
+    return args.reduce<number>((s, x) => s + num(x), 0) / args.length;
+  },
+  average: (...args: P[]) => {
+    if (!args.length) return 0;
+    return args.reduce<number>((s, x) => s + num(x), 0) / args.length;
+  },
+  pow: (base: P, exp: P) => Math.pow(num(base), num(exp)),
+  sqrt: (v: P) => Math.sqrt(num(v)),
+  cbrt: (v: P) => Math.cbrt(num(v)),
+  exp: (v: P) => Math.exp(num(v)),
+  log: (v: P) => Math.log(num(v)),
+  log10: (v: P) => Math.log10(num(v)),
+  log2: (v: P) => Math.log2(num(v)),
+  sin: (v: P) => Math.sin(num(v)),
+  cos: (v: P) => Math.cos(num(v)),
+  tan: (v: P) => Math.tan(num(v)),
+  asin: (v: P) => Math.asin(num(v)),
+  acos: (v: P) => Math.acos(num(v)),
+  atan: (v: P) => Math.atan(num(v)),
+  atan2: (y: P, x: P) => Math.atan2(num(y), num(x)),
+  sinh: (v: P) => Math.sinh(num(v)),
+  cosh: (v: P) => Math.cosh(num(v)),
+  tanh: (v: P) => Math.tanh(num(v)),
+  asinh: (v: P) => Math.asinh(num(v)),
+  acosh: (v: P) => Math.acosh(num(v)),
+  atanh: (v: P) => Math.atanh(num(v)),
+  floor: (v: P) => Math.floor(num(v)),
+  ceil: (v: P) => Math.ceil(num(v)),
+  round: (v: P) => Math.round(num(v)),
+  trunc: (v: P) => Math.trunc(num(v)),
+  sign: (v: P) => Math.sign(num(v)),
+  gcd: (a: P, b: P) => {
+    let x = Math.abs(num(a));
+    let y = Math.abs(num(b));
+    while (y) {
+      const t = y;
+      y = x % y;
+      x = t;
+    }
+    return x;
+  },
+  lcm: (a: P, b: P) => {
+    const na = num(a), nb = num(b);
+    return Math.abs(na * nb) / (mathHelpers.gcd(na, nb) as number);
+  },
+  factorial: (n: P) => {
+    const v = Math.floor(num(n));
+    if (v < 0) return NaN;
+    if (v === 0 || v === 1) return 1;
+    let result = 1;
+    for (let i = 2; i <= v; i++) result *= i;
+    return result;
+  },
+  nCr: (n: P, r: P) => {
+    const nn = Math.floor(num(n));
+    const rr = Math.floor(num(r));
+    if (rr > nn || rr < 0) return 0;
+    return (mathHelpers.factorial(nn) as number) / ((mathHelpers.factorial(rr) as number) * (mathHelpers.factorial(nn - rr) as number));
+  },
+  nPr: (n: P, r: P) => {
+    const nn = Math.floor(num(n));
+    const rr = Math.floor(num(r));
+    if (rr > nn || rr < 0) return 0;
+    return (mathHelpers.factorial(nn) as number) / (mathHelpers.factorial(nn - rr) as number);
+  },
+  mod: (a: P, b: P) => num(a) % num(b),
+  rem: (a: P, b: P) => num(a) % num(b),
+  degToRad: (deg: P) => num(deg) * (Math.PI / 180),
+  radToDeg: (rad: P) => num(rad) * (180 / Math.PI),
+  lerp: (a: P, b: P, t: P) => {
+    const na = num(a);
+    const nb = num(b);
+    const nt = num(t);
+    return na + (nb - na) * nt;
+  },
+  inverseLerp: (a: P, b: P, v: P) => {
+    const na = num(a);
+    const nb = num(b);
+    const nv = num(v);
+    return (nv - na) / (nb - na);
+  },
+  map: (v: P, inMin: P, inMax: P, outMin: P, outMax: P) => {
+    const nv = num(v);
+    const t = (nv - num(inMin)) / (num(inMax) - num(inMin));
+    return num(outMin) + t * (num(outMax) - num(outMin));
+  },
+  smoothstep: (edge0: P, edge1: P, x: P) => {
+    const t = mathHelpers.clamp((num(x) - num(edge0)) / (num(edge1) - num(edge0)), 0, 1);
+    const nt = num(t);
+    return nt * nt * (3 - 2 * nt);
+  },
+  step: (edge: P, x: P) => num(x) < num(edge) ? 0 : 1,
+  fract: (v: P) => {
+    const n = num(v);
+    return n - Math.floor(n);
+  },
+  isFinite: (v: P) => Number.isFinite(num(v)),
+  isNaN: (v: P) => Number.isNaN(num(v)),
+  isInteger: (v: P) => Number.isInteger(num(v)),
+  isPrime: (n: P) => {
+    const v = Math.floor(num(n));
+    if (v <= 1) return false;
+    if (v <= 3) return true;
+    if (v % 2 === 0 || v % 3 === 0) return false;
+    for (let i = 5; i * i <= v; i += 6) {
+      if (v % i === 0 || v % (i + 2) === 0) return false;
+    }
+    return true;
+  },
+  variance: (...args: P[]) => {
+    if (!args.length) return 0;
+    const mean = mathHelpers.avg(...args) as number;
+    return args.reduce<number>((s, x) => {
+      const d = num(x) - mean;
+      return s + d * d;
+    }, 0) / args.length;
+  },
+  stdDev: (...args: P[]) => Math.sqrt(mathHelpers.variance(...args) as number),
+  standardDeviation: (...args: P[]) => Math.sqrt(mathHelpers.variance(...args) as number),
+  hypot: (...args: P[]) => Math.hypot(...args.map(num)),
+  distance: (x1: P, y1: P, x2: P, y2: P) => 
+    Math.hypot(num(x2) - num(x1), num(y2) - num(y1)),
+  manhattan: (x1: P, y1: P, x2: P, y2: P) => 
+    Math.abs(num(x2) - num(x1)) + Math.abs(num(y2) - num(y1)),
+  normalize: (v: P, min: P, max: P) => 
+    (num(v) - num(min)) / (num(max) - num(min)),
+  denormalize: (v: P, min: P, max: P) => 
+    num(v) * (num(max) - num(min)) + num(min),
+  roundTo: (v: P, precision: P) => {
+    const p = Math.pow(10, num(precision));
+    return Math.round(num(v) * p) / p;
+  },
+  floorTo: (v: P, precision: P) => {
+    const p = Math.pow(10, num(precision));
+    return Math.floor(num(v) * p) / p;
+  },
+  ceilTo: (v: P, precision: P) => {
+    const p = Math.pow(10, num(precision));
+    return Math.ceil(num(v) * p) / p;
+  },
+  toFixed: (v: P, digits: P) => Number(num(v).toFixed(num(digits))),
+  toPrecision: (v: P, precision: P) => Number(num(v).toPrecision(num(precision))),
+  pi: () => Math.PI,
+  e: () => Math.E,
+  tau: () => Math.PI * 2,
+  phi: () => (1 + Math.sqrt(5)) / 2,
+  sqrt2: () => Math.SQRT2,
+  sqrt1_2: () => Math.SQRT1_2,
+  ln2: () => Math.LN2,
+  ln10: () => Math.LN10,
+  log2e: () => Math.LOG2E,
+  log10e: () => Math.LOG10E,
+};
+
 export const createRandomHelpers = (
   prng: PRNG
 ): Record<string, (...args: any[]) => P | P[]> => ({
@@ -392,6 +553,7 @@ export function getParser(
     arrayHelpers,
     stringHelpers,
     unifiedHelpers,
+    mathHelpers,
     randomHelpers,
     funcs
   );
