@@ -1,16 +1,56 @@
+import { DOMParser } from "@xmldom/xmldom";
 import * as parse5 from "parse5";
 import { Cartridge } from "./StoryEngine";
 
+export type StoryNode = {
+  addr: string; // a tree locator string like "0.2.1"
+  type: string; // the tag name, e.g. p, block, #text, whatever
+  atts: Record<string, string>; // the element attributes
+  kids: StoryNode[]; // its children (can be empty array)
+  text: string; // its text value (can be empty string)
+};
+
+const TEXT_NODE = 3;
+const ELEMENT_NODE = 1;
+
+export const toAttrs = (el: Element): Record<string, string> => {
+  const out: Record<string, string> = {};
+  const a: any = (el as any).attributes;
+  for (let i = 0; a && i < a.length; i++) {
+    const item = a.item(i);
+    if (item) out[item.name] = item.value;
+  }
+  return out;
+};
+
+const fromDom = (n: Node, addr: string): StoryNode =>
+  n.nodeType === TEXT_NODE
+    ? { addr, type: "#text", atts: {}, kids: [], text: n.nodeValue ?? "" }
+    : n.nodeType === ELEMENT_NODE
+      ? {
+          addr,
+          type: (n as Element).tagName,
+          atts: toAttrs(n as Element),
+          kids: Array.from(n.childNodes)
+            .map((c, i) => fromDom(c, `${addr}.${i}`))
+            .filter(
+              (child) =>
+                child.type !== "#text" ||
+                (child.text && child.text.trim() !== "")
+            ),
+          text: "",
+        }
+      : { addr, type: `#${n.nodeName}`, atts: {}, kids: [], text: "" };
+
+export const parseXmlFragment = (frag: string): StoryNode => {
+  const xml = `<root>${frag}</root>`;
+  const doc = new DOMParser().parseFromString(xml, "text/xml");
+  const root = doc.documentElement;
+  return fromDom(root, "0");
+};
+
 export const TEXT_TAG = "#text";
 export const FRAG_TAG = "#fragment";
-
-export type Node = {
-  addr: string; // e.g. 0.2.1
-  type: string;
-  atts: Record<string, string>;
-  kids: Node[];
-  text: string;
-};
 
 type BuildOpts = { skipWhitespace?: boolean };
 const gid = () =>
@@ -38,12 +78,17 @@ const tagOf = (n: any) =>
         ? FRAG_TAG
         : n.nodeName;
 
-const build = (n: any, i: number, parent: Node | null, o: BuildOpts): Node => {
+const build = (
+  n: any,
+  i: number,
+  parent: StoryNode | null,
+  o: BuildOpts
+): StoryNode => {
   const tag = tagOf(n);
   const text = isText(n) ? n.value : "";
   const atts = isElem(n) ? attrs(n) : {};
   const addr = parent ? `${parent.addr}.${i}` : `${i}`;
-  const node: Node = { addr, type: tag, atts, kids: [], text };
+  const node: StoryNode = { addr, type: tag, atts, kids: [], text };
   if (isParent(n)) {
     const rawKids = n.childNodes as any[];
     const filtered = o.skipWhitespace
@@ -61,7 +106,7 @@ export const fromFragment = (
 
 export type Section = {
   path: string;
-  root: Node;
+  root: StoryNode;
 };
 
 export async function compile(cartridge: Cartridge) {
@@ -69,13 +114,17 @@ export async function compile(cartridge: Cartridge) {
   for (let path in cartridge) {
     const content = cartridge[path];
     if (path.endsWith(".xml")) {
-      const root = fromFragment(content.toString("utf-8"));
+      const root = parseXmlFragment(content.toString("utf-8"));
       sources.push({ path, root });
     }
   }
   return sources;
 }
-export function dumpTree(node: Node, indent = ""): string {
+export function dumpTree(node: StoryNode | null, indent = ""): string {
+  if (!node) {
+    return "";
+  }
+
   const lines: string[] = [];
 
   // Build attributes string
@@ -132,7 +181,7 @@ export function dumpTree(node: Node, indent = ""): string {
   return lines.join("\n");
 }
 
-export function dumpTreeCompact(node: Node): string {
+export function dumpTreeCompact(node: StoryNode): string {
   const result = dumpTree(node);
   // Remove empty lines
   return result

@@ -1,10 +1,27 @@
-import { readFileSync } from "fs";
-import { dumpTree, fromFragment } from "lib/StoryCompiler";
-import { join } from "path";
+import { dumpTree, parseXmlFragment } from "lib/StoryCompiler";
+import { expect } from "./TestUtils";
 
-const main = readFileSync(
-  join(__dirname, "..", "run", "cartridges", "welcome", "main.xml")
-).toString("utf-8");
-const tree = fromFragment(main);
+const t2 = parseXmlFragment(`
+  <p>yay</p>
+  <sec id="foo">
+    <p>hi</p>
+  </sec>
+  <var var="x" value="1" />
+  <p>meow</p>
+  <p>cow</p>
+`);
 
-console.log(dumpTree(tree));
+expect(
+  dumpTree(t2),
+  `
+<root>
+  <p>yay</p>
+  <sec id="foo" id="foo">
+    <p>hi</p>
+  </sec>
+  <var var="x" value="1" />
+  <p>meow</p>
+  <p>cow</p>
+</root>
+`.trim()
+);

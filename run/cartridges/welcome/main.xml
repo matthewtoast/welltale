@@ -129,18 +129,18 @@
   </p>
   <p>
     We can transform it using code expressions, and create other variables.
-    The most basic way to do that is like so:
+    The most basic way to do that is like so, with the &lt;var&gt; tag:
   </p>
-  <set var="doubled" value="favoriteNumber * 2" />
-  <set var="squared" value="favoriteNumber * favoriteNumber" />
+  <var name="doubled" value="favoriteNumber * 2" />
+  <var name="squared" value="favoriteNumber * favoriteNumber" />
   <p>
-    Any variable we set using the &lt;set&gt; tag can be referred to using those same Handlebars tags as above.
-    The "value" attribute of a &lt;set&gt; set is expected to be a code expression, but normal values work too.
+    Any variable we create using the &lt;var&gt; tag can be referred to using those same Handlebars tags as above.
+    The "value" attribute of a &lt;var&gt; set is expected to be a code expression, but normal values work too.
     The doubled value would be {{doubled}}, and the squared value would be, well, {{squared}}.
     Just keep in mind you can only refer to these values *after* they've been set. Otherwise they'd be empty.
   </p>
   <p>
-    If you want to write more elaborate code, you can use the &lt;code&gt; tag:
+    If you want to write more elaborate code and create multiple variables at once, you can use the &lt;code&gt; tag:
   </p>
   <code>
     magicNumber = favoriteNumber + length(listenerName)
@@ -148,37 +148,78 @@
     luckyMessage = isLucky ? "You're lucky!" : "Not this time." ; somethingElse = 123
   </code>
   <p>
+    Each of the variables we created above are now available to render with Handlebars syntax just as above.
+  </p>
+  <p>
     In code tags, newlines are treated as separators between individual code expressions.
     You can also use semicolons to separate individual code expressions.
     Now the player's magic number is {{magicNumber}}.
-    What do you think the {{luckyMessage}} will be here?
+    What do you think the "luckyMessage" variable will be here?
   </p>
 </sec>
 
 <sec id="sleep">
   <p>
-    Now, Welltale is an *audio* story platform.
-    When it comes to audio storytelling, there are times when you might want to playback to wait for half a second...
+    Now, remember that Welltale is an *audio* story platform.
+    It's not about displaying text, it's about speaking it aloud for people to hear.
+    And when it comes to audio storytelling, there are times when you might want to playback to wait for half a second...
   </p>
   <sleep duration="500" />
   <p>
-    ...for dramatic effect.
-    Note: The duration is a value in milliseconds.
-    If you wanted to, you could also have referred to a variable in the attribute as well.
+    ...for dramatic effect. Just use the &lt;sleep&gt; tag for that! The duration is a value in milliseconds.
+    Note: If you wanted to, you could also have referred to a variable in the attribute as well. Like so:
   </p>
   <sleep duration="{{favoriteNumber}}" />
   <p>
     It's actually quite appropriate that we just had a dramatic pause.
-    Because we're about learn about another powerful tool that can be used to control your story:
+    Because we're about unlock another powerful tool to help craft your story:
     Blocks.
+  </p>
+  <p>
+    To explain, let's jump to a block now.
+    We can jump to block using the &lt;yield&gt; tag (similar to &lt;jump&gt; but a bit different).
+  </p>
+  <yield to="a-block" />
+  <p>
+    ...Right back here.
   </p>
 </sec>
 
 <block id="a-block">
   <p>
-    This is a block. Notice it has an id, just like sections.
+    Welcome to your first block. Notice it has an id, just like sections.
     But unlike sections, block content is not played automatically.
-    Think of them as reusable content that you can visit at any time - but which are only played when you go to them.
+    It's skipped over during normal playback, and only played when we &lt;yield&gt; to it.
+  </p>
+  <p>
+    Think of them as reusable content that you can visit at any time.
     Nobody points to this block, so it will never get visited.
   </p>
+  <p>
+    The other critical thing about blocks is, when they're finished, they resume at the point you used &lt;yield&gt;.
+    That is, once this block's content finishes, up, we should end up...
+  </p>
 </block>
+
+<sec>
+  <p>
+    You can also instruct a block to go to a particular place after finishing. For example:
+  </p>
+  <yield to="another-block" return="treasure-island" />
+  <p>
+    (We won't see this content, because the above &lt;yield&gt; is making us redirect to a different place.)
+  </p>
+</sec>
+
+<block id="another-block">
+  <p>
+    Here we are in the block, but after we're finished here, we won't return to where we left off.
+    We'll instead return to the section marked by the "return" attribute of the block.
+  </p>
+</block>
+
+<sec id="treasure-island">
+  <p>
+
+  </p>
+</sec>

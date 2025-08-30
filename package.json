@@ -31,6 +31,7 @@
     "@elevenlabs/elevenlabs-js": "^2.9.0",
     "@types/handlebars": "^4.1.0",
     "@types/lodash": "^4.17.20",
+    "@xmldom/xmldom": "^0.8.11",
     "chalk": "^5.6.0",
     "dedent": "^1.6.0",
     "dotenv": "^17.2.0",

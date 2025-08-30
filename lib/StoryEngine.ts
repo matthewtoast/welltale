@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import {
   cast,
+  castToString,
   evalExpr,
   looksLikeBoolean,
   looksLikeNumber,
@@ -12,8 +13,8 @@ import {
   compile,
   dumpTree,
   FRAG_TAG,
-  Node,
   Section,
+  StoryNode,
   TEXT_TAG,
 } from "lib/StoryCompiler";
 import {
@@ -184,7 +185,7 @@ export async function advance(
       break;
     }
 
-    let node: Node | null = section
+    let node: StoryNode | null = section
       ? findNodeFromRoot(
           section.root,
           (node, parent, address) =>
@@ -201,6 +202,7 @@ export async function advance(
 
     const ctx: ActionContext = {
       options,
+      orig: node,
       node: rendered,
       section,
       sections,
@@ -272,7 +274,7 @@ export async function advance(
 }
 
 export function nodeToRenderedNode(
-  node: Node,
+  node: StoryNode,
   state: Record<string, TScalar | TScalar[]>,
   rng: PRNG
 ) {
@@ -299,7 +301,8 @@ export function nodeToRenderedNode(
 
 export interface ActionContext {
   options: PlayOptions;
-  node: Node;
+  orig: StoryNode;
+  node: StoryNode;
   section: Section;
   sections: Section[];
   state: Playthru["state"];
@@ -315,12 +318,12 @@ export enum FlowType {
 
 export interface ActionResult {
   ops: OP[];
-  next: { node: Node; section: Section } | null;
+  next: { node: StoryNode; section: Section } | null;
   flow: FlowType;
 }
 
 interface ActionHandler {
-  match: (node: Node) => boolean;
+  match: (node: StoryNode) => boolean;
   exec: (
     context: ActionContext,
     services: ServiceProvider
@@ -348,7 +351,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
-    match: (node: Node) => node.type === "section" || node.type === "sec",
+    match: (node: StoryNode) => node.type === "section" || node.type === "sec",
     exec: async (ctx) => {
       return {
         ops: [],
@@ -358,7 +361,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type.startsWith("h"), // <h*>, <header>, <head>, <hr>
+    match: (node: StoryNode) => node.type.startsWith("h"), // <h*>, <header>, <head>, <hr>
     exec: async (ctx) => {
       return {
         ops: [],
@@ -368,7 +371,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) =>
+    match: (node: StoryNode) =>
       node.type === TEXT_TAG ||
       node.type === "text" || // Just in case someone wants to use <text>
       node.type === "p" ||
@@ -377,15 +380,23 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx, provider) => {
       const next = nextNode(ctx.node, ctx.section, true);
       const ops: OP[] = [];
+      let text = ctx.node.text;
+      // If we have a ref tag, assume it refers to a <def>
+      if (ctx.node.atts.ref) {
+        const stored = castToString(ctx.state[ctx.node.atts.ref]);
+        if (stored) {
+          text = renderHandlebars(stored, ctx.state, ctx.rng);
+        }
+      }
       // Early exit spurious empty nodes
-      if (isBlank(ctx.node.text)) {
+      if (isBlank(text)) {
         return {
           ops,
           next,
           flow: FlowType.CONTINUE,
         };
       }
-      const line = parseTaggedSpeakerLine(ctx.node.text);
+      const line = parseTaggedSpeakerLine(text);
       // Dynamic dialog variation using pipe character
       line.body = ctx.rng.randomElement(cleanSplit(line.body, "|"));
       const { url } = ctx.options.doGenerateSpeech
@@ -412,7 +423,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) =>
+    match: (node: StoryNode) =>
       [
         "strong",
         "b",
@@ -438,12 +449,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type === "input",
+    match: (node: StoryNode) => node.type === "input",
     exec: async (ctx) => {
-      const toKey = ctx.node.atts.to;
-      if (toKey) {
-        ctx.state.__inputKey = toKey;
-      }
+      const toKey = ctx.node.atts.to ?? "input";
+      ctx.state.__inputKey = toKey;
       const castType =
         ctx.node.atts.as ?? ctx.node.atts.cast ?? ctx.node.atts.type;
       if (castType) {
@@ -465,7 +474,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type === "if",
+    match: (node: StoryNode) => node.type === "if",
     exec: async (ctx) => {
       let next;
       const conditionTrue = evalExpr(
@@ -499,7 +508,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type === "jump",
+    match: (node: StoryNode) => node.type === "jump",
     exec: async (ctx) => {
       let next;
       if (
@@ -518,15 +527,21 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type === "set",
+    match: (node: StoryNode) => node.type === "var",
     exec: async (ctx) => {
-      ctx.state[ctx.node.atts.var ?? ctx.node.atts.to ?? ctx.node.atts.key] =
-        evalExpr(
-          ctx.node.atts.op ?? ctx.node.atts.value,
-          ctx.state,
-          {},
-          ctx.rng
-        );
+      const value = !isBlank(ctx.node.text)
+        ? ctx.node.text
+        : ctx.node.atts.value;
+      const key =
+        ctx.node.atts.name ??
+        ctx.node.atts.var ??
+        ctx.node.atts.to ??
+        ctx.node.atts.key;
+      ctx.state[key] = value; // By default, use the string
+      try {
+        // Try to eval incase it was an expression, but it's okay if it's just text
+        ctx.state[key] = evalExpr(value, ctx.state, {}, ctx.rng);
+      } catch (e) {}
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.section, false),
@@ -535,7 +550,29 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type === "pre", // <pre> wraps <code>, but sometimes not
+    match: (node: StoryNode) => node.type === "def",
+    exec: async (ctx) => {
+      // Get the *unrendered* content to be rendered dynamically later!
+      const value = !isBlank(ctx.orig.text)
+        ? ctx.orig.text
+        : ctx.orig.atts.value;
+      const key =
+        ctx.node.atts.name ??
+        ctx.node.atts.var ??
+        ctx.node.atts.to ??
+        ctx.node.atts.key ??
+        ctx.node.atts.id; // Use the id as the storage by default, to refer to with ref="..."
+      // Again, we're storing *unrendered* here
+      ctx.state[key] = value;
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.section, false),
+        flow: FlowType.CONTINUE,
+      };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "pre", // <pre> wraps <code>, but sometimes not
     exec: async (ctx) => {
       return {
         ops: [],
@@ -545,7 +582,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type === "code",
+    match: (node: StoryNode) => node.type === "code",
     exec: async (ctx) => {
       const codeChildren = ctx.node.kids.filter((k) => k.type === TEXT_TAG);
       if (codeChildren.length > 0) {
@@ -564,7 +601,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type === "wait" || node.type === "sleep",
+    match: (node: StoryNode) => node.type === "wait" || node.type === "sleep",
     exec: async (ctx) => ({
       ops: [
         {
@@ -580,7 +617,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
-    match: (node: Node) => node.type === "block",
+    match: (node: StoryNode) => node.type === "block",
     exec: async (ctx) => ({
       ops: [],
       next: skipBlock(ctx.node, ctx.section),
@@ -588,10 +625,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
-    match: (node: Node) => node.type === "yield",
+    match: (node: StoryNode) => node.type === "yield",
     exec: async (ctx) => {
       const targetBlockId = ctx.node.atts.to;
-      const returnTo = ctx.node.atts.returnTo;
+      const returnTo = ctx.node.atts.returnTo ?? ctx.node.atts.return;
       if (!targetBlockId) {
         return {
           ops: [],
@@ -650,13 +687,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
     },
   },
-  //
-  //
-  // -----
-  //
-  //
   {
-    match: (node: Node) => node.type === "llm",
+    match: (node: StoryNode) => node.type === "llm",
     exec: async (ctx, provider) => {
       let schema = ctx.node.atts.to ?? ctx.node.atts.schema;
       if (isBlank(schema)) {
@@ -675,7 +707,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: Node) => node.type === "sound" && !!node.atts.url,
+    match: (node: StoryNode) => node.type === "sound" && !!node.atts.url,
     exec: async (ctx) => ({
       ops: [
         {
@@ -688,7 +720,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
-    match: (node: Node) => node.type === "sound" && !!node.atts.gen,
+    match: (node: StoryNode) => node.type === "sound" && !!node.atts.gen,
     exec: async (ctx, provider) => {
       const prompt = ctx.node.text ?? ctx.node.atts.prompt ?? "";
       if (!isBlank(prompt)) {
@@ -719,18 +751,18 @@ export const ACTION_HANDLERS: ActionHandler[] = [
 ];
 
 export function skipBlock(
-  blockNode: Node,
+  blockNode: StoryNode,
   section: Section
-): { node: Node; section: Section } | null {
+): { node: StoryNode; section: Section } | null {
   // Skip past the entire block by going to its next sibling
   return nextNode(blockNode, section, false);
 }
 
 export function nextNode(
-  curr: Node,
+  curr: StoryNode,
   section: Section,
   useKids: boolean
-): { node: Node; section: Section } | null {
+): { node: StoryNode; section: Section } | null {
   // Given a node and the section it is within, find the "next" node.
   // If useKids is true and current node has children, it's the first child
   if (useKids && curr.kids.length > 0) {
@@ -741,7 +773,7 @@ export function nextNode(
   const parent = parentNodeOf(curr, section);
   if (!parent) return null;
 
-  const siblingIndex = parent.kids.findIndex(k => k.addr === curr.addr);
+  const siblingIndex = parent.kids.findIndex((k) => k.addr === curr.addr);
   if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
     return { node: parent.kids[siblingIndex + 1], section };
   }
@@ -750,15 +782,21 @@ export function nextNode(
   return nextNode(parent, section, false);
 }
 
-export function parentNodeOf(node: Node, section: Section): Node | null {
+export function parentNodeOf(
+  node: StoryNode,
+  section: Section
+): StoryNode | null {
   if (node.addr === section.root.addr) return null;
-  
+
   return findNodeFromRoot(section.root, (n) => {
-    return n.kids.some(k => k.addr === node.addr);
+    return n.kids.some((k) => k.addr === node.addr);
   });
 }
 
-export function searchInSection(section: Section, term: string): Node | null {
+export function searchInSection(
+  section: Section,
+  term: string
+): StoryNode | null {
   return findNodeFromRoot(section.root, (node, parent, address) => {
     if (node.atts.id === term) return true;
     if (node.addr === term) return true;
@@ -771,7 +809,7 @@ export function searchForNode(
   sections: Section[],
   current: Section,
   flex: string | null | undefined
-): { node: Node; section: Section } | null {
+): { node: StoryNode; section: Section } | null {
   if (!flex || isBlank(flex)) {
     return null;
   }
@@ -790,12 +828,16 @@ export function searchForNode(
 }
 
 export function findNodeFromRoot(
-  root: Node,
-  predicate: (node: Node, parent: Node | null, address: string) => boolean,
+  root: StoryNode,
+  predicate: (
+    node: StoryNode,
+    parent: StoryNode | null,
+    address: string
+  ) => boolean,
   address: string = "0"
-): Node | null {
-  let found: Node | null = null;
-  function walk(node: Node, parent: Node | null, address: string) {
+): StoryNode | null {
+  let found: StoryNode | null = null;
+  function walk(node: StoryNode, parent: StoryNode | null, address: string) {
     if (found) return;
     if (predicate(node, parent, address)) {
       found = node;
