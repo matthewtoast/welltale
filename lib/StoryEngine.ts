@@ -719,47 +719,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: () => true,
     exec: async (ctx) => {
-      // Check if we're at a point where we should return from a block
-      if (ctx.state.__callStack.length > 0) {
-        // Check if nextNode would take us outside of our current block
-        const parent = parentNodeOf(ctx.node, ctx.root);
-        if (parent) {
-          const siblingIndex = parent.kids.findIndex((k) => k.addr === ctx.node.addr);
-          const isLastChild = siblingIndex === parent.kids.length - 1;
-          
-          if (ctx.node.addr === "0.2.2.0") {
-            console.log(`DEBUG: Node ${ctx.node.addr} (${ctx.node.type} text="${ctx.node.text}"), parent=${parent.addr} (${parent.type}), isLastChild=${isLastChild}, callStack.length=${ctx.state.__callStack.length}`);
-          }
-          
-          // If we're the last child of our parent
-          if (isLastChild) {
-            // Check if any ancestor is a block
-            let current: StoryNode | null = parent;
-            while (current) {
-              if (current.type === "block") {
-                // We're at the end of a block, return null to trigger call stack pop
-                console.log(`DEBUG: Found block ancestor ${current.addr}, returning null`);
-                return {
-                  ops: [],
-                  next: null,
-                  flow: FlowType.CONTINUE,
-                };
-              }
-              // Check if this parent also has no more siblings
-              const grandparent = parentNodeOf(current, ctx.root);
-              if (grandparent) {
-                const parentIndex = grandparent.kids.findIndex((k) => k.addr === current.addr);
-                if (parentIndex < grandparent.kids.length - 1) {
-                  // Parent has siblings, so we won't exit the block
-                  break;
-                }
-              }
-              current = grandparent;
-            }
-          }
-        }
-      }
-      
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
