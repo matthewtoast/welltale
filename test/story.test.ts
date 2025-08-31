@@ -16,8 +16,6 @@ async function go() {
     join(basedir, "test", "fixtures", game)
   );
 
-  console.log(cartridge);
-
   const story: Story = { id: game, cartridge };
 
   const playthru = loadPlaythruFromDisk(

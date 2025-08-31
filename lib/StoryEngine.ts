@@ -20,8 +20,6 @@ import { TSerial } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
 
-// could also use a command line thing to basically output the full interactive story completely as audio based on args!
-
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
 
@@ -111,6 +109,7 @@ export interface ActionContext {
   node: StoryNode;
   playthru: Playthru;
   rng: PRNG;
+  scope: { [key: string]: TSerial };
 }
 
 export enum FlowType {
@@ -139,12 +138,74 @@ interface ActionHandler {
 let calls = 0;
 
 function getScope(playthru: Playthru): { [key: string]: TSerial } {
-  // Create merged state with scopes overriding base state
-  const merged = { ...playthru.state };
-  for (const entry of playthru.protected.__callStack) {
-    Object.assign(merged, entry.scope);
-  }
-  return merged;
+  const globalState = playthru.state;
+  const currentScope =
+    playthru.protected.__callStack.length > 0
+      ? playthru.protected.__callStack[
+          playthru.protected.__callStack.length - 1
+        ].scope
+      : null;
+
+  return new Proxy({} as { [key: string]: TSerial }, {
+    get(target, prop: string) {
+      // Check all scopes from most recent to oldest
+      for (let i = playthru.protected.__callStack.length - 1; i >= 0; i--) {
+        const scope = playthru.protected.__callStack[i].scope;
+        if (prop in scope) {
+          return scope[prop];
+        }
+      }
+      // Fall back to global state
+      return globalState[prop];
+    },
+    set(target, prop: string, value) {
+      if (currentScope) {
+        // Write to current block's scope
+        currentScope[prop] = value;
+      } else {
+        // No active block, write to global state
+        globalState[prop] = value;
+      }
+      return true;
+    },
+    has(target, prop: string) {
+      // Check all scopes
+      for (const entry of playthru.protected.__callStack) {
+        if (prop in entry.scope) return true;
+      }
+      return prop in globalState;
+    },
+    ownKeys(target) {
+      // Merge all keys from all scopes and global state
+      const keys = new Set(Object.keys(globalState));
+      for (const entry of playthru.protected.__callStack) {
+        Object.keys(entry.scope).forEach((key) => keys.add(key));
+      }
+      return Array.from(keys);
+    },
+    getOwnPropertyDescriptor(target, prop: string) {
+      // Needed for proper enumeration
+      // Check all scopes first
+      for (let i = playthru.protected.__callStack.length - 1; i >= 0; i--) {
+        const scope = playthru.protected.__callStack[i].scope;
+        if (prop in scope) {
+          return {
+            configurable: true,
+            enumerable: true,
+            value: scope[prop],
+          };
+        }
+      }
+      // Then check global state
+      if (prop in globalState) {
+        return {
+          configurable: true,
+          enumerable: true,
+          value: globalState[prop],
+        };
+      }
+    },
+  });
 }
 
 export async function advanceStory(
@@ -217,6 +278,7 @@ export async function advanceStory(
       node: rendered,
       playthru,
       rng,
+      scope: getScope(playthru),
     };
 
     const handler = ACTION_HANDLERS.find((h) => h.match(node))!;
@@ -334,10 +396,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let text = ctx.node.text;
       // If we have a ref tag, assume it refers to a <stash>
       if (ctx.node.atts.ref) {
-        const scope = getScope(ctx.playthru);
-        const stored = castToString(scope[ctx.node.atts.ref]);
+        const stored = castToString(ctx.scope[ctx.node.atts.ref]);
         if (stored) {
-          text = renderHandlebars(stored, scope, ctx.rng);
+          text = renderHandlebars(stored, ctx.scope, ctx.rng);
         }
       }
       // Early exit spurious empty nodes
@@ -366,7 +427,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const obs: string[] = ctx.node.atts["obs"]
         ? cleanSplit(ctx.node.atts["to"], ",")
         : [];
-      console.log(line.body);
       ctx.playthru.history.push(createEvent(line.speaker, line.body, to, obs));
       return {
         ops,
@@ -445,7 +505,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let next;
       const conditionTrue = evalExpr(
         ctx.node.atts.cond,
-        getScope(ctx.playthru),
+        ctx.scope,
         {},
         ctx.rng
       );
@@ -479,7 +539,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let next;
       if (
         !ctx.node.atts.if ||
-        evalExpr(ctx.node.atts.if, getScope(ctx.playthru), {}, ctx.rng)
+        evalExpr(ctx.node.atts.if, ctx.scope, {}, ctx.rng)
       ) {
         next = searchForNode(ctx.root, ctx.node.atts.to);
       } else {
@@ -533,7 +593,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         codeChildren.forEach((tc) => {
           const lines = cleanSplitRegex(tc.text, /[;\n]/);
           lines.forEach((line) => {
-            evalExpr(line, getScope(ctx.playthru), {}, ctx.rng);
+            evalExpr(line, ctx.scope, {}, ctx.rng);
           });
         });
       }

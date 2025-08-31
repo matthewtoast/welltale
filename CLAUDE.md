@@ -6,7 +6,6 @@
 - Keep variable names short
 - Keep code modular
 - Don't add comments
-- Don't add console.log(), print(), etc
 - Ask clarifying questions before making changes
 - Use pure functions with explicit arguments
 - Prefer early return over conditional
