@@ -6,8 +6,9 @@ import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
 import { safeJsonParse } from "lib/JSONHelpers";
 import { DefaultServiceProvider, ServiceProvider } from "lib/ServiceProvider";
+import { compileStory } from "lib/StoryCompiler";
 import {
-  advance,
+  advanceStory,
   createDefaultPlaythru,
   FALLBACK_SPEAKER,
   PlayOptions,
@@ -23,7 +24,7 @@ export const DEFAULT_SEED = "seed";
 
 loadEnv();
 
-export function loadPlaythru(id: string, abspath: string): Playthru {
+export function loadPlaythruFromDisk(id: string, abspath: string): Playthru {
   if (isBlank(id)) {
     id = railsTimestamp();
   }
@@ -41,7 +42,7 @@ export function loadPlaythru(id: string, abspath: string): Playthru {
   };
 }
 
-export function savePlaythru(state: Playthru, abspath: string) {
+export function savePlaythruToDisk(state: Playthru, abspath: string) {
   writeFileSync(abspath, JSON.stringify(state, null, 2));
 }
 
@@ -53,11 +54,12 @@ export async function renderNext(
   story: Story,
   options: PlayOptions,
   provider: ServiceProvider
-): Promise<RenderInstruction> {
+): Promise<{ instruction: RenderInstruction; playthru: Playthru }> {
   if (!isBlank(input)) {
     playthru.state.input = input;
   }
-  const ops = await advance(provider, story, playthru, options);
+  const root = await compileStory(story.cartridge);
+  const { ops } = await advanceStory(provider, root, playthru, options);
   async function render(): Promise<RenderInstruction> {
     for (let i = 0; i < ops.length; i++) {
       const op = ops[i];
@@ -86,13 +88,14 @@ export async function renderNext(
     }
     return "next";
   }
-  return render();
+  return { instruction: await render(), playthru };
 }
 
 export const defaultRunnerOptions: PlayOptions = {
   seed: DEFAULT_SEED,
   mode: StepMode.UNTIL_WAITING,
   verbose: true,
+  autoPlay: false,
   maxItersPerAdvance: 999, // Enough?
   doGenerateSpeech: false,
   doGenerateSounds: false,
@@ -104,3 +107,46 @@ export const defaultRunnerProvider = new DefaultServiceProvider({
   openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
   bucket: "welltale-dev",
 });
+
+export async function runUntilComplete({
+  options,
+  provider,
+  playthru,
+  story,
+  seed,
+  inputs,
+}: {
+  options: PlayOptions;
+  provider: ServiceProvider;
+  playthru: Playthru;
+  story: Story;
+  seed: string;
+  inputs: string[];
+}) {
+  let nextInstruction: RenderInstruction = "next";
+  let input = "";
+  let inputIndex = 0;
+
+  while (nextInstruction !== "end") {
+    const { instruction } = await renderNext(
+      input,
+      playthru,
+      story,
+      { ...options, seed },
+      provider
+    );
+    nextInstruction = instruction;
+    if (nextInstruction === "input") {
+      if (inputIndex < inputs.length) {
+        input = inputs[inputIndex];
+        console.log(chalk.green(`> ${input}`));
+        inputIndex++;
+      } else {
+        console.log(chalk.yellow("No more inputs available, exiting..."));
+        break;
+      }
+    }
+  }
+
+  return playthru;
+}

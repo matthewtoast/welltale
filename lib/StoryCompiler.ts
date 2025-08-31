@@ -129,7 +129,7 @@ export function walkMap<T extends BaseNode, S extends BaseNode>(
   return mappedNode;
 }
 
-export function compile(cartridge: Cartridge) {
+export function compileStory(cartridge: Cartridge) {
   const root: StoryNode = {
     addr: "0",
     type: "root",

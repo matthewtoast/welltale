@@ -1,5 +1,6 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import chalk from "chalk";
 import { OpenAI } from "openai";
 import { getOrCreateObject } from "./AWSUtils";
 import { TaggedLine } from "./DialogHelpers";
@@ -16,6 +17,7 @@ export interface ServiceProvider {
   generateJson(prompt: string, schema: string): Promise<Record<string, any>>;
   generateSound(prompt: string): Promise<{ url: string }>;
   generateSpeech(line: TaggedLine): Promise<{ url: string }>;
+  log(...args: any[]): void;
 }
 
 export interface ServiceProviderConfig {
@@ -27,6 +29,12 @@ export interface ServiceProviderConfig {
 
 export class DefaultServiceProvider implements ServiceProvider {
   constructor(public config: ServiceProviderConfig) {}
+
+  log(...args: any[]) {
+    console.info(
+      chalk.gray(...args.map((a) => (shouldJsonify(a) ? JSON.stringify(a) : a)))
+    );
+  }
 
   async generateJson(
     prompt: string,
@@ -96,4 +104,8 @@ export class DefaultServiceProvider implements ServiceProvider {
     );
     return { url };
   }
+}
+
+function shouldJsonify(a: any) {
+  return Array.isArray(a) || (a && typeof a === "object");
 }

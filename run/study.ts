@@ -9,10 +9,8 @@ import {
   DEFAULT_SEED,
   defaultRunnerOptions,
   defaultRunnerProvider,
-  loadPlaythru,
-  RenderInstruction,
-  renderNext,
-  savePlaythru,
+  loadPlaythruFromDisk,
+  runUntilComplete,
 } from "./RunUtils";
 
 const argv = yargs(hideBin(process.argv))
@@ -48,45 +46,23 @@ async function runTest(basedir: string) {
   const id = argv.playthru ?? railsTimestamp();
   const seed = argv.seed;
   const inputs = argv.input as string[];
-  let inputIndex = 0;
 
   const playthruAbspath = join(basedir, `playthrus/${game}-${id}.json`);
   const cartridgeDirpath = join(basedir, `cartridges/${game}`);
   const cartridge = await loadDirRecursive(cartridgeDirpath);
   const story: Story = { id: game, cartridge };
-  const playthru = loadPlaythru(id, playthruAbspath);
+  const playthru = loadPlaythruFromDisk(id, playthruAbspath);
 
   console.info(chalk.gray(`Running test for game '${game}' playthru '${id}'`));
 
-  async function runUntilComplete() {
-    let nextInstruction: RenderInstruction = "next";
-    let input = "";
-
-    while (nextInstruction !== "end") {
-      nextInstruction = await renderNext(
-        input,
-        playthru,
-        story,
-        { ...defaultRunnerOptions, seed },
-        defaultRunnerProvider
-      );
-      savePlaythru(playthru, playthruAbspath);
-      if (nextInstruction === "input") {
-        if (inputIndex < inputs.length) {
-          input = inputs[inputIndex];
-          console.log(chalk.green(`> ${input}`));
-          inputIndex++;
-        } else {
-          console.log(chalk.yellow("No more inputs available, exiting..."));
-          break;
-        }
-      }
-    }
-
-    console.log(chalk.gray("Test complete"));
-  }
-
-  await runUntilComplete();
+  return await runUntilComplete({
+    options: defaultRunnerOptions,
+    provider: defaultRunnerProvider,
+    playthru,
+    story,
+    seed,
+    inputs,
+  });
 }
 
 runTest(__dirname);

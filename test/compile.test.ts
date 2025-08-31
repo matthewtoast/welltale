@@ -1,4 +1,4 @@
-import { compile, dumpTree, parseXmlFragment } from "lib/StoryCompiler";
+import { compileStory, dumpTree, parseXmlFragment } from "lib/StoryCompiler";
 import { expect } from "./TestUtils";
 
 const t2 = parseXmlFragment(`
@@ -16,7 +16,7 @@ expect(
   `
 <root>
   <p>yay</p>
-  <sec id="foo" id="foo">
+  <sec id="foo">
     <p>hi</p>
   </sec>
   <var var="x" value="1" />
@@ -37,7 +37,7 @@ const cartridge = {
   `,
 };
 
-const c1 = compile(cartridge);
+const c1 = compileStory(cartridge);
 expect(c1, {
   addr: "0",
   type: "root",

@@ -1,4 +1,3 @@
-import chalk from "chalk";
 import {
   cast,
   castToString,
@@ -9,13 +8,7 @@ import {
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import {
-  compile,
-  dumpTree,
-  FRAG_TAG,
-  StoryNode,
-  TEXT_TAG,
-} from "lib/StoryCompiler";
+import { dumpTree, FRAG_TAG, StoryNode, TEXT_TAG } from "lib/StoryCompiler";
 import {
   cleanSplit,
   cleanSplitRegex,
@@ -140,32 +133,20 @@ interface ActionHandler {
 
 let calls = 0;
 
-export async function advance(
+export async function advanceStory(
   provider: ServiceProvider,
-  story: Story,
+  root: StoryNode,
   playthru: Playthru,
   options: PlayOptions
 ) {
-  function log(...args: any[]) {
-    if (options.verbose) {
-      console.info(
-        chalk.gray(
-          ...args.map((a) => (shouldJsonify(a) ? JSON.stringify(a) : a))
-        )
-      );
-    }
-  }
-
   const out: OP[] = [];
 
   const rng = new PRNG(options.seed, playthru.cycle % 10_000);
   playthru.time = Date.now();
   playthru.turn++;
 
-  const root = await compile(story.cartridge);
-
   if (calls++ < 1) {
-    log(dumpTree(root));
+    provider.log(dumpTree(root));
   }
 
   const { state } = playthru;
@@ -176,7 +157,7 @@ export async function advance(
     playthru.history.push(createEvent(PLAYER_ID, state.input));
   }
 
-  log(`ADV`, story.id, state.input, options.mode, omit(playthru, "history"));
+  provider.log(`ADV`, state.input, options.mode, omit(playthru, "history"));
 
   let iters = 0;
 
@@ -207,7 +188,7 @@ export async function advance(
     const result = await handler.exec(ctx, provider);
     out.push(...result.ops);
 
-    log(
+    provider.log(
       `<${node.type} ${node.addr}${node.type.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)} ${result.flow}>`,
       `~> ${result.next?.node.addr}`,
       result.ops
@@ -267,9 +248,9 @@ export async function advance(
 
   playthru.cycle = rng.cycle;
 
-  log("DONE", omit(playthru, "history"), out);
+  provider.log("DONE", omit(playthru, "history"), out);
 
-  return out;
+  return { ops: out, state };
 }
 
 export const ACTION_HANDLERS: ActionHandler[] = [
@@ -636,15 +617,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    // Modules are only rendered when <include>-ed
-    match: (node: StoryNode) => node.type === "module",
-    exec: async (ctx) => ({
-      ops: [],
-      next: skipBlock(ctx.node, ctx.root),
-      flow: FlowType.CONTINUE,
-    }),
-  },
-  {
     match: (node: StoryNode) => node.type === "llm",
     exec: async (ctx, provider) => {
       let schema = ctx.node.atts.to ?? ctx.node.atts.schema;
@@ -847,6 +819,16 @@ export function collectAllText(node: StoryNode, join: string = "\n"): string {
   return texts.join(join);
 }
 
+export function cloneNode(node: StoryNode): StoryNode {
+  return {
+    addr: node.addr,
+    type: node.type,
+    atts: { ...node.atts },
+    text: node.text,
+    kids: node.kids.map((kid) => cloneNode(kid)),
+  };
+}
+
 export function nodeToRenderedNode(
   node: StoryNode,
   state: Record<string, TScalar | TScalar[]>,
@@ -871,10 +853,6 @@ export function nodeToRenderedNode(
   }
 
   return rendered;
-}
-
-function shouldJsonify(a: any) {
-  return Array.isArray(a) || (a && typeof a === "object");
 }
 
 export function createEvent(

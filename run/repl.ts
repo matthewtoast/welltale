@@ -9,9 +9,9 @@ import {
   DEFAULT_SEED,
   defaultRunnerOptions,
   defaultRunnerProvider,
-  loadPlaythru,
+  loadPlaythruFromDisk,
   renderNext,
-  savePlaythru,
+  savePlaythruToDisk,
 } from "./RunUtils";
 
 const CAROT = "> ";
@@ -48,7 +48,7 @@ async function go(basedir: string) {
   const cartridgeDirpath = join(basedir, `cartridges/${game}`);
   const cartridge = await loadDirRecursive(cartridgeDirpath);
   const story: Story = { id: game, cartridge };
-  const playthru = loadPlaythru(id, playthruAbspath);
+  const playthru = loadPlaythruFromDisk(id, playthruAbspath);
   console.info(
     chalk.gray(`Init game '${game}' playthru '${id}' (please wait)`)
   );
@@ -60,7 +60,7 @@ async function go(basedir: string) {
     { ...defaultRunnerOptions, seed },
     defaultRunnerProvider
   );
-  savePlaythru(playthru, playthruAbspath);
+  savePlaythruToDisk(playthru, playthruAbspath);
   if (nextInstruction === "end") {
     rl.close();
     return;
@@ -77,7 +77,7 @@ async function go(basedir: string) {
         { ...defaultRunnerOptions, seed },
         defaultRunnerProvider
       );
-      savePlaythru(playthru, playthruAbspath);
+      savePlaythruToDisk(playthru, playthruAbspath);
     } catch (err) {
       console.error(chalk.red(err));
     }
