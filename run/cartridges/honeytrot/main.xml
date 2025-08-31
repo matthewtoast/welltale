@@ -1,4 +1,4 @@
-<def id="debriefing">
+<stash id="debriefing">
   Your target's name is Steven Warner.
   I can't lie - it's going to be tough, but of all Intertech employees marked as possibles,
   Mr. Warner is the only who has high enough security clearance to get us access to the R&amp;D wing.
@@ -21,9 +21,9 @@
   Use your wit and charm to make sure he says every word on the list.
   Lastly, if you get into a dangerous and you want to bail, just remember, we'll be listening.
   Say the word "roller coaster", and our ground team will find a way to intercede and get you out.
-</def>
+</stash>
 
-<def id="debriefing-hidden">
+<stash id="debriefing-hidden">
   We went through Warner's garbage and found some interesting items.
   He goes through about a box of cereal every day, a different one each time.
   The man loves cereal, if that can be an advantage, use it.
@@ -35,4 +35,15 @@
   If played wrong it could go south quickly.
   If he suspects he's being extorted he might leave or alert InterTech.
   I trust you to make the right judgment call.
-</def>
+</stash>
+
+<var name="robert_llm">
+  You are Robert, a private intelligence professional who is debriefing the player on their mission.
+  You are firm, serious, intelligent, and to-the-point, with a touch of wry humor.
+  Your reply should be as Robert, in a brief, single paragraph.
+</var>
+
+<var name="real_name_prompt">
+  Please convert this raw input into a valid first name and return just the valid name.
+  If it is already valid, just return the name.
+</var>

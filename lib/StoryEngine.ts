@@ -27,6 +27,9 @@ import { TScalar } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
 
+// some way to pass scoped vars or args or params into blocks? or functions? as attributes?
+// could also use a command line thing to basically output the full interactive story completely as audio based on args!
+
 export const DEFAULT_ADDRESS = "0";
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
@@ -66,16 +69,6 @@ export type StoryEvent = {
   body: string;
 };
 
-export function createEvent(
-  from: string,
-  body: string,
-  to: string[] = [],
-  obs: string[] = [],
-  time: number = Date.now()
-): StoryEvent {
-  return { from, body, to, obs, time };
-}
-
 export function createDefaultPlaythru(id: string): Playthru {
   return {
     id,
@@ -109,13 +102,40 @@ export type PlayOptions = {
   mode: StepMode;
   verbose: boolean;
   seed: string;
+  autoPlay: boolean;
   maxItersPerAdvance: number;
   doGenerateSpeech: boolean;
   doGenerateSounds: boolean;
 };
 
-function shouldJsonify(a: any) {
-  return Array.isArray(a) || (a && typeof a === "object");
+export interface ActionContext {
+  options: PlayOptions;
+  root: StoryNode;
+  orig: StoryNode;
+  node: StoryNode;
+  state: Playthru["state"];
+  playthru: Playthru;
+  rng: PRNG;
+}
+
+export enum FlowType {
+  CONTINUE = "continue",
+  BLOCKING = "blocking",
+  WAITING = "waiting",
+}
+
+export interface ActionResult {
+  ops: OP[];
+  next: { node: StoryNode } | null;
+  flow: FlowType;
+}
+
+interface ActionHandler {
+  match: (node: StoryNode) => boolean;
+  exec: (
+    context: ActionContext,
+    services: ServiceProvider
+  ) => Promise<ActionResult>;
 }
 
 let calls = 0;
@@ -150,22 +170,7 @@ export async function advance(
 
   const { state } = playthru;
 
-  if (state.__inputKey) {
-    if (state.__inputType) {
-      state[state.__inputKey] = cast(
-        state.input,
-        stringToCastType(state.__inputType)
-      );
-      state.__inputType = null; // Important to unset to clear for next advance()
-    } else if (looksLikeBoolean(state.input)) {
-      state[state.__inputKey] = cast(state.input, "boolean");
-    } else if (looksLikeNumber(state.input)) {
-      state[state.__inputKey] = cast(state.input, "number");
-    } else {
-      state[state.__inputKey] = state.input;
-    }
-    state.__inputKey = null; // Important to unset to clear for next advance()
-  }
+  assignInputToState(state.input, state);
 
   if (!isBlank(state.input)) {
     playthru.history.push(createEvent(PLAYER_ID, state.input));
@@ -211,7 +216,10 @@ export async function advance(
     // Update cursor position
     if (result.next) {
       // Check if we're currently in a yielded block and the next node escapes it
-      if (state.__callStack.length > 0 && wouldEscapeCurrentBlock(node, result.next.node, root)) {
+      if (
+        state.__callStack.length > 0 &&
+        wouldEscapeCurrentBlock(node, result.next.node, root)
+      ) {
         // Pop from callstack instead of using the next node
         const returnAddress = state.__callStack.pop()!;
         state.__address = returnAddress;
@@ -262,62 +270,6 @@ export async function advance(
   log("DONE", omit(playthru, "history"), out);
 
   return out;
-}
-
-export function nodeToRenderedNode(
-  node: StoryNode,
-  state: Record<string, TScalar | TScalar[]>,
-  rng: PRNG
-) {
-  const rendered = { ...node };
-
-  for (const [key, value] of Object.entries(node.atts)) {
-    try {
-      rendered.atts[key] = renderHandlebars(value, state, rng);
-    } catch {
-      rendered.atts[key] = value;
-    }
-  }
-
-  if (!isBlank(node.text)) {
-    try {
-      rendered.text = renderHandlebars(node.text, state, rng);
-    } catch {
-      rendered.text = node.text;
-    }
-  }
-
-  return rendered;
-}
-
-export interface ActionContext {
-  options: PlayOptions;
-  root: StoryNode;
-  orig: StoryNode;
-  node: StoryNode;
-  state: Playthru["state"];
-  playthru: Playthru;
-  rng: PRNG;
-}
-
-export enum FlowType {
-  CONTINUE = "continue",
-  BLOCKING = "blocking",
-  WAITING = "waiting",
-}
-
-export interface ActionResult {
-  ops: OP[];
-  next: { node: StoryNode } | null;
-  flow: FlowType;
-}
-
-interface ActionHandler {
-  match: (node: StoryNode) => boolean;
-  exec: (
-    context: ActionContext,
-    services: ServiceProvider
-  ) => Promise<ActionResult>;
 }
 
 export const ACTION_HANDLERS: ActionHandler[] = [
@@ -450,6 +402,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       if (castType) {
         ctx.state.__inputType = castType;
       }
+
+      const next = nextNode(ctx.node, ctx.root, false);
+
+      // If we're doing auto-playback, automatically assign instead of waiting
+      if (ctx.options.autoPlay && !isBlank(ctx.node.atts.auto)) {
+        assignInputToState(ctx.node.atts.auto, ctx.state);
+        return {
+          ops: [],
+          next,
+          flow: FlowType.CONTINUE,
+        };
+      }
+
       return {
         ops: [
           {
@@ -460,7 +425,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             charLimit: parseNumberOrNull(ctx.node.atts.charLimit),
           },
         ],
-        next: nextNode(ctx.node, ctx.root, false),
+        next,
         flow: FlowType.WAITING,
       };
     },
@@ -542,12 +507,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "def",
+    match: (node: StoryNode) => node.type === "stash",
     exec: async (ctx) => {
+      const rollup = collectAllText(ctx.node);
       // Get the *unrendered* content to be rendered dynamically later!
-      const value = !isBlank(ctx.orig.text)
-        ? ctx.orig.text
-        : ctx.orig.atts.value;
+      const value = !isBlank(rollup) ? rollup : ctx.orig.atts.value;
       const key =
         ctx.node.atts.name ??
         ctx.node.atts.var ??
@@ -609,6 +573,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
+    // Blocks are only rendered if <yield>-ed to
     match: (node: StoryNode) => node.type === "block",
     exec: async (ctx) => ({
       ops: [],
@@ -669,6 +634,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         };
       }
     },
+  },
+  {
+    // Modules are only rendered when <include>-ed
+    match: (node: StoryNode) => node.type === "module",
+    exec: async (ctx) => ({
+      ops: [],
+      next: skipBlock(ctx.node, ctx.root),
+      flow: FlowType.CONTINUE,
+    }),
   },
   {
     match: (node: StoryNode) => node.type === "llm",
@@ -785,7 +759,7 @@ export function wouldEscapeCurrentBlock(
   // Find the closest block ancestor of the current node
   let node: StoryNode | null = currentNode;
   let blockAncestor: StoryNode | null = null;
-  
+
   // Walk up the tree to find the closest block ancestor
   while (node) {
     if (node.type === "block") {
@@ -794,12 +768,12 @@ export function wouldEscapeCurrentBlock(
     }
     node = parentNodeOf(node, root);
   }
-  
+
   // If no block ancestor, we can't escape from a block
   if (!blockAncestor) {
     return false;
   }
-  
+
   // Check if the next node is outside this block's subtree
   // A node is inside the block if its address starts with the block's address + "."
   const blockPrefix = blockAncestor.addr + ".";
@@ -852,4 +826,82 @@ export function findNodeFromRoot(
   }
   walk(root, null, address);
   return found;
+}
+
+const TEXT_CONTENT_TAGS = ["p", TEXT_TAG, "li", "span", "text"];
+
+export function collectAllText(node: StoryNode, join: string = "\n"): string {
+  const texts: string[] = [];
+  function walk(n: StoryNode) {
+    if (TEXT_CONTENT_TAGS.includes(n.type)) {
+      const trimmed = n.text.trim();
+      if (trimmed) {
+        texts.push(trimmed);
+      }
+    }
+    for (const kid of n.kids) {
+      walk(kid);
+    }
+  }
+  walk(node);
+  return texts.join(join);
+}
+
+export function nodeToRenderedNode(
+  node: StoryNode,
+  state: Record<string, TScalar | TScalar[]>,
+  rng: PRNG
+) {
+  const rendered = { ...node };
+
+  for (const [key, value] of Object.entries(node.atts)) {
+    try {
+      rendered.atts[key] = renderHandlebars(value, state, rng);
+    } catch {
+      rendered.atts[key] = value;
+    }
+  }
+
+  if (!isBlank(node.text)) {
+    try {
+      rendered.text = renderHandlebars(node.text, state, rng);
+    } catch {
+      rendered.text = node.text;
+    }
+  }
+
+  return rendered;
+}
+
+function shouldJsonify(a: any) {
+  return Array.isArray(a) || (a && typeof a === "object");
+}
+
+export function createEvent(
+  from: string,
+  body: string,
+  to: string[] = [],
+  obs: string[] = [],
+  time: number = Date.now()
+): StoryEvent {
+  return { from, body, to, obs, time };
+}
+
+function assignInputToState(input: string, state: Playthru["state"]) {
+  if (state.__inputKey) {
+    if (state.__inputType) {
+      state[state.__inputKey] = cast(
+        input,
+        stringToCastType(state.__inputType)
+      );
+      state.__inputType = null; // Important to unset to clear for next advance()
+    } else if (looksLikeBoolean(input)) {
+      state[state.__inputKey] = cast(input, "boolean");
+    } else if (looksLikeNumber(input)) {
+      state[state.__inputKey] = cast(input, "number");
+    } else {
+      state[state.__inputKey] = input;
+    }
+    state.__inputKey = null; // Important to unset to clear for next advance()
+  }
 }

@@ -1,3 +1,15 @@
+<stash id="stash-1">
+  Content
+  From
+  Stash 1
+</stash>
+
+<module id="mod-1">
+  <p>
+    Content From mod-1
+  </p>
+</module>
+
 <p>
   A
 </p>
@@ -47,4 +59,5 @@
   <p>
     J
   </p>
+  <include module="mod=1" />
 </sec>
