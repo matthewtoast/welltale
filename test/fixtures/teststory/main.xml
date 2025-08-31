@@ -36,7 +36,7 @@
   <p>
     H
   </p>
-  <yield to="another-block" return="meow" />
+  <yield to="another-block" return="meow" foo="bar" />
   <p>
     [NOT SHOWN]
   </p>
@@ -44,7 +44,7 @@
 
 <block id="another-block">
   <p>
-    I
+    I {{foo}}
   </p>
 </block>
 

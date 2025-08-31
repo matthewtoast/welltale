@@ -28,7 +28,7 @@ export const defaultRunnerOptions: PlayOptions = {
   seed: DEFAULT_SEED,
   mode: StepMode.UNTIL_WAITING,
   verbose: true,
-  loop: 1,
+  loop: 0,
   autoInput: false,
   doGenerateSpeech: false,
   doGenerateSounds: false,

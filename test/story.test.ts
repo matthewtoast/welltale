@@ -16,11 +16,13 @@ async function go() {
     join(basedir, "test", "fixtures", game)
   );
 
+  console.log(cartridge);
+
   const story: Story = { id: game, cartridge };
 
   const playthru = loadPlaythruFromDisk(
     game,
-    join(basedir, "test", "fixtures", game, "playthru.json")
+    join(basedir, "test", "fixtures", "playthrus", `${game}-playthru.json`)
   );
 
   await runUntilComplete({

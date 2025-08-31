@@ -20,7 +20,6 @@ import { TSerial } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
 
-// some way to pass scoped vars or args or params into blocks? or functions? as attributes?
 // could also use a command line thing to basically output the full interactive story completely as audio based on args!
 
 export const PLAYER_ID = "USER";
@@ -44,7 +43,7 @@ export interface Playthru {
     __address: null | string;
     __inputKey: null | string;
     __inputType: null | string;
-    __callStack: { returnAddress: string }[];
+    __callStack: { returnAddress: string; scope: { [key: string]: TSerial } }[];
   };
   state: {
     input: string;
@@ -139,6 +138,15 @@ interface ActionHandler {
 
 let calls = 0;
 
+function getScope(playthru: Playthru): { [key: string]: TSerial } {
+  // Create merged state with scopes overriding base state
+  const merged = { ...playthru.state };
+  for (const entry of playthru.protected.__callStack) {
+    Object.assign(merged, entry.scope);
+  }
+  return merged;
+}
+
 export async function advanceStory(
   provider: ServiceProvider,
   root: StoryNode,
@@ -199,7 +207,7 @@ export async function advanceStory(
       return done(FlowType.GRANT);
     }
 
-    const rendered = nodeToRenderedNode(node, playthru.state, rng);
+    const rendered = nodeToRenderedNode(node, getScope(playthru), rng);
 
     const ctx: ActionContext = {
       options,
@@ -326,9 +334,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let text = ctx.node.text;
       // If we have a ref tag, assume it refers to a <stash>
       if (ctx.node.atts.ref) {
-        const stored = castToString(ctx.playthru.state[ctx.node.atts.ref]);
+        const scope = getScope(ctx.playthru);
+        const stored = castToString(scope[ctx.node.atts.ref]);
         if (stored) {
-          text = renderHandlebars(stored, ctx.playthru.state, ctx.rng);
+          text = renderHandlebars(stored, scope, ctx.rng);
         }
       }
       // Early exit spurious empty nodes
@@ -357,6 +366,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const obs: string[] = ctx.node.atts["obs"]
         ? cleanSplit(ctx.node.atts["to"], ",")
         : [];
+      console.log(line.body);
       ctx.playthru.history.push(createEvent(line.speaker, line.body, to, obs));
       return {
         ops,
@@ -403,9 +413,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       if (castType) {
         ctx.playthru.protected.__inputType = castType;
       }
-
       const next = nextNode(ctx.node, ctx.root, false);
-
       // If we're doing auto-playback, automatically assign instead of waiting
       if (ctx.options.autoInput && !isBlank(ctx.node.atts.auto)) {
         assignInput(ctx.node.atts.auto, ctx.playthru);
@@ -437,7 +445,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let next;
       const conditionTrue = evalExpr(
         ctx.node.atts.cond,
-        ctx.playthru.state,
+        getScope(ctx.playthru),
         {},
         ctx.rng
       );
@@ -471,7 +479,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let next;
       if (
         !ctx.node.atts.if ||
-        evalExpr(ctx.node.atts.if, ctx.playthru.state, {}, ctx.rng)
+        evalExpr(ctx.node.atts.if, getScope(ctx.playthru), {}, ctx.rng)
       ) {
         next = searchForNode(ctx.root, ctx.node.atts.to);
       } else {
@@ -525,7 +533,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         codeChildren.forEach((tc) => {
           const lines = cleanSplitRegex(tc.text, /[;\n]/);
           lines.forEach((line) => {
-            evalExpr(line, ctx.playthru.state, {}, ctx.rng);
+            evalExpr(line, getScope(ctx.playthru), {}, ctx.rng);
           });
         });
       }
@@ -596,7 +604,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const next = nextNode(ctx.node, ctx.root, false);
         returnAddress = next?.node.addr ?? ctx.main.addr;
       }
-      ctx.playthru.protected.__callStack.push({ returnAddress });
+      // Extract scope variables (all attributes except 'to', 'return', and 'returnTo')
+      const scope: { [key: string]: TSerial } = {};
+      const reservedAtts = ["to", "return", "returnTo"];
+      for (const [key, value] of Object.entries(ctx.node.atts)) {
+        if (!reservedAtts.includes(key)) {
+          scope[key] = value;
+        }
+      }
+      ctx.playthru.protected.__callStack.push({ returnAddress, scope });
       // Go to first child of block (or next sibling if no children)
       if (blockResult.node.kids.length > 0) {
         return {
