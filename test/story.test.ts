@@ -9,18 +9,18 @@ import {
 } from "run/RunUtils";
 
 const basedir = join(__dirname, "..");
-const game = "test";
+const game = "teststory";
 
 async function go() {
   const cartridge = await loadDirRecursive(
-    join(basedir, "run", "cartridges", game)
+    join(basedir, "test", "fixtures", game)
   );
 
   const story: Story = { id: game, cartridge };
 
   const playthru = loadPlaythruFromDisk(
     game,
-    join(basedir, "run", "playthrus", game)
+    join(basedir, "test", "fixtures", game, "playthru.json")
   );
 
   await runUntilComplete({

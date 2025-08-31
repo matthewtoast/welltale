@@ -1,4 +1,5 @@
 import { Parser } from "expr-eval";
+import { TSerial } from "typings";
 import { PRNG } from "./RandHelpers";
 import { isPresent } from "./TextHelpers";
 
@@ -91,7 +92,6 @@ export const rawToTags = (
 
 export type Primitive = number | boolean | string | null;
 export type EvalResult = Primitive | Primitive[];
-export type Scope = Record<string, Primitive | Primitive[]>;
 
 type P = number | boolean | string | null;
 type A = P | P[];
@@ -322,7 +322,8 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
   abs: (v: P) => Math.abs(num(v)),
   max: (...args: P[]) => Math.max(...args.map(num)),
   min: (...args: P[]) => Math.min(...args.map(num)),
-  clamp: (v: P, min: P, max: P) => Math.max(num(min), Math.min(num(max), num(v))),
+  clamp: (v: P, min: P, max: P) =>
+    Math.max(num(min), Math.min(num(max), num(v))),
   avg: (...args: P[]) => {
     if (!args.length) return 0;
     return args.reduce<number>((s, x) => s + num(x), 0) / args.length;
@@ -367,7 +368,8 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     return x;
   },
   lcm: (a: P, b: P) => {
-    const na = num(a), nb = num(b);
+    const na = num(a),
+      nb = num(b);
     return Math.abs(na * nb) / (mathHelpers.gcd(na, nb) as number);
   },
   factorial: (n: P) => {
@@ -382,13 +384,20 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const nn = Math.floor(num(n));
     const rr = Math.floor(num(r));
     if (rr > nn || rr < 0) return 0;
-    return (mathHelpers.factorial(nn) as number) / ((mathHelpers.factorial(rr) as number) * (mathHelpers.factorial(nn - rr) as number));
+    return (
+      (mathHelpers.factorial(nn) as number) /
+      ((mathHelpers.factorial(rr) as number) *
+        (mathHelpers.factorial(nn - rr) as number))
+    );
   },
   nPr: (n: P, r: P) => {
     const nn = Math.floor(num(n));
     const rr = Math.floor(num(r));
     if (rr > nn || rr < 0) return 0;
-    return (mathHelpers.factorial(nn) as number) / (mathHelpers.factorial(nn - rr) as number);
+    return (
+      (mathHelpers.factorial(nn) as number) /
+      (mathHelpers.factorial(nn - rr) as number)
+    );
   },
   mod: (a: P, b: P) => num(a) % num(b),
   rem: (a: P, b: P) => num(a) % num(b),
@@ -412,11 +421,15 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     return num(outMin) + t * (num(outMax) - num(outMin));
   },
   smoothstep: (edge0: P, edge1: P, x: P) => {
-    const t = mathHelpers.clamp((num(x) - num(edge0)) / (num(edge1) - num(edge0)), 0, 1);
+    const t = mathHelpers.clamp(
+      (num(x) - num(edge0)) / (num(edge1) - num(edge0)),
+      0,
+      1
+    );
     const nt = num(t);
     return nt * nt * (3 - 2 * nt);
   },
-  step: (edge: P, x: P) => num(x) < num(edge) ? 0 : 1,
+  step: (edge: P, x: P) => (num(x) < num(edge) ? 0 : 1),
   fract: (v: P) => {
     const n = num(v);
     return n - Math.floor(n);
@@ -437,21 +450,24 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
   variance: (...args: P[]) => {
     if (!args.length) return 0;
     const mean = mathHelpers.avg(...args) as number;
-    return args.reduce<number>((s, x) => {
-      const d = num(x) - mean;
-      return s + d * d;
-    }, 0) / args.length;
+    return (
+      args.reduce<number>((s, x) => {
+        const d = num(x) - mean;
+        return s + d * d;
+      }, 0) / args.length
+    );
   },
   stdDev: (...args: P[]) => Math.sqrt(mathHelpers.variance(...args) as number),
-  standardDeviation: (...args: P[]) => Math.sqrt(mathHelpers.variance(...args) as number),
+  standardDeviation: (...args: P[]) =>
+    Math.sqrt(mathHelpers.variance(...args) as number),
   hypot: (...args: P[]) => Math.hypot(...args.map(num)),
-  distance: (x1: P, y1: P, x2: P, y2: P) => 
+  distance: (x1: P, y1: P, x2: P, y2: P) =>
     Math.hypot(num(x2) - num(x1), num(y2) - num(y1)),
-  manhattan: (x1: P, y1: P, x2: P, y2: P) => 
+  manhattan: (x1: P, y1: P, x2: P, y2: P) =>
     Math.abs(num(x2) - num(x1)) + Math.abs(num(y2) - num(y1)),
-  normalize: (v: P, min: P, max: P) => 
+  normalize: (v: P, min: P, max: P) =>
     (num(v) - num(min)) / (num(max) - num(min)),
-  denormalize: (v: P, min: P, max: P) => 
+  denormalize: (v: P, min: P, max: P) =>
     num(v) * (num(max) - num(min)) + num(min),
   roundTo: (v: P, precision: P) => {
     const p = Math.pow(10, num(precision));
@@ -466,7 +482,8 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     return Math.ceil(num(v) * p) / p;
   },
   toFixed: (v: P, digits: P) => Number(num(v).toFixed(num(digits))),
-  toPrecision: (v: P, precision: P) => Number(num(v).toPrecision(num(precision))),
+  toPrecision: (v: P, precision: P) =>
+    Number(num(v).toPrecision(num(precision))),
   pi: () => Math.PI,
   e: () => Math.E,
   tau: () => Math.PI * 2,
@@ -527,7 +544,7 @@ function makeParser() {
 
 export const evalExpr = (
   expr: string,
-  vars: Scope = {},
+  vars: Record<string, TSerial>,
   funcs: Record<string, Func> = {},
   prng: PRNG,
   prev: Parser = makeParser()

@@ -19,10 +19,27 @@ import {
 import { isBlank, railsTimestamp } from "lib/TextHelpers";
 import OpenAI from "openai";
 
+loadEnv();
+
 export const DEFAULT_GAME = "welcome";
 export const DEFAULT_SEED = "seed";
 
-loadEnv();
+export const defaultRunnerOptions: PlayOptions = {
+  seed: DEFAULT_SEED,
+  mode: StepMode.UNTIL_WAITING,
+  verbose: true,
+  loop: 1,
+  autoInput: false,
+  doGenerateSpeech: false,
+  doGenerateSounds: false,
+};
+
+export const defaultRunnerProvider = new DefaultServiceProvider({
+  eleven: new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY! }),
+  s3: new S3Client({ region: process.env.AWS_REGION! }),
+  openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
+  bucket: "welltale-dev",
+});
 
 export function loadPlaythruFromDisk(id: string, abspath: string): Playthru {
   if (isBlank(id)) {
@@ -46,7 +63,7 @@ export function savePlaythruToDisk(state: Playthru, abspath: string) {
   writeFileSync(abspath, JSON.stringify(state, null, 2));
 }
 
-export type RenderInstruction = "next" | "end" | "input";
+export type RenderInstruction = "next" | "halt" | "input";
 
 export async function renderNext(
   input: string,
@@ -74,9 +91,9 @@ export async function renderNext(
               chalk.cyan(`${op.line}`)
           );
           break;
-        case "end":
+        case "story-end":
           console.log(chalk.magenta("The end."));
-          return "end";
+          return "halt";
         case "play-sound":
           // no-op in REPL mode
           break;
@@ -90,23 +107,6 @@ export async function renderNext(
   }
   return { instruction: await render(), playthru };
 }
-
-export const defaultRunnerOptions: PlayOptions = {
-  seed: DEFAULT_SEED,
-  mode: StepMode.UNTIL_WAITING,
-  verbose: true,
-  autoPlay: false,
-  maxItersPerAdvance: 999, // Enough?
-  doGenerateSpeech: false,
-  doGenerateSounds: false,
-};
-
-export const defaultRunnerProvider = new DefaultServiceProvider({
-  eleven: new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY! }),
-  s3: new S3Client({ region: process.env.AWS_REGION! }),
-  openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
-  bucket: "welltale-dev",
-});
 
 export async function runUntilComplete({
   options,
@@ -127,7 +127,7 @@ export async function runUntilComplete({
   let input = "";
   let inputIndex = 0;
 
-  while (nextInstruction !== "end") {
+  while (nextInstruction !== "halt") {
     const { instruction } = await renderNext(
       input,
       playthru,

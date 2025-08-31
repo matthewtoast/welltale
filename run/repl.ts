@@ -53,7 +53,7 @@ async function go(basedir: string) {
     chalk.gray(`Init game '${game}' playthru '${id}' (please wait)`)
   );
 
-  let nextInstruction = await renderNext(
+  let renderResult = await renderNext(
     "",
     playthru,
     story,
@@ -61,7 +61,7 @@ async function go(basedir: string) {
     defaultRunnerProvider
   );
   savePlaythruToDisk(playthru, playthruAbspath);
-  if (nextInstruction === "end") {
+  if (renderResult.instruction === "halt") {
     rl.close();
     return;
   }
@@ -70,7 +70,7 @@ async function go(basedir: string) {
   rl.on("line", async (raw) => {
     const fixed = raw.trim();
     try {
-      nextInstruction = await renderNext(
+      renderResult = await renderNext(
         fixed,
         playthru,
         story,
@@ -81,7 +81,7 @@ async function go(basedir: string) {
     } catch (err) {
       console.error(chalk.red(err));
     }
-    if (nextInstruction !== "end") {
+    if (renderResult.instruction !== "halt") {
       rl.prompt();
     } else {
       rl.close();

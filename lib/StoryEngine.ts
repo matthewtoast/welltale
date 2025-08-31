@@ -16,14 +16,13 @@ import {
   renderHandlebars,
 } from "lib/TextHelpers";
 import { isEmpty, omit } from "lodash";
-import { TScalar } from "typings";
+import { TSerial } from "typings";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
 
 // some way to pass scoped vars or args or params into blocks? or functions? as attributes?
 // could also use a command line thing to basically output the full interactive story completely as audio based on args!
 
-export const DEFAULT_ADDRESS = "0";
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
 
@@ -40,15 +39,16 @@ export interface Playthru {
   time: number; // Real-world Unix time of current game step
   turn: number; // Current turn i.e. game step (used for PRNG too)
   cycle: number; // Cycle value for PRNG (to resume at previous point)
-  state: {
-    // Protected
-    __address: string;
+  protected: {
+    __loops: number;
+    __address: null | string;
     __inputKey: null | string;
     __inputType: null | string;
-    __callStack: string[];
-    // Public
+    __callStack: { returnAddress: string }[];
+  };
+  state: {
     input: string;
-    [key: string]: TScalar | TScalar[];
+    [key: string]: TSerial;
   };
   history: StoryEvent[];
   genie?: Cartridge; // Like Game Genie we can monkeypatch the cartridge
@@ -68,12 +68,15 @@ export function createDefaultPlaythru(id: string): Playthru {
     time: Date.now(),
     turn: 0,
     cycle: 0,
-    state: {
-      input: "",
-      __address: DEFAULT_ADDRESS,
+    protected: {
+      __loops: 0,
+      __address: null,
       __inputKey: "input",
       __inputType: "string",
       __callStack: [],
+    },
+    state: {
+      input: "",
     },
     history: [],
   };
@@ -89,24 +92,24 @@ export type OP =
   | { type: "get-input"; timeLimit: number | null; charLimit: number | null }
   | { type: "play-sound"; audio: string }
   | { type: "play-line"; audio: string; speaker: string; line: string }
-  | { type: "end" };
+  | { type: "story-end" };
 
 export type PlayOptions = {
   mode: StepMode;
   verbose: boolean;
   seed: string;
-  autoPlay: boolean;
-  maxItersPerAdvance: number;
+  loop: number;
+  autoInput: boolean;
   doGenerateSpeech: boolean;
   doGenerateSounds: boolean;
 };
 
 export interface ActionContext {
   options: PlayOptions;
+  main: StoryNode;
   root: StoryNode;
   orig: StoryNode;
   node: StoryNode;
-  state: Playthru["state"];
   playthru: Playthru;
   rng: PRNG;
 }
@@ -115,6 +118,9 @@ export enum FlowType {
   CONTINUE = "continue",
   BLOCKING = "blocking",
   WAITING = "waiting",
+  GRANT = "grant",
+  PROBLEM = "problem",
+  FINISH = "finish",
 }
 
 export interface ActionResult {
@@ -149,37 +155,58 @@ export async function advanceStory(
     provider.log(dumpTree(root));
   }
 
-  const { state } = playthru;
+  const main = findNodeFromRoot(root, (node) => node.type === "main") ?? root;
 
-  assignInputToState(state.input, state);
+  assignInput(playthru.state.input, playthru);
 
-  if (!isBlank(state.input)) {
-    playthru.history.push(createEvent(PLAYER_ID, state.input));
+  if (!playthru.protected.__address) {
+    playthru.protected.__address = main.addr;
   }
 
-  provider.log(`ADV`, state.input, options.mode, omit(playthru, "history"));
+  if (!isBlank(playthru.state.input)) {
+    playthru.history.push(createEvent(PLAYER_ID, playthru.state.input));
+  }
 
-  let iters = 0;
+  provider.log(
+    `ADV`,
+    playthru.state.input,
+    options.mode,
+    omit(playthru, "history")
+  );
+
+  function done(flow: FlowType) {
+    provider.log("DONE", omit(playthru, "history"), out);
+    playthru.cycle = rng.cycle;
+    return { ops: out, state: playthru.state, flow };
+  }
+
+  const visits: Record<string, number> = {};
 
   while (true) {
     let node: StoryNode | null = findNodeFromRoot(
       root,
-      (node) => node.addr === state.__address
+      (node) => node.addr === playthru.protected.__address
     );
 
     if (!node) {
-      console.warn(`Node ${state.__address} not found`);
-      break;
+      console.warn(`Node ${playthru.protected.__address} not found`);
+      return done(FlowType.PROBLEM);
     }
 
-    const rendered = nodeToRenderedNode(node, state, rng);
+    if (!visits[node.addr]) {
+      visits[node.addr] += 1;
+    } else {
+      return done(FlowType.GRANT);
+    }
+
+    const rendered = nodeToRenderedNode(node, playthru.state, rng);
 
     const ctx: ActionContext = {
       options,
+      main,
       root,
       orig: node,
       node: rendered,
-      state,
       playthru,
       rng,
     };
@@ -194,63 +221,56 @@ export async function advanceStory(
       result.ops
     );
 
-    // Update cursor position
     if (result.next) {
       // Check if we're currently in a yielded block and the next node escapes it
       if (
-        state.__callStack.length > 0 &&
+        playthru.protected.__callStack.length > 0 &&
         wouldEscapeCurrentBlock(node, result.next.node, root)
       ) {
         // Pop from callstack instead of using the next node
-        const returnAddress = state.__callStack.pop()!;
-        state.__address = returnAddress;
+        const { returnAddress } = playthru.protected.__callStack.pop()!;
+        playthru.protected.__address = returnAddress;
       } else {
-        state.__address = result.next.node.addr;
+        playthru.protected.__address = result.next.node.addr;
       }
     } else {
       // No next node - check if we should return from a block
-      if (state.__callStack.length > 0) {
-        const returnAddress = state.__callStack.pop()!;
-        state.__address = returnAddress;
+      if (playthru.protected.__callStack.length > 0) {
+        const { returnAddress } = playthru.protected.__callStack.pop()!;
+        playthru.protected.__address = returnAddress;
       } else {
-        out.push({ type: "end" });
-        break;
+        if (playthru.protected.__loops < options.loop) {
+          playthru.protected.__loops += 1;
+          playthru.protected.__address = null;
+        } else {
+          out.push({ type: "story-end" });
+        }
+        return done(FlowType.FINISH);
       }
     }
 
     if (result.flow === FlowType.BLOCKING) {
-      break;
+      return done(FlowType.BLOCKING);
     }
 
     if (options.mode === StepMode.SINGLE) {
-      break;
+      return done(FlowType.BLOCKING);
     }
 
     if (
       options.mode === StepMode.UNTIL_WAITING &&
       result.flow === FlowType.WAITING
     ) {
-      break;
+      return done(FlowType.WAITING);
     }
 
     if (
       options.mode === StepMode.UNTIL_BLOCKING &&
       result.flow !== FlowType.CONTINUE
     ) {
-      break;
-    }
-
-    if (iters++ >= options.maxItersPerAdvance) {
-      console.warn(`Reached max iterations ${iters}`);
-      break;
+      return done(FlowType.BLOCKING);
     }
   }
-
-  playthru.cycle = rng.cycle;
-
-  provider.log("DONE", omit(playthru, "history"), out);
-
-  return { ops: out, state };
 }
 
 export const ACTION_HANDLERS: ActionHandler[] = [
@@ -304,11 +324,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const next = nextNode(ctx.node, ctx.root, true);
       const ops: OP[] = [];
       let text = ctx.node.text;
-      // If we have a ref tag, assume it refers to a <def>
+      // If we have a ref tag, assume it refers to a <stash>
       if (ctx.node.atts.ref) {
-        const stored = castToString(ctx.state[ctx.node.atts.ref]);
+        const stored = castToString(ctx.playthru.state[ctx.node.atts.ref]);
         if (stored) {
-          text = renderHandlebars(stored, ctx.state, ctx.rng);
+          text = renderHandlebars(stored, ctx.playthru.state, ctx.rng);
         }
       }
       // Early exit spurious empty nodes
@@ -376,19 +396,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const toKey = ctx.node.atts.to;
       if (toKey) {
-        ctx.state.__inputKey = toKey;
+        ctx.playthru.protected.__inputKey = toKey;
       }
       const castType =
         ctx.node.atts.as ?? ctx.node.atts.cast ?? ctx.node.atts.type;
       if (castType) {
-        ctx.state.__inputType = castType;
+        ctx.playthru.protected.__inputType = castType;
       }
 
       const next = nextNode(ctx.node, ctx.root, false);
 
       // If we're doing auto-playback, automatically assign instead of waiting
-      if (ctx.options.autoPlay && !isBlank(ctx.node.atts.auto)) {
-        assignInputToState(ctx.node.atts.auto, ctx.state);
+      if (ctx.options.autoInput && !isBlank(ctx.node.atts.auto)) {
+        assignInput(ctx.node.atts.auto, ctx.playthru);
         return {
           ops: [],
           next,
@@ -417,7 +437,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let next;
       const conditionTrue = evalExpr(
         ctx.node.atts.cond,
-        ctx.state,
+        ctx.playthru.state,
         {},
         ctx.rng
       );
@@ -451,7 +471,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let next;
       if (
         !ctx.node.atts.if ||
-        evalExpr(ctx.node.atts.if, ctx.state, {}, ctx.rng)
+        evalExpr(ctx.node.atts.if, ctx.playthru.state, {}, ctx.rng)
       ) {
         next = searchForNode(ctx.root, ctx.node.atts.to);
       } else {
@@ -465,42 +485,21 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "var",
+    match: (node: StoryNode) => node.type === "var" || node.type === "stash",
     exec: async (ctx) => {
-      const value = !isBlank(ctx.node.text)
-        ? ctx.node.text
-        : ctx.node.atts.value;
-      const key =
-        ctx.node.atts.name ??
-        ctx.node.atts.var ??
-        ctx.node.atts.to ??
-        ctx.node.atts.key;
-      ctx.state[key] = value; // By default, use the string
-      try {
-        // Try to eval incase it was an expression, but it's okay if it's just text
-        ctx.state[key] = evalExpr(value, ctx.state, {}, ctx.rng);
-      } catch (e) {}
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.CONTINUE,
-      };
-    },
-  },
-  {
-    match: (node: StoryNode) => node.type === "stash",
-    exec: async (ctx) => {
-      const rollup = collectAllText(ctx.node);
-      // Get the *unrendered* content to be rendered dynamically later!
-      const value = !isBlank(rollup) ? rollup : ctx.orig.atts.value;
+      // In case of <stash> or <var stash> we render only at retrieve-time,
+      // i.e. use the original node rather than the one whose attrs we rendered
+      const node =
+        ctx.node.type === "stash" || ctx.node.atts.stash ? ctx.orig : ctx.node;
+      const rollup = collectAllText(node);
+      const value = !isBlank(rollup) ? rollup : node.atts.value;
       const key =
         ctx.node.atts.name ??
         ctx.node.atts.var ??
         ctx.node.atts.to ??
         ctx.node.atts.key ??
-        ctx.node.atts.id; // Use the id as the storage by default, to refer to with ref="..."
-      // Again, we're storing *unrendered* here
-      ctx.state[key] = value;
+        ctx.node.atts.id;
+      ctx.playthru.state[key] = value;
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
@@ -526,7 +525,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         codeChildren.forEach((tc) => {
           const lines = cleanSplitRegex(tc.text, /[;\n]/);
           lines.forEach((line) => {
-            evalExpr(line, ctx.state, {}, ctx.rng);
+            evalExpr(line, ctx.playthru.state, {}, ctx.rng);
           });
         });
       }
@@ -566,7 +565,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) => node.type === "yield",
     exec: async (ctx) => {
       const targetBlockId = ctx.node.atts.to;
-      const returnTo = ctx.node.atts.returnTo ?? ctx.node.atts.return;
+      const returnToNodeId = ctx.node.atts.returnTo ?? ctx.node.atts.return;
       if (!targetBlockId) {
         return {
           ops: [],
@@ -585,19 +584,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       // Determine return address
       let returnAddress: string;
-      if (returnTo) {
-        const returnResult = searchForNode(ctx.root, returnTo);
+      if (returnToNodeId) {
+        const returnResult = searchForNode(ctx.root, returnToNodeId);
         if (returnResult) {
           returnAddress = returnResult.node.addr;
         } else {
           const next = nextNode(ctx.node, ctx.root, false);
-          returnAddress = next?.node.addr ?? DEFAULT_ADDRESS;
+          returnAddress = next?.node.addr ?? ctx.main.addr;
         }
       } else {
         const next = nextNode(ctx.node, ctx.root, false);
-        returnAddress = next?.node.addr ?? DEFAULT_ADDRESS;
+        returnAddress = next?.node.addr ?? ctx.main.addr;
       }
-      ctx.state.__callStack.push(returnAddress);
+      ctx.playthru.protected.__callStack.push({ returnAddress });
       // Go to first child of block (or next sibling if no children)
       if (blockResult.node.kids.length > 0) {
         return {
@@ -626,7 +625,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const prompt = ctx.node.text ?? ctx.node.atts.prompt;
       if (!isBlank(prompt)) {
         const result = await provider.generateJson(prompt, schema);
-        Object.assign(ctx.state, result);
+        Object.assign(ctx.playthru.state, result);
       }
       return {
         ops: [],
@@ -831,7 +830,7 @@ export function cloneNode(node: StoryNode): StoryNode {
 
 export function nodeToRenderedNode(
   node: StoryNode,
-  state: Record<string, TScalar | TScalar[]>,
+  state: Record<string, TSerial>,
   rng: PRNG
 ) {
   const rendered = { ...node };
@@ -865,21 +864,21 @@ export function createEvent(
   return { from, body, to, obs, time };
 }
 
-function assignInputToState(input: string, state: Playthru["state"]) {
-  if (state.__inputKey) {
-    if (state.__inputType) {
-      state[state.__inputKey] = cast(
+function assignInput(input: string, playthru: Playthru) {
+  if (playthru.protected.__inputKey) {
+    if (playthru.protected.__inputType) {
+      playthru.state[playthru.protected.__inputKey] = cast(
         input,
-        stringToCastType(state.__inputType)
+        stringToCastType(playthru.protected.__inputType)
       );
-      state.__inputType = null; // Important to unset to clear for next advance()
+      playthru.protected.__inputType = null; // Important to unset to clear for next advance()
     } else if (looksLikeBoolean(input)) {
-      state[state.__inputKey] = cast(input, "boolean");
+      playthru.state[playthru.protected.__inputKey] = cast(input, "boolean");
     } else if (looksLikeNumber(input)) {
-      state[state.__inputKey] = cast(input, "number");
+      playthru.state[playthru.protected.__inputKey] = cast(input, "number");
     } else {
-      state[state.__inputKey] = input;
+      playthru.state[playthru.protected.__inputKey] = input;
     }
-    state.__inputKey = null; // Important to unset to clear for next advance()
+    playthru.protected.__inputKey = null; // Important to unset to clear for next advance()
   }
 }
