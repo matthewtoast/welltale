@@ -137,77 +137,6 @@ interface ActionHandler {
 
 let calls = 0;
 
-function getScope(playthru: Playthru): { [key: string]: TSerial } {
-  const globalState = playthru.state;
-  const currentScope =
-    playthru.protected.__callStack.length > 0
-      ? playthru.protected.__callStack[
-          playthru.protected.__callStack.length - 1
-        ].scope
-      : null;
-
-  return new Proxy({} as { [key: string]: TSerial }, {
-    get(target, prop: string) {
-      // Check all scopes from most recent to oldest
-      for (let i = playthru.protected.__callStack.length - 1; i >= 0; i--) {
-        const scope = playthru.protected.__callStack[i].scope;
-        if (prop in scope) {
-          return scope[prop];
-        }
-      }
-      // Fall back to global state
-      return globalState[prop];
-    },
-    set(target, prop: string, value) {
-      if (currentScope) {
-        // Write to current block's scope
-        currentScope[prop] = value;
-      } else {
-        // No active block, write to global state
-        globalState[prop] = value;
-      }
-      return true;
-    },
-    has(target, prop: string) {
-      // Check all scopes
-      for (const entry of playthru.protected.__callStack) {
-        if (prop in entry.scope) return true;
-      }
-      return prop in globalState;
-    },
-    ownKeys(target) {
-      // Merge all keys from all scopes and global state
-      const keys = new Set(Object.keys(globalState));
-      for (const entry of playthru.protected.__callStack) {
-        Object.keys(entry.scope).forEach((key) => keys.add(key));
-      }
-      return Array.from(keys);
-    },
-    getOwnPropertyDescriptor(target, prop: string) {
-      // Needed for proper enumeration
-      // Check all scopes first
-      for (let i = playthru.protected.__callStack.length - 1; i >= 0; i--) {
-        const scope = playthru.protected.__callStack[i].scope;
-        if (prop in scope) {
-          return {
-            configurable: true,
-            enumerable: true,
-            value: scope[prop],
-          };
-        }
-      }
-      // Then check global state
-      if (prop in globalState) {
-        return {
-          configurable: true,
-          enumerable: true,
-          value: globalState[prop],
-        };
-      }
-    },
-  });
-}
-
 export async function advanceStory(
   provider: ServiceProvider,
   root: StoryNode,
@@ -324,7 +253,7 @@ export async function advanceStory(
     }
 
     if (options.mode === StepMode.SINGLE) {
-      return done(FlowType.BLOCKING);
+      return done(FlowType.GRANT);
     }
 
     if (
@@ -692,25 +621,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm",
-    exec: async (ctx, provider) => {
-      let schema = ctx.node.atts.to ?? ctx.node.atts.schema;
-      if (isBlank(schema)) {
-        schema = "_"; // Assigns to the _ variable
-      }
-      const prompt = ctx.node.text ?? ctx.node.atts.prompt;
-      if (!isBlank(prompt)) {
-        const result = await provider.generateJson(prompt, schema);
-        Object.assign(ctx.playthru.state, result);
-      }
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.BLOCKING,
-      };
-    },
-  },
-  {
     match: (node: StoryNode) => node.type === "sound" && !!node.atts.url,
     exec: async (ctx) => ({
       ops: [
@@ -724,9 +634,30 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     }),
   },
   {
+    match: (node: StoryNode) => node.type === "llm",
+    exec: async (ctx, provider) => {
+      let schema = ctx.node.atts.to ?? ctx.node.atts.schema;
+      if (isBlank(schema)) {
+        schema = "_"; // Assigns to the _ variable
+      }
+      const rollup = collectAllText(ctx.node);
+      const prompt = rollup ?? ctx.node.atts.prompt;
+      if (!isBlank(prompt)) {
+        const result = await provider.generateJson(prompt, schema);
+        Object.assign(ctx.playthru.state, result);
+      }
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.root, false),
+        flow: FlowType.BLOCKING,
+      };
+    },
+  },
+  {
     match: (node: StoryNode) => node.type === "sound" && !!node.atts.gen,
     exec: async (ctx, provider) => {
-      const prompt = ctx.node.text ?? ctx.node.atts.prompt ?? "";
+      const rollup = collectAllText(ctx.node);
+      const prompt = rollup ?? ctx.node.atts.prompt;
       if (!isBlank(prompt)) {
         const { url } = ctx.options.doGenerateSounds
           ? await provider.generateSound(prompt)
@@ -745,6 +676,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    // Fallback: Any node not explicitly listed we'll skip over without visiting kids
     match: () => true,
     exec: async (ctx) => {
       return {
@@ -957,4 +889,75 @@ function assignInput(input: string, playthru: Playthru) {
     }
     playthru.protected.__inputKey = null; // Important to unset to clear for next advance()
   }
+}
+
+function getScope(playthru: Playthru): { [key: string]: TSerial } {
+  const globalState = playthru.state;
+  const currentScope =
+    playthru.protected.__callStack.length > 0
+      ? playthru.protected.__callStack[
+          playthru.protected.__callStack.length - 1
+        ].scope
+      : null;
+
+  return new Proxy({} as { [key: string]: TSerial }, {
+    get(target, prop: string) {
+      // Check all scopes from most recent to oldest
+      for (let i = playthru.protected.__callStack.length - 1; i >= 0; i--) {
+        const scope = playthru.protected.__callStack[i].scope;
+        if (prop in scope) {
+          return scope[prop];
+        }
+      }
+      // Fall back to global state
+      return globalState[prop];
+    },
+    set(target, prop: string, value) {
+      if (currentScope) {
+        // Write to current block's scope
+        currentScope[prop] = value;
+      } else {
+        // No active block, write to global state
+        globalState[prop] = value;
+      }
+      return true;
+    },
+    has(target, prop: string) {
+      // Check all scopes
+      for (const entry of playthru.protected.__callStack) {
+        if (prop in entry.scope) return true;
+      }
+      return prop in globalState;
+    },
+    ownKeys(target) {
+      // Merge all keys from all scopes and global state
+      const keys = new Set(Object.keys(globalState));
+      for (const entry of playthru.protected.__callStack) {
+        Object.keys(entry.scope).forEach((key) => keys.add(key));
+      }
+      return Array.from(keys);
+    },
+    getOwnPropertyDescriptor(target, prop: string) {
+      // Needed for proper enumeration
+      // Check all scopes first
+      for (let i = playthru.protected.__callStack.length - 1; i >= 0; i--) {
+        const scope = playthru.protected.__callStack[i].scope;
+        if (prop in scope) {
+          return {
+            configurable: true,
+            enumerable: true,
+            value: scope[prop],
+          };
+        }
+      }
+      // Then check global state
+      if (prop in globalState) {
+        return {
+          configurable: true,
+          enumerable: true,
+          value: globalState[prop],
+        };
+      }
+    },
+  });
 }
