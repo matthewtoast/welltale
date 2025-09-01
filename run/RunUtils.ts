@@ -13,7 +13,7 @@ import {
   FALLBACK_SPEAKER,
   PlayOptions,
   Playthru,
-  StepMode,
+  SeamType,
   Story,
 } from "lib/StoryEngine";
 import { isBlank, railsTimestamp } from "lib/TextHelpers";
@@ -26,8 +26,8 @@ export const DEFAULT_SEED = "seed";
 
 export const defaultRunnerOptions: PlayOptions = {
   seed: DEFAULT_SEED,
-  mode: StepMode.UNTIL_WAITING,
   verbose: true,
+  ream: 100,
   loop: 0,
   autoInput: false,
   doGenerateSpeech: false,
@@ -63,27 +63,29 @@ export function savePlaythruToDisk(state: Playthru, abspath: string) {
   writeFileSync(abspath, JSON.stringify(state, null, 2));
 }
 
-export type RenderInstruction = "next" | "halt" | "input";
-
 export async function renderNext(
   input: string,
   playthru: Playthru,
   story: Story,
   options: PlayOptions,
   provider: ServiceProvider
-): Promise<{ instruction: RenderInstruction; playthru: Playthru }> {
+) {
   if (!isBlank(input)) {
     playthru.state.input = input;
   }
   const root = await compileStory(story.cartridge);
-  const { ops } = await advanceStory(provider, root, playthru, options);
-  async function render(): Promise<RenderInstruction> {
+  const { ops, seam, info } = await advanceStory(
+    provider,
+    root,
+    playthru,
+    options
+  );
+  async function render() {
     for (let i = 0; i < ops.length; i++) {
       const op = ops[i];
       switch (op.type) {
         case "get-input":
-          // return early to wait for input
-          return "input";
+          break;
         case "play-line":
           console.log(
             chalk.cyan.bold(`${op.speaker || FALLBACK_SPEAKER}:`) +
@@ -103,50 +105,43 @@ export async function renderNext(
           break;
       }
     }
-    return "next";
   }
-  return { instruction: await render(), playthru };
+  await render();
+  return seam;
 }
 
-export async function runUntilComplete({
-  options,
-  provider,
-  playthru,
-  story,
-  seed,
-  inputs,
-}: {
-  options: PlayOptions;
-  provider: ServiceProvider;
-  playthru: Playthru;
-  story: Story;
-  seed: string;
-  inputs: string[];
-}) {
-  let nextInstruction: RenderInstruction = "next";
-  let input = "";
-  let inputIndex = 0;
-
-  while (nextInstruction !== "halt") {
-    const { instruction } = await renderNext(
-      input,
-      playthru,
-      story,
-      { ...options, seed },
-      provider
-    );
-    nextInstruction = instruction;
-    if (nextInstruction === "input") {
-      if (inputIndex < inputs.length) {
-        input = inputs[inputIndex];
-        console.log(chalk.green(`> ${input}`));
-        inputIndex++;
-      } else {
-        console.log(chalk.yellow("No more inputs available, exiting..."));
-        break;
-      }
+export async function runUntilComplete(
+  info: {
+    options: PlayOptions;
+    provider: ServiceProvider;
+    playthru: Playthru;
+    story: Story;
+    seed: string;
+    inputs: string[];
+  },
+  seam: SeamType = SeamType.GRANT
+) {
+  if (seam === SeamType.INPUT) {
+    const input = info.inputs.shift();
+    if (input) {
+      seam = await renderNext(
+        input,
+        info.playthru,
+        info.story,
+        { ...info.options, seed: info.seed },
+        info.provider
+      );
+      return runUntilComplete(info, seam);
     }
+  } else if (seam === SeamType.GRANT) {
+    seam = await renderNext(
+      "",
+      info.playthru,
+      info.story,
+      { ...info.options, seed: info.seed },
+      info.provider
+    );
+    return runUntilComplete(info, seam);
   }
-
-  return playthru;
+  return seam;
 }

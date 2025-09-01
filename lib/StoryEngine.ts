@@ -23,12 +23,6 @@ import { ServiceProvider } from "./ServiceProvider";
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
 
-export enum StepMode {
-  SINGLE = "single",
-  UNTIL_WAITING = "until_waiting",
-  UNTIL_BLOCKING = "until_blocking",
-}
-
 export type Cartridge = Record<string, Buffer | string>;
 
 export interface Playthru {
@@ -92,10 +86,10 @@ export type OP =
   | { type: "story-end" };
 
 export type PlayOptions = {
-  mode: StepMode;
   verbose: boolean;
   seed: string;
   loop: number;
+  ream: number;
   autoInput: boolean;
   doGenerateSpeech: boolean;
   doGenerateSounds: boolean;
@@ -112,19 +106,16 @@ export interface ActionContext {
   scope: { [key: string]: TSerial };
 }
 
-export enum FlowType {
-  CONTINUE = "continue",
-  BLOCKING = "blocking",
-  WAITING = "waiting",
-  GRANT = "grant",
-  PROBLEM = "problem",
-  FINISH = "finish",
+export enum SeamType {
+  INPUT = "input", // Client is expected to send user input in next call
+  GRANT = "grant", // Client should call again to grant OK to next batch of work
+  ERROR = "error", // Error was encountered, could not continue
+  FINISH = "finish", // Story was completed
 }
 
 export interface ActionResult {
   ops: OP[];
   next: { node: StoryNode } | null;
-  flow: FlowType;
 }
 
 interface ActionHandler {
@@ -165,20 +156,16 @@ export async function advanceStory(
     playthru.history.push(createEvent(PLAYER_ID, playthru.state.input));
   }
 
-  provider.log(
-    `ADV`,
-    playthru.state.input,
-    options.mode,
-    omit(playthru, "history")
-  );
+  provider.log(`ADV`, playthru.state.input, omit(playthru, "history"));
 
-  function done(flow: FlowType) {
+  function done(seam: SeamType, info: Record<string, string>) {
     provider.log("DONE", omit(playthru, "history"), out);
     playthru.cycle = rng.cycle;
-    return { ops: out, state: playthru.state, flow };
+    return { ops: out, state: playthru.state, seam, info };
   }
 
   const visits: Record<string, number> = {};
+  let iterations = 0;
 
   while (true) {
     let node: StoryNode | null = findNodeFromRoot(
@@ -187,14 +174,24 @@ export async function advanceStory(
     );
 
     if (!node) {
-      console.warn(`Node ${playthru.protected.__address} not found`);
-      return done(FlowType.PROBLEM);
+      const error = `Node ${playthru.protected.__address} not found`;
+      console.warn(error);
+      return done(SeamType.ERROR, { error });
     }
 
     if (!visits[node.addr]) {
       visits[node.addr] += 1;
     } else {
-      return done(FlowType.GRANT);
+      return done(SeamType.GRANT, {
+        reason: `Loop encountered at node ${node.addr}`,
+      });
+    }
+
+    if (iterations > 0 && iterations % options.ream === 0) {
+      iterations += 1;
+      return done(SeamType.GRANT, {
+        reason: `Iteration ${iterations} reached`,
+      });
     }
 
     const rendered = nodeToRenderedNode(node, getScope(playthru), rng);
@@ -215,7 +212,7 @@ export async function advanceStory(
     out.push(...result.ops);
 
     provider.log(
-      `<${node.type} ${node.addr}${node.type.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)} ${result.flow}>`,
+      `<${node.type} ${node.addr}${node.type.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}>`,
       `~> ${result.next?.node.addr}`,
       result.ops
     );
@@ -244,30 +241,16 @@ export async function advanceStory(
         } else {
           out.push({ type: "story-end" });
         }
-        return done(FlowType.FINISH);
       }
     }
 
-    if (result.flow === FlowType.BLOCKING) {
-      return done(FlowType.BLOCKING);
-    }
-
-    if (options.mode === StepMode.SINGLE) {
-      return done(FlowType.GRANT);
-    }
-
-    if (
-      options.mode === StepMode.UNTIL_WAITING &&
-      result.flow === FlowType.WAITING
-    ) {
-      return done(FlowType.WAITING);
-    }
-
-    if (
-      options.mode === StepMode.UNTIL_BLOCKING &&
-      result.flow !== FlowType.CONTINUE
-    ) {
-      return done(FlowType.BLOCKING);
+    if (out.length > 0) {
+      const type = out[out.length - 1].type;
+      if (type === "get-input") {
+        return done(SeamType.INPUT, {});
+      } else if (type === "story-end") {
+        return done(SeamType.FINISH, {});
+      }
     }
   }
 }
@@ -280,7 +263,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: next,
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -289,7 +271,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => ({
       ops: [],
       next: nextNode(ctx.node, ctx.root, true),
-      flow: FlowType.CONTINUE,
     }),
   },
   {
@@ -298,7 +279,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, true),
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -308,7 +288,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -335,7 +314,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return {
           ops,
           next,
-          flow: FlowType.CONTINUE,
         };
       }
       const line = parseTaggedSpeakerLine(text);
@@ -360,7 +338,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops,
         next,
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -386,45 +363,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.CONTINUE,
-      };
-    },
-  },
-  {
-    match: (node: StoryNode) => node.type === "input",
-    exec: async (ctx) => {
-      const toKey = ctx.node.atts.to;
-      if (toKey) {
-        ctx.playthru.protected.__inputKey = toKey;
-      }
-      const castType =
-        ctx.node.atts.as ?? ctx.node.atts.cast ?? ctx.node.atts.type;
-      if (castType) {
-        ctx.playthru.protected.__inputType = castType;
-      }
-      const next = nextNode(ctx.node, ctx.root, false);
-      // If we're doing auto-playback, automatically assign instead of waiting
-      if (ctx.options.autoInput && !isBlank(ctx.node.atts.auto)) {
-        assignInput(ctx.node.atts.auto, ctx.playthru);
-        return {
-          ops: [],
-          next,
-          flow: FlowType.CONTINUE,
-        };
-      }
-
-      return {
-        ops: [
-          {
-            type: "get-input",
-            timeLimit: parseNumberOrNull(
-              ctx.node.atts.timeLimit ?? ctx.node.atts.for
-            ),
-            charLimit: parseNumberOrNull(ctx.node.atts.charLimit),
-          },
-        ],
-        next,
-        flow: FlowType.WAITING,
       };
     },
   },
@@ -458,7 +396,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next,
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -477,7 +414,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next,
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -500,7 +436,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -510,7 +445,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, true),
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -529,7 +463,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.CONTINUE,
       };
     },
   },
@@ -546,7 +479,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         },
       ],
       next: nextNode(ctx.node, ctx.root, false),
-      flow: FlowType.CONTINUE,
     }),
   },
   {
@@ -555,7 +487,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => ({
       ops: [],
       next: skipBlock(ctx.node, ctx.root),
-      flow: FlowType.CONTINUE,
     }),
   },
   {
@@ -567,7 +498,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return {
           ops: [],
           next: nextNode(ctx.node, ctx.root, false),
-          flow: FlowType.CONTINUE,
         };
       }
       // Find the target block
@@ -576,7 +506,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return {
           ops: [],
           next: nextNode(ctx.node, ctx.root, false),
-          flow: FlowType.CONTINUE,
         };
       }
       // Determine return address
@@ -609,13 +538,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           next: {
             node: blockResult.node.kids[0],
           },
-          flow: FlowType.CONTINUE,
         };
       } else {
         return {
           ops: [],
           next: nextNode(blockResult.node, ctx.root, false),
-          flow: FlowType.CONTINUE,
         };
       }
     },
@@ -630,8 +557,42 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         },
       ],
       next: nextNode(ctx.node, ctx.root, false),
-      flow: FlowType.CONTINUE,
     }),
+  },
+  {
+    match: (node: StoryNode) => node.type === "input",
+    exec: async (ctx) => {
+      const toKey = ctx.node.atts.to;
+      if (toKey) {
+        ctx.playthru.protected.__inputKey = toKey;
+      }
+      const castType =
+        ctx.node.atts.as ?? ctx.node.atts.cast ?? ctx.node.atts.type;
+      if (castType) {
+        ctx.playthru.protected.__inputType = castType;
+      }
+      const next = nextNode(ctx.node, ctx.root, false);
+      // If we're doing auto-playback, automatically assign instead of waiting
+      if (ctx.options.autoInput && !isBlank(ctx.node.atts.auto)) {
+        assignInput(ctx.node.atts.auto, ctx.playthru);
+        return {
+          ops: [],
+          next,
+        };
+      }
+      return {
+        ops: [
+          {
+            type: "get-input",
+            timeLimit: parseNumberOrNull(
+              ctx.node.atts.timeLimit ?? ctx.node.atts.for
+            ),
+            charLimit: parseNumberOrNull(ctx.node.atts.charLimit),
+          },
+        ],
+        next,
+      };
+    },
   },
   {
     match: (node: StoryNode) => node.type === "llm",
@@ -649,7 +610,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.BLOCKING,
       };
     },
   },
@@ -665,13 +625,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return {
           ops: [{ type: "play-sound", audio: url }],
           next: nextNode(ctx.node, ctx.root, false),
-          flow: FlowType.BLOCKING,
         };
       }
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.BLOCKING,
       };
     },
   },
@@ -682,7 +640,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
-        flow: FlowType.CONTINUE,
       };
     },
   },

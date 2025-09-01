@@ -28,8 +28,8 @@ async function go() {
     provider: defaultRunnerProvider,
     playthru,
     story,
-    seed: game,
-    inputs: [],
+    seed: game + "1",
+    inputs: ["platypus"],
   });
 
   console.log(playthru);

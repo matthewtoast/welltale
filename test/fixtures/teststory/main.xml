@@ -55,4 +55,32 @@
   <p>
     {{stash-1}}
   </p>
+  <code>
+    em = "eminem"
+    en = "nono"
+  </code>
+  <p>
+    M {{em}}
+  </p>
+  <jump to="ruff" />
+  <p>
+    [NOT SHOWN]
+  </p>
+</sec>
+
+
+<sec id="ruff">
+  <p>
+    N {{en}}
+  </p>
+  <p>
+    O - shouldn't show blank var foo declared in block: {{foo}}
+  </p>
+  <input to="ppp" />
+  <p>
+    P - input = {{ppp}}
+  </p>
+  <p>
+    Q1 | Q2 | Q3
+  </p>
 </sec>
