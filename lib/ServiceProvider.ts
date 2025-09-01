@@ -1,9 +1,8 @@
-import { S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { OpenAI } from "openai";
 import { join } from "path";
-import { getOrCreateObject } from "./AWSUtils";
+import { Cache } from "./Cache";
 import { TaggedLine } from "./DialogHelpers";
 import {
   autoFindPresetVoice,
@@ -29,8 +28,7 @@ export class DefaultServiceProvider implements ServiceProvider {
     public config: {
       openai: OpenAI;
       eleven: ElevenLabsClient;
-      s3: S3Client;
-      bucket: string;
+      cache: Cache;
     }
   ) {}
 
@@ -52,46 +50,47 @@ export class DefaultServiceProvider implements ServiceProvider {
   ): Promise<Record<string, any>> {
     const cacheKey = `${prompt}\n---SCHEMA---\n${schema}`;
     const key = generatePredictableKey("json", cacheKey, "json");
-    const url = await getOrCreateObject(
-      this.config.s3,
-      this.config.bucket,
-      key,
-      async () => {
-        const zodSchema = parseSchemaString(schema);
-        const result = await generateJson(
-          this.config.openai,
-          `${prompt}\n\nReturn only JSON per the schema:`,
-          zodSchema,
-          "gpt-4.1"
-        );
-        if (!result) {
-          console.warn("Failed to generate completion");
-          return JSON.stringify({});
-        }
-        return JSON.stringify(result, null, 2);
-      },
-      "application/json"
+    
+    const cached = await this.config.cache.get(key);
+    if (cached) {
+      return JSON.parse(cached.toString());
+    }
+    
+    const zodSchema = parseSchemaString(schema);
+    const result = await generateJson(
+      this.config.openai,
+      `${prompt}\n\nReturn only JSON per the schema:`,
+      zodSchema,
+      "gpt-4.1"
     );
-    // Fetch the cached result from S3
-    const response = await fetch(url);
-    return await response.json();
+    
+    if (!result) {
+      console.warn("Failed to generate completion");
+      return {};
+    }
+    
+    const buffer = Buffer.from(JSON.stringify(result, null, 2));
+    await this.config.cache.set(key, buffer, "application/json");
+    
+    return result;
   }
 
   async generateSound(prompt: string): Promise<{ url: string }> {
     const key = generatePredictableKey("sfx", prompt, "mp3");
-    const url = await getOrCreateObject(
-      this.config.s3,
-      this.config.bucket,
-      key,
-      async () => {
-        return await generateSoundEffect({
-          client: this.config.eleven,
-          text: prompt,
-          durationSeconds: 5,
-        });
-      },
-      "audio/mpeg"
-    );
+    
+    const cached = await this.config.cache.get(key);
+    if (cached) {
+      const url = await this.config.cache.set(key, cached, "audio/mpeg");
+      return { url };
+    }
+    
+    const audio = await generateSoundEffect({
+      client: this.config.eleven,
+      text: prompt,
+      durationSeconds: 5,
+    });
+    
+    const url = await this.config.cache.set(key, Buffer.from(audio), "audio/mpeg");
     return { url };
   }
 
@@ -99,19 +98,20 @@ export class DefaultServiceProvider implements ServiceProvider {
     const voiceId = autoFindPresetVoice(line.speaker, line.tags);
     const prompt = `${line.speaker}:${line.tags.join(",")}:${line.body}`;
     const key = generatePredictableKey("vox", prompt, "mp3");
-    const url = await getOrCreateObject(
-      this.config.s3,
-      this.config.bucket,
-      key,
-      async () => {
-        return await generateSpeechClip({
-          client: this.config.eleven,
-          voiceId,
-          text: line.body,
-        });
-      },
-      "audio/mpeg"
-    );
+    
+    const cached = await this.config.cache.get(key);
+    if (cached) {
+      const url = await this.config.cache.set(key, cached, "audio/mpeg");
+      return { url };
+    }
+    
+    const audio = await generateSpeechClip({
+      client: this.config.eleven,
+      voiceId,
+      text: line.body,
+    });
+    
+    const url = await this.config.cache.set(key, Buffer.from(audio), "audio/mpeg");
     return { url };
   }
 }

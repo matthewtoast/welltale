@@ -1,21 +1,201 @@
-// TODO: Server that hosts the story runner. Intended to run on AWS lambda. Has no access to disk.
-// for storage of stories we will use S3.
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { OpenAI } from "openai";
+import { Readable } from "stream";
+import * as unzipper from "unzipper";
+import { z } from "zod";
+import { Cache } from "../lib/Cache";
+import { S3Cache } from "../lib/S3Cache";
+import { DefaultServiceProvider } from "../lib/ServiceProvider";
+import { compileStory } from "../lib/StoryCompiler";
+import {
+  advanceStory,
+  PlaythruSchema,
+  StoryOptionsSchema,
+  type Cartridge,
+} from "../lib/StoryEngine";
 
-// When started up...
-// accepts a JSON payload containing
-// storyId - string - id of the story we're playing
-// playthru - Playthru - JSON of a Playthru object
-// options - StoryOptions - Json of StoryOptions object
-//
-// when called the server
-// validates the inputs using Zod Types - (please define these alongside the real types, not here)
-// creates a ServiceProvider which can load story cartridges from S3 based on id.
-// the AWS_BUCKET should be an env var available, that is where cartridges will be stored
-// they will be stored like {bucket}/cartridges/{storyId}.zip
-// download the zip, unzip it into the Cartridge data format
-//
-// for API keys, assume defined in env vars.
-// set up a pre-validation to check for existence of all env vars and throw if not present
-//
-// when we receive a JSON payload we get all the stuff together into proper objects,
-// invoke advanceStory, then return the result payload JSON
+const RequestSchema = z.object({
+  storyId: z.string(),
+  playthru: PlaythruSchema,
+  options: StoryOptionsSchema,
+});
+
+const RequiredEnvVars = z.object({
+  AWS_BUCKET: z.string(),
+  AWS_REGION: z.string().default("us-east-1"),
+  OPENAI_API_KEY: z.string(),
+  ELEVENLABS_API_KEY: z.string(),
+});
+
+interface APIGatewayEvent {
+  body: string | null;
+  headers: Record<string, string | undefined>;
+  httpMethod: string;
+  path: string;
+  pathParameters: Record<string, string> | null;
+  queryStringParameters: Record<string, string> | null;
+  requestContext: {
+    requestId: string;
+    stage: string;
+    httpMethod: string;
+    path: string;
+  };
+}
+
+interface APIGatewayResponse {
+  statusCode: number;
+  headers?: Record<string, string>;
+  body: string;
+}
+
+class CloudServiceProvider extends DefaultServiceProvider {
+  private s3: S3Client;
+  private bucket: string;
+
+  constructor(
+    config: {
+      openai: OpenAI;
+      eleven: ElevenLabsClient;
+      cache: Cache;
+    },
+    s3: S3Client,
+    bucket: string
+  ) {
+    super(config);
+    this.s3 = s3;
+    this.bucket = bucket;
+  }
+
+  async loadCartridge(storyId: string): Promise<Cartridge> {
+    const key = `cartridges/${storyId}.zip`;
+
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      });
+
+      const response = await this.s3.send(command);
+      if (!response.Body) {
+        throw new Error("Empty response from S3");
+      }
+
+      const cartridge: Cartridge = {};
+      const bodyStream = response.Body as Readable;
+
+      await new Promise<void>((resolve, reject) => {
+        bodyStream
+          .pipe(unzipper.Parse())
+          .on("entry", async (entry: unzipper.Entry) => {
+            const fileName = entry.path;
+            const chunks: Buffer[] = [];
+
+            entry.on("data", (chunk: Buffer) => chunks.push(chunk));
+            entry.on("end", () => {
+              cartridge[fileName] = Buffer.concat(chunks);
+            });
+          })
+          .on("close", resolve)
+          .on("error", reject);
+      });
+
+      return cartridge;
+    } catch (error) {
+      throw new Error(
+        `Failed to load cartridge '${storyId}' from S3: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+}
+
+let serviceProvider: CloudServiceProvider | null = null;
+
+function validateEnvironment() {
+  try {
+    return RequiredEnvVars.parse(process.env);
+  } catch (error) {
+    console.error("Missing required environment variables:", error);
+    throw new Error("Invalid environment configuration");
+  }
+}
+
+function getServiceProvider(): CloudServiceProvider {
+  if (!serviceProvider) {
+    const env = validateEnvironment();
+
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    const elevenlabs = new ElevenLabsClient({ apiKey: env.ELEVENLABS_API_KEY });
+    const s3 = new S3Client({ region: env.AWS_REGION });
+    const cache = new S3Cache(s3, env.AWS_BUCKET);
+
+    serviceProvider = new CloudServiceProvider(
+      {
+        openai,
+        eleven: elevenlabs,
+        cache,
+      },
+      s3,
+      env.AWS_BUCKET
+    );
+  }
+
+  return serviceProvider;
+}
+
+export async function handler(event: APIGatewayEvent): Promise<APIGatewayResponse> {
+  try {
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Request body is required" }),
+      };
+    }
+
+    const body = JSON.parse(event.body);
+    const parsed = RequestSchema.parse(body);
+    const { storyId, playthru, options } = parsed;
+
+    const provider = getServiceProvider();
+    const cartridge = await provider.loadCartridge(storyId);
+    const root = compileStory(cartridge);
+
+    const result = await advanceStory(provider, root, playthru, options);
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(result),
+    };
+  } catch (error) {
+    console.error("Error processing request:", error);
+
+    if (error instanceof z.ZodError) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          error: "Invalid request",
+          details: error.errors,
+        }),
+      };
+    }
+
+    return {
+      statusCode: 500,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+    };
+  }
+}

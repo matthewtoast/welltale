@@ -17,6 +17,7 @@ import {
 } from "lib/TextHelpers";
 import { isEmpty, omit } from "lodash";
 import { TSerial } from "typings";
+import { z } from "zod";
 import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
 
@@ -25,31 +26,52 @@ export const FALLBACK_SPEAKER = "HOST";
 
 export type Cartridge = Record<string, Buffer | string>;
 
-export interface Playthru {
-  id: string;
-  time: number; // Real-world Unix time of current game step
-  turn: number; // Current turn i.e. game step (used for PRNG too)
-  cycle: number; // Cycle value for PRNG (to resume at previous point)
-  loops: number; // How many times we've looped through the story
-  address: null | string; // Address of node to begin processing at (if null, falls goes to <main> or <root>)
-  inputKey: null | string; // Key in state at which to store the input
-  inputType: null | string; // Data type of the input (may be "string", "boolean", or "number")
-  callStack: { returnAddress: string; scope: { [key: string]: TSerial } }[]; // Call stack for blocks
-  state: {
-    input: string;
-    [key: string]: TSerial;
-  };
-  history: StoryEvent[];
-  genie?: Cartridge; // Like Game Genie we can monkeypatch the cartridge
-}
+const StoryEventSchema = z.object({
+  time: z.number(),
+  from: z.string(),
+  to: z.array(z.string()),
+  obs: z.array(z.string()),
+  body: z.string(),
+});
 
-export type StoryEvent = {
-  time: number;
-  from: string;
-  to: string[];
-  obs: string[];
-  body: string;
-};
+export const PlaythruSchema = z.object({
+  id: z.string(),
+  time: z.number(),
+  turn: z.number(),
+  cycle: z.number(),
+  loops: z.number(),
+  address: z.string().nullable(),
+  inputKey: z.string().nullable(),
+  inputType: z.string().nullable(),
+  callStack: z.array(
+    z.object({
+      returnAddress: z.string(),
+      scope: z.record(z.any()),
+    })
+  ),
+  state: z.record(z.any()).and(
+    z.object({
+      input: z.string(),
+    })
+  ),
+  history: z.array(StoryEventSchema),
+  genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
+});
+
+export const StoryOptionsSchema = z.object({
+  verbose: z.boolean(),
+  seed: z.string(),
+  loop: z.number(),
+  ream: z.number(),
+  autoInput: z.boolean(),
+  doGenerateSpeech: z.boolean(),
+  doGenerateSounds: z.boolean(),
+});
+
+// Derive types from Zod schemas
+export type StoryEvent = z.infer<typeof StoryEventSchema>;
+export type Playthru = z.infer<typeof PlaythruSchema>;
+export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
 
 export function createDefaultPlaythru(id: string): Playthru {
   return {
@@ -80,16 +102,6 @@ export type OP =
   | { type: "play-sound"; audio: string }
   | { type: "play-line"; audio: string; speaker: string; line: string }
   | { type: "story-end" };
-
-export type StoryOptions = {
-  verbose: boolean;
-  seed: string;
-  loop: number;
-  ream: number;
-  autoInput: boolean;
-  doGenerateSpeech: boolean;
-  doGenerateSounds: boolean;
-};
 
 export interface ActionContext {
   options: StoryOptions;
@@ -157,7 +169,7 @@ export async function advanceStory(
   function done(seam: SeamType, info: Record<string, string>) {
     provider.log("DONE", omit(playthru, "history"), out);
     playthru.cycle = rng.cycle;
-    return { ops: out, state: playthru.state, seam, info };
+    return { ops: out, playthru, seam, info };
   }
 
   const visits: Record<string, number> = {};

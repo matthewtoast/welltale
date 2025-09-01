@@ -6,6 +6,7 @@ import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
 import { safeJsonParse } from "lib/JSONHelpers";
 import { DefaultServiceProvider, ServiceProvider } from "lib/ServiceProvider";
+import { S3Cache } from "lib/S3Cache";
 import { compileStory } from "lib/StoryCompiler";
 import {
   advanceStory,
@@ -34,11 +35,13 @@ export const defaultRunnerOptions: StoryOptions = {
   doGenerateSounds: false,
 };
 
+const s3Client = new S3Client({ region: process.env.AWS_REGION! });
+const s3Cache = new S3Cache(s3Client, "welltale-dev");
+
 export const defaultRunnerProvider = new DefaultServiceProvider({
   eleven: new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY! }),
-  s3: new S3Client({ region: process.env.AWS_REGION! }),
   openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
-  bucket: "welltale-dev",
+  cache: s3Cache,
 });
 
 export function loadPlaythruFromDisk(id: string, abspath: string): Playthru {
