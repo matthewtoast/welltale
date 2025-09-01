@@ -11,7 +11,7 @@ import {
   defaultRunnerProvider,
   loadPlaythruFromDisk,
   runUntilComplete,
-} from "./RunUtils";
+} from "../test/LocalUtils";
 
 const argv = yargs(hideBin(process.argv))
   .options({
@@ -41,7 +41,7 @@ const argv = yargs(hideBin(process.argv))
   })
   .parseSync();
 
-async function runTest(basedir: string) {
+async function runStudy(basedir: string) {
   const game = argv.game;
   const id = argv.playthru ?? railsTimestamp();
   const seed = argv.seed;
@@ -65,4 +65,4 @@ async function runTest(basedir: string) {
   });
 }
 
-runTest(__dirname);
+runStudy(__dirname);

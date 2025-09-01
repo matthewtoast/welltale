@@ -13,7 +13,7 @@ import {
 } from "lib/TextHelpers";
 import { parseSchemaString } from "lib/ZodHelpers";
 import { camelCase } from "lodash";
-import { DEFAULT_SEED } from "run/RunUtils";
+import { DEFAULT_SEED } from "test/LocalUtils";
 import zodToJsonSchema from "zod-to-json-schema";
 import { expect } from "./TestUtils";
 

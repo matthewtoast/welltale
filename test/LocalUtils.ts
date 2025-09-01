@@ -11,10 +11,10 @@ import {
   advanceStory,
   createDefaultPlaythru,
   FALLBACK_SPEAKER,
-  PlayOptions,
   Playthru,
   SeamType,
   Story,
+  StoryOptions,
 } from "lib/StoryEngine";
 import { isBlank, railsTimestamp } from "lib/TextHelpers";
 import OpenAI from "openai";
@@ -24,7 +24,7 @@ loadEnv();
 export const DEFAULT_GAME = "welcome";
 export const DEFAULT_SEED = "seed";
 
-export const defaultRunnerOptions: PlayOptions = {
+export const defaultRunnerOptions: StoryOptions = {
   seed: DEFAULT_SEED,
   verbose: true,
   ream: 100,
@@ -67,7 +67,7 @@ export async function renderNext(
   input: string,
   playthru: Playthru,
   story: Story,
-  options: PlayOptions,
+  options: StoryOptions,
   provider: ServiceProvider
 ) {
   if (!isBlank(input)) {
@@ -112,7 +112,7 @@ export async function renderNext(
 
 export async function runUntilComplete(
   info: {
-    options: PlayOptions;
+    options: StoryOptions;
     provider: ServiceProvider;
     playthru: Playthru;
     story: Story;

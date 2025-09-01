@@ -30,13 +30,11 @@ export interface Playthru {
   time: number; // Real-world Unix time of current game step
   turn: number; // Current turn i.e. game step (used for PRNG too)
   cycle: number; // Cycle value for PRNG (to resume at previous point)
-  protected: {
-    __loops: number;
-    __address: null | string;
-    __inputKey: null | string;
-    __inputType: null | string;
-    __callStack: { returnAddress: string; scope: { [key: string]: TSerial } }[];
-  };
+  loops: number; // How many times we've looped through the story
+  address: null | string; // Address of node to begin processing at (if null, falls goes to <main> or <root>)
+  inputKey: null | string; // Key in state at which to store the input
+  inputType: null | string; // Data type of the input (may be "string", "boolean", or "number")
+  callStack: { returnAddress: string; scope: { [key: string]: TSerial } }[]; // Call stack for blocks
   state: {
     input: string;
     [key: string]: TSerial;
@@ -59,13 +57,11 @@ export function createDefaultPlaythru(id: string): Playthru {
     time: Date.now(),
     turn: 0,
     cycle: 0,
-    protected: {
-      __loops: 0,
-      __address: null,
-      __inputKey: "input",
-      __inputType: "string",
-      __callStack: [],
-    },
+    loops: 0,
+    address: null,
+    inputKey: "input",
+    inputType: "string",
+    callStack: [],
     state: {
       input: "",
     },
@@ -85,7 +81,7 @@ export type OP =
   | { type: "play-line"; audio: string; speaker: string; line: string }
   | { type: "story-end" };
 
-export type PlayOptions = {
+export type StoryOptions = {
   verbose: boolean;
   seed: string;
   loop: number;
@@ -96,7 +92,7 @@ export type PlayOptions = {
 };
 
 export interface ActionContext {
-  options: PlayOptions;
+  options: StoryOptions;
   main: StoryNode;
   root: StoryNode;
   orig: StoryNode;
@@ -132,7 +128,7 @@ export async function advanceStory(
   provider: ServiceProvider,
   root: StoryNode,
   playthru: Playthru,
-  options: PlayOptions
+  options: StoryOptions
 ) {
   const out: OP[] = [];
 
@@ -148,8 +144,8 @@ export async function advanceStory(
 
   assignInput(playthru.state.input, playthru);
 
-  if (!playthru.protected.__address) {
-    playthru.protected.__address = main.addr;
+  if (!playthru.address) {
+    playthru.address = main.addr;
   }
 
   if (!isBlank(playthru.state.input)) {
@@ -170,11 +166,11 @@ export async function advanceStory(
   while (true) {
     let node: StoryNode | null = findNodeFromRoot(
       root,
-      (node) => node.addr === playthru.protected.__address
+      (node) => node.addr === playthru.address
     );
 
     if (!node) {
-      const error = `Node ${playthru.protected.__address} not found`;
+      const error = `Node ${playthru.address} not found`;
       console.warn(error);
       return done(SeamType.ERROR, { error });
     }
@@ -220,24 +216,24 @@ export async function advanceStory(
     if (result.next) {
       // Check if we're currently in a yielded block and the next node escapes it
       if (
-        playthru.protected.__callStack.length > 0 &&
+        playthru.callStack.length > 0 &&
         wouldEscapeCurrentBlock(node, result.next.node, root)
       ) {
         // Pop from callstack instead of using the next node
-        const { returnAddress } = playthru.protected.__callStack.pop()!;
-        playthru.protected.__address = returnAddress;
+        const { returnAddress } = playthru.callStack.pop()!;
+        playthru.address = returnAddress;
       } else {
-        playthru.protected.__address = result.next.node.addr;
+        playthru.address = result.next.node.addr;
       }
     } else {
       // No next node - check if we should return from a block
-      if (playthru.protected.__callStack.length > 0) {
-        const { returnAddress } = playthru.protected.__callStack.pop()!;
-        playthru.protected.__address = returnAddress;
+      if (playthru.callStack.length > 0) {
+        const { returnAddress } = playthru.callStack.pop()!;
+        playthru.address = returnAddress;
       } else {
-        if (playthru.protected.__loops < options.loop) {
-          playthru.protected.__loops += 1;
-          playthru.protected.__address = null;
+        if (playthru.loops < options.loop) {
+          playthru.loops += 1;
+          playthru.address = null;
         } else {
           out.push({ type: "story-end" });
         }
@@ -530,7 +526,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           scope[key] = value;
         }
       }
-      ctx.playthru.protected.__callStack.push({ returnAddress, scope });
+      ctx.playthru.callStack.push({ returnAddress, scope });
       // Go to first child of block (or next sibling if no children)
       if (blockResult.node.kids.length > 0) {
         return {
@@ -564,12 +560,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const toKey = ctx.node.atts.to;
       if (toKey) {
-        ctx.playthru.protected.__inputKey = toKey;
+        ctx.playthru.inputKey = toKey;
       }
       const castType =
         ctx.node.atts.as ?? ctx.node.atts.cast ?? ctx.node.atts.type;
       if (castType) {
-        ctx.playthru.protected.__inputType = castType;
+        ctx.playthru.inputType = castType;
       }
       const next = nextNode(ctx.node, ctx.root, false);
       // If we're doing auto-playback, automatically assign instead of waiting
@@ -830,38 +826,36 @@ export function createEvent(
 }
 
 function assignInput(input: string, playthru: Playthru) {
-  if (playthru.protected.__inputKey) {
-    if (playthru.protected.__inputType) {
-      playthru.state[playthru.protected.__inputKey] = cast(
+  if (playthru.inputKey) {
+    if (playthru.inputType) {
+      playthru.state[playthru.inputKey] = cast(
         input,
-        stringToCastType(playthru.protected.__inputType)
+        stringToCastType(playthru.inputType)
       );
-      playthru.protected.__inputType = null; // Important to unset to clear for next advance()
+      playthru.inputType = null; // Important to unset to clear for next advance()
     } else if (looksLikeBoolean(input)) {
-      playthru.state[playthru.protected.__inputKey] = cast(input, "boolean");
+      playthru.state[playthru.inputKey] = cast(input, "boolean");
     } else if (looksLikeNumber(input)) {
-      playthru.state[playthru.protected.__inputKey] = cast(input, "number");
+      playthru.state[playthru.inputKey] = cast(input, "number");
     } else {
-      playthru.state[playthru.protected.__inputKey] = input;
+      playthru.state[playthru.inputKey] = input;
     }
-    playthru.protected.__inputKey = null; // Important to unset to clear for next advance()
+    playthru.inputKey = null; // Important to unset to clear for next advance()
   }
 }
 
 function getScope(playthru: Playthru): { [key: string]: TSerial } {
   const globalState = playthru.state;
   const currentScope =
-    playthru.protected.__callStack.length > 0
-      ? playthru.protected.__callStack[
-          playthru.protected.__callStack.length - 1
-        ].scope
+    playthru.callStack.length > 0
+      ? playthru.callStack[playthru.callStack.length - 1].scope
       : null;
 
   return new Proxy({} as { [key: string]: TSerial }, {
     get(target, prop: string) {
       // Check all scopes from most recent to oldest
-      for (let i = playthru.protected.__callStack.length - 1; i >= 0; i--) {
-        const scope = playthru.protected.__callStack[i].scope;
+      for (let i = playthru.callStack.length - 1; i >= 0; i--) {
+        const scope = playthru.callStack[i].scope;
         if (prop in scope) {
           return scope[prop];
         }
@@ -881,7 +875,7 @@ function getScope(playthru: Playthru): { [key: string]: TSerial } {
     },
     has(target, prop: string) {
       // Check all scopes
-      for (const entry of playthru.protected.__callStack) {
+      for (const entry of playthru.callStack) {
         if (prop in entry.scope) return true;
       }
       return prop in globalState;
@@ -889,7 +883,7 @@ function getScope(playthru: Playthru): { [key: string]: TSerial } {
     ownKeys(target) {
       // Merge all keys from all scopes and global state
       const keys = new Set(Object.keys(globalState));
-      for (const entry of playthru.protected.__callStack) {
+      for (const entry of playthru.callStack) {
         Object.keys(entry.scope).forEach((key) => keys.add(key));
       }
       return Array.from(keys);
@@ -897,8 +891,8 @@ function getScope(playthru: Playthru): { [key: string]: TSerial } {
     getOwnPropertyDescriptor(target, prop: string) {
       // Needed for proper enumeration
       // Check all scopes first
-      for (let i = playthru.protected.__callStack.length - 1; i >= 0; i--) {
-        const scope = playthru.protected.__callStack[i].scope;
+      for (let i = playthru.callStack.length - 1; i >= 0; i--) {
+        const scope = playthru.callStack[i].scope;
         if (prop in scope) {
           return {
             configurable: true,

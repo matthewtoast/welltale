@@ -2,6 +2,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { OpenAI } from "openai";
+import { join } from "path";
 import { getOrCreateObject } from "./AWSUtils";
 import { TaggedLine } from "./DialogHelpers";
 import {
@@ -9,30 +10,39 @@ import {
   generateSoundEffect,
   generateSpeechClip,
 } from "./ElevenLabsUtils";
+import { loadDirRecursive } from "./FileUtils";
 import { generateJson } from "./OpenAIUtils";
+import { Cartridge } from "./StoryEngine";
 import { generatePredictableKey } from "./TextHelpers";
 import { parseSchemaString } from "./ZodHelpers";
 
 export interface ServiceProvider {
+  loadCartridge(storyId: string): Promise<Cartridge>;
   generateJson(prompt: string, schema: string): Promise<Record<string, any>>;
   generateSound(prompt: string): Promise<{ url: string }>;
   generateSpeech(line: TaggedLine): Promise<{ url: string }>;
   log(...args: any[]): void;
 }
 
-export interface ServiceProviderConfig {
-  openai: OpenAI;
-  eleven: ElevenLabsClient;
-  s3: S3Client;
-  bucket: string;
-}
-
 export class DefaultServiceProvider implements ServiceProvider {
-  constructor(public config: ServiceProviderConfig) {}
+  constructor(
+    public config: {
+      openai: OpenAI;
+      eleven: ElevenLabsClient;
+      s3: S3Client;
+      bucket: string;
+    }
+  ) {}
 
   log(...args: any[]) {
     console.info(
       chalk.gray(...args.map((a) => (shouldJsonify(a) ? JSON.stringify(a) : a)))
+    );
+  }
+
+  async loadCartridge(storyId: string): Promise<Cartridge> {
+    return await loadDirRecursive(
+      join(__dirname, "..", "run", "cartridges", storyId)
     );
   }
 

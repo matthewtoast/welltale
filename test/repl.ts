@@ -1,9 +1,9 @@
 import chalk from "chalk";
 import { loadDirRecursive } from "lib/FileUtils";
-import { Story } from "lib/StoryEngine";
+import { SeamType, Story } from "lib/StoryEngine";
 import { join } from "path";
 import readline from "readline";
-import { isBlank, railsTimestamp, smoosh } from "./../lib/TextHelpers";
+import { isBlank, railsTimestamp, smoosh } from "../lib/TextHelpers";
 import {
   DEFAULT_GAME,
   DEFAULT_SEED,
@@ -12,7 +12,7 @@ import {
   loadPlaythruFromDisk,
   renderNext,
   savePlaythruToDisk,
-} from "./RunUtils";
+} from "./LocalUtils";
 
 const CAROT = "> ";
 
@@ -53,7 +53,7 @@ async function go(basedir: string) {
     chalk.gray(`Init game '${game}' playthru '${id}' (please wait)`)
   );
 
-  let renderResult = await renderNext(
+  let seam = await renderNext(
     "",
     playthru,
     story,
@@ -61,7 +61,7 @@ async function go(basedir: string) {
     defaultRunnerProvider
   );
   savePlaythruToDisk(playthru, playthruAbspath);
-  if (renderResult.instruction === "halt") {
+  if (seam === SeamType.FINISH || seam === SeamType.ERROR) {
     rl.close();
     return;
   }
@@ -70,7 +70,7 @@ async function go(basedir: string) {
   rl.on("line", async (raw) => {
     const fixed = raw.trim();
     try {
-      renderResult = await renderNext(
+      seam = await renderNext(
         fixed,
         playthru,
         story,
@@ -81,8 +81,10 @@ async function go(basedir: string) {
     } catch (err) {
       console.error(chalk.red(err));
     }
-    if (renderResult.instruction !== "halt") {
+    if (seam === SeamType.INPUT) {
       rl.prompt();
+    } else if (seam === SeamType.GRANT) {
+      rl.prompt(); // TODO: Make granting an advance automatic?
     } else {
       rl.close();
     }

@@ -1,5 +1,4 @@
 import { DOMParser } from "@xmldom/xmldom";
-import * as parse5 from "parse5";
 import { Cartridge } from "./StoryEngine";
 
 export type BaseNode = {
@@ -57,63 +56,6 @@ export const parseXmlFragment = (frag: string): BaseNode => {
 
 export const TEXT_TAG = "#text";
 export const FRAG_TAG = "#fragment";
-
-type BuildOpts = { skipWhitespace?: boolean };
-const gid = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
-
-const isText = (n: any): n is parse5.DefaultTreeAdapterTypes.TextNode =>
-  n.nodeName === TEXT_TAG;
-
-const isParent = (n: any): n is parse5.DefaultTreeAdapterTypes.ParentNode =>
-  Array.isArray((n as any).childNodes);
-
-const isElem = (n: any): n is parse5.DefaultTreeAdapterTypes.Element =>
-  !!(n as any).tagName;
-
-const attrs = (n: parse5.DefaultTreeAdapterTypes.Element) =>
-  Object.fromEntries(n.attrs.map((a) => [a.name, a.value]));
-
-const tagOf = (n: any) =>
-  isElem(n)
-    ? n.tagName
-    : n.nodeName === "#document"
-      ? "#document"
-      : n.nodeName === "#document-fragment"
-        ? FRAG_TAG
-        : n.nodeName;
-
-const build = (
-  n: any,
-  i: number,
-  parent: StoryNode | null,
-  o: BuildOpts
-): StoryNode => {
-  const tag = tagOf(n);
-  const text = isText(n) ? n.value : "";
-  const atts = isElem(n) ? attrs(n) : {};
-  const addr = parent ? `${parent.addr}.${i}` : `${i}`;
-  const node: StoryNode = { addr, type: tag, atts, kids: [], text };
-  if (isParent(n)) {
-    const rawKids = n.childNodes as any[];
-    const filtered = o.skipWhitespace
-      ? rawKids.filter((k) => !(isText(k) && k.value.trim() === ""))
-      : rawKids;
-    node.kids = filtered.map((k, i) => build(k, i, node, o));
-  }
-  return node;
-};
-
-export const fromFragment = (
-  html: string,
-  o: BuildOpts = { skipWhitespace: true }
-) => build(parse5.parseFragment(html), 0, null, o);
-
-export type Section = {
-  path: string;
-  root: StoryNode;
-};
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
   node: T,
@@ -217,13 +159,4 @@ export function dumpTree(node: BaseNode | null, indent = ""): string {
   }
 
   return lines.join("\n");
-}
-
-export function dumpTreeCompact(node: StoryNode): string {
-  const result = dumpTree(node);
-  // Remove empty lines
-  return result
-    .split("\n")
-    .filter((line) => line.trim())
-    .join("\n");
 }
