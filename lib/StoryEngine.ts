@@ -44,6 +44,7 @@ export const PlaythruSchema = z.object({
   cycle: z.number(),
   loops: z.number(),
   address: z.string().nullable(),
+  stash: z.record(z.any()),
   inputKey: z.string().nullable(),
   inputType: z.string().nullable(),
   callStack: z.array(
@@ -87,6 +88,7 @@ export function createDefaultPlaythru(id: string): Playthru {
     inputKey: "input",
     inputType: "string",
     callStack: [],
+    stash: {},
     state: {
       input: "",
     },
@@ -323,9 +325,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let text = "";
       // If we have a ref tag, assume it refers to a <stash>
       if (atts.ref) {
-        text = castToString(ctx.scope[atts.ref]);
+        text = castToString(ctx.playthru.stash[atts.ref]);
       }
       if (isBlank(text)) {
+        // Assume text nodes never contain actionable children, only text
         text = collectAllText(ctx.node);
       }
       // Early exit spurious empty nodes
@@ -338,7 +341,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       text = await renderText(text, ctx.scope, ctx.provider, ctx.rng);
       const event: StoryEvent = {
         body: ctx.rng.randomElement(cleanSplit(text, "|")),
-        from: atts.from ?? "",
+        from: atts.from ?? atts.speaker ?? atts.voice ?? "",
         to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
         obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
         tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
@@ -415,7 +418,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "stash",
+    match: (node: StoryNode) => node.type === "stash" || node.type === "var",
     exec: async (ctx) => {
       const atts = await renderAtts(
         ctx.node.atts,
@@ -426,7 +429,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const rollup = collectAllText(ctx.node);
       const value = !isBlank(rollup) ? rollup : atts.value;
       const key = atts.name ?? atts.var ?? atts.to ?? atts.key ?? atts.id;
-      ctx.playthru.state[key] = value;
+      if (ctx.node.type === "stash") {
+        ctx.playthru.stash[key] = value;
+      } else {
+        ctx.playthru.state[key] = value;
+      }
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
@@ -610,6 +617,37 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       return {
         ops,
         next,
+      };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "llm",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
+      // Get additional prompt from node content
+      const prompt = await renderText(
+        collectAllText(ctx.node),
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
+      const fields: string[] = [];
+      for (const [key, value] of Object.entries(atts)) {
+        fields.push(`"${key}": ${value}`);
+      }
+      const schema = `{\n  ${fields.join(",\n  ")}\n}`;
+      const result = await ctx.provider.generateJson(prompt, schema);
+      for (const [key, value] of Object.entries(result)) {
+        ctx.playthru.state[key] = value;
+      }
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.root, false),
       };
     },
   },

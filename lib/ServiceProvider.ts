@@ -7,10 +7,9 @@ import {
   generateSoundEffect,
   generateSpeechClip,
 } from "./ElevenLabsUtils";
-import { generateJson, generateText } from "./OpenAIUtils";
+import { generateFlexibleJson, generateText } from "./OpenAIUtils";
 import { Cartridge, StoryEvent } from "./StoryEngine";
 import { generatePredictableKey } from "./TextHelpers";
-import { parseSchemaString } from "./ZodHelpers";
 
 export interface ServiceProvider {
   loadCartridge(storyId: string): Promise<Cartridge>;
@@ -41,26 +40,22 @@ export abstract class BaseServiceProvider implements ServiceProvider {
 
   async generateText(prompt: string): Promise<string> {
     const useCache = !this.config.disableCache;
-    const key = generatePredictableKey("txt", prompt, "txt");
-    
+    const key = generatePredictableKey("text", prompt, "txt");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
         return cached.toString();
       }
     }
-    
     const result = await generateText(this.config.openai, prompt, "gpt-4.1");
     if (!result) {
       console.warn("Failed to generate completion");
       return "";
     }
-    
     if (useCache) {
       const buffer = Buffer.from(result);
       await this.config.cache.set(key, buffer, "text/plain");
     }
-    
     return result;
   }
 
@@ -69,40 +64,35 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     schema: string
   ): Promise<Record<string, any>> {
     const useCache = !this.config.disableCache;
-    const cacheKey = `${prompt}\n---SCHEMA---\n${schema}`;
+    const cacheKey = `${prompt}\n${schema}`;
     const key = generatePredictableKey("json", cacheKey, "json");
-    
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
         return JSON.parse(cached.toString());
       }
     }
-    
-    const zodSchema = parseSchemaString(schema);
-    const result = await generateJson(
+    const result = await generateFlexibleJson(
       this.config.openai,
-      `${prompt}\n\nReturn only JSON per the schema:`,
-      zodSchema,
+      `${prompt}\nPer the schema return only JSON:`,
+      schema,
       "gpt-4.1"
     );
     if (!result) {
       console.warn("Failed to generate completion");
       return {};
     }
-    
     if (useCache) {
       const buffer = Buffer.from(JSON.stringify(result, null, 2));
       await this.config.cache.set(key, buffer, "application/json");
     }
-    
     return result;
   }
 
   async generateSound(prompt: string): Promise<{ url: string }> {
     const useCache = !this.config.disableCache;
     const key = generatePredictableKey("sfx", prompt, "mp3");
-    
+
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -110,13 +100,13 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return { url };
       }
     }
-    
+
     const audio = await generateSoundEffect({
       client: this.config.eleven,
       text: prompt,
       durationSeconds: 5,
     });
-    
+
     const url = await this.config.cache.set(
       key,
       Buffer.from(audio),
@@ -130,7 +120,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     const voiceId = autoFindPresetVoice(line.from, line.tags);
     const prompt = `${line.from}:${line.tags.join(",")}:${line.body}`;
     const key = generatePredictableKey("vox", prompt, "mp3");
-    
+
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -138,13 +128,13 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return { url };
       }
     }
-    
+
     const audio = await generateSpeechClip({
       client: this.config.eleven,
       voiceId,
       text: line.body,
     });
-    
+
     const url = await this.config.cache.set(
       key,
       Buffer.from(audio),

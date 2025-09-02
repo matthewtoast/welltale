@@ -65,6 +65,44 @@ export async function generateJson<T>(
   return response.output_parsed;
 }
 
+export async function generateFlexibleJson(
+  openai: OpenAI,
+  prompt: string,
+  schemaDescription: string,
+  model: string = "gpt-4o-2024-08-06",
+  options?: {
+    temperature?: number;
+    max_output_tokens?: number;
+    top_p?: number;
+    instructions?: string;
+    reasoning?: { effort?: "low" | "medium" | "high" };
+    service_tier?: "auto" | "default" | "flex" | "priority";
+    store?: boolean;
+    safety_identifier?: string;
+    prompt_cache_key?: string;
+    metadata?: Record<string, string>;
+  }
+): Promise<Record<string, any> | null> {
+  const fullPrompt = `${prompt}\n\nReturn JSON that matches this schema:\n${schemaDescription}\n\nReturn only valid JSON, no other text.`;
+  
+  const response = await openai.chat.completions.create({
+    model,
+    messages: [{ role: "user", content: fullPrompt }],
+    response_format: { type: "json_object" },
+    ...options,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) return null;
+  
+  try {
+    return JSON.parse(content);
+  } catch {
+    console.warn("Failed to parse JSON response from LLM");
+    return null;
+  }
+}
+
 export async function generateChatResponse(
   openai: OpenAI,
   messages: Array<{
