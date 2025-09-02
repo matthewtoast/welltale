@@ -1,3 +1,4 @@
+import Handlebars from "handlebars";
 import {
   cast,
   castToString,
@@ -8,17 +9,18 @@ import {
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { dumpTree, FRAG_TAG, StoryNode, TEXT_TAG } from "lib/StoryCompiler";
+import { dumpTree, StoryNode, TEXT_TAG } from "lib/StoryCompiler";
 import {
   cleanSplit,
   cleanSplitRegex,
+  enhanceText,
   isBlank,
-  renderHandlebars,
+  LIQUID,
+  TILDE,
 } from "lib/TextHelpers";
 import { isEmpty, omit } from "lodash";
 import { TSerial } from "typings";
 import { z } from "zod";
-import { parseTaggedSpeakerLine } from "./DialogHelpers";
 import { ServiceProvider } from "./ServiceProvider";
 
 export const PLAYER_ID = "USER";
@@ -32,6 +34,7 @@ const StoryEventSchema = z.object({
   to: z.array(z.string()),
   obs: z.array(z.string()),
   body: z.string(),
+  tags: z.array(z.string()),
 });
 
 export const PlaythruSchema = z.object({
@@ -99,18 +102,18 @@ export interface Story {
 export type OP =
   | { type: "sleep"; duration: number }
   | { type: "get-input"; timeLimit: number | null; charLimit: number | null }
-  | { type: "play-sound"; audio: string }
-  | { type: "play-line"; audio: string; speaker: string; line: string }
+  | { type: "play-media"; media: string }
+  | { type: "play-event"; audio: string; event: StoryEvent }
   | { type: "story-end" };
 
 export interface ActionContext {
   options: StoryOptions;
   main: StoryNode;
   root: StoryNode;
-  orig: StoryNode;
   node: StoryNode;
   playthru: Playthru;
   rng: PRNG;
+  provider: ServiceProvider;
   scope: { [key: string]: TSerial };
 }
 
@@ -128,10 +131,7 @@ export interface ActionResult {
 
 interface ActionHandler {
   match: (node: StoryNode) => boolean;
-  exec: (
-    context: ActionContext,
-    services: ServiceProvider
-  ) => Promise<ActionResult>;
+  exec: (context: ActionContext) => Promise<ActionResult>;
 }
 
 let calls = 0;
@@ -161,7 +161,14 @@ export async function advanceStory(
   }
 
   if (!isBlank(playthru.state.input)) {
-    playthru.history.push(createEvent(PLAYER_ID, playthru.state.input));
+    playthru.history.push({
+      from: PLAYER_ID,
+      body: playthru.state.input,
+      to: [],
+      obs: [],
+      tags: [],
+      time: Date.now(),
+    });
   }
 
   provider.log(`ADV`, playthru.state.input, omit(playthru, "history"));
@@ -202,21 +209,19 @@ export async function advanceStory(
       });
     }
 
-    const rendered = nodeToRenderedNode(node, getScope(playthru), rng);
-
     const ctx: ActionContext = {
       options,
       main,
       root,
-      orig: node,
-      node: rendered,
+      node,
       playthru,
       rng,
       scope: getScope(playthru),
+      provider,
     };
 
     const handler = ACTION_HANDLERS.find((h) => h.match(node))!;
-    const result = await handler.exec(ctx, provider);
+    const result = await handler.exec(ctx);
     out.push(...result.ops);
 
     provider.log(
@@ -263,9 +268,39 @@ export async function advanceStory(
   }
 }
 
+const TEXT_CONTENT_TAGS = [
+  TEXT_TAG,
+  "text",
+  "p",
+  "span",
+  "b",
+  "strong",
+  "em",
+  "i",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+];
+
+export const DESCENDABLE_TAGS = [
+  "root",
+  "body",
+  "div",
+  "ul",
+  "ol",
+  "li",
+  "section",
+  "sec",
+  "div",
+  "pre",
+];
+
 export const ACTION_HANDLERS: ActionHandler[] = [
   {
-    match: (node) => node.type === "root" || node.type === FRAG_TAG,
+    match: (node) => DESCENDABLE_TAGS.includes(node.type),
     exec: async (ctx) => {
       const next = nextNode(ctx.node, ctx.root, true);
       return {
@@ -275,47 +310,23 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node) => node.type === "ul" || node.type === "ol",
-    exec: async (ctx) => ({
-      ops: [],
-      next: nextNode(ctx.node, ctx.root, true),
-    }),
-  },
-  {
-    match: (node: StoryNode) => node.type === "section" || node.type === "sec",
+    match: (node: StoryNode) => TEXT_CONTENT_TAGS.includes(node.type),
     exec: async (ctx) => {
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, true),
-      };
-    },
-  },
-  {
-    match: (node: StoryNode) => node.type.startsWith("h"), // <h*>, <header>, <head>, <hr>
-    exec: async (ctx) => {
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, false),
-      };
-    },
-  },
-  {
-    match: (node: StoryNode) =>
-      node.type === TEXT_TAG ||
-      node.type === "text" || // Just in case someone wants to use <text>
-      node.type === "p" ||
-      node.type === "li" ||
-      node.type === "span",
-    exec: async (ctx, provider) => {
-      const next = nextNode(ctx.node, ctx.root, true);
+      const next = nextNode(ctx.node, ctx.root, false);
       const ops: OP[] = [];
-      let text = ctx.node.text;
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
+      let text = "";
       // If we have a ref tag, assume it refers to a <stash>
-      if (ctx.node.atts.ref) {
-        const stored = castToString(ctx.scope[ctx.node.atts.ref]);
-        if (stored) {
-          text = renderHandlebars(stored, ctx.scope, ctx.rng);
-        }
+      if (atts.ref) {
+        text = castToString(ctx.scope[atts.ref]);
+      }
+      if (isBlank(text)) {
+        text = collectAllText(ctx.node);
       }
       // Early exit spurious empty nodes
       if (isBlank(text)) {
@@ -324,25 +335,24 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           next,
         };
       }
-      const line = parseTaggedSpeakerLine(text);
-      // Dynamic dialog variation using pipe character
-      line.body = ctx.rng.randomElement(cleanSplit(line.body, "|"));
+      text = await renderText(text, ctx.scope, ctx.provider, ctx.rng);
+      const event: StoryEvent = {
+        body: ctx.rng.randomElement(cleanSplit(text, "|")),
+        from: atts.from ?? "",
+        to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
+        obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
+        tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
+        time: Date.now(),
+      };
       const { url } = ctx.options.doGenerateSpeech
-        ? await provider.generateSpeech(line)
+        ? await ctx.provider.generateSpeech(event)
         : { url: "" };
       ops.push({
-        type: "play-line",
+        type: "play-event",
         audio: url,
-        speaker: line.speaker,
-        line: line.body,
+        event,
       });
-      const to: string[] = ctx.node.atts["to"]
-        ? cleanSplit(ctx.node.atts["to"], ",")
-        : [PLAYER_ID];
-      const obs: string[] = ctx.node.atts["obs"]
-        ? cleanSplit(ctx.node.atts["to"], ",")
-        : [];
-      ctx.playthru.history.push(createEvent(line.speaker, line.body, to, obs));
+      ctx.playthru.history.push(event);
       return {
         ops,
         next,
@@ -350,40 +360,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) =>
-      [
-        "strong",
-        "b",
-        "em",
-        "i",
-        "u",
-        "del",
-        "s",
-        "mark",
-        "small",
-        "sup",
-        "sub",
-        "a",
-      ].includes(node.type),
-    exec: async (ctx) => {
-      // For inline elements, we generally want to skip over them and continue with siblings
-      // The text content will be handled by parent elements
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, false),
-      };
-    },
-  },
-  {
     match: (node: StoryNode) => node.type === "if",
     exec: async (ctx) => {
-      let next;
-      const conditionTrue = evalExpr(
-        ctx.node.atts.cond,
+      const atts = await renderAtts(
+        ctx.node.atts,
         ctx.scope,
-        {},
+        ctx.provider,
         ctx.rng
       );
+      let next;
+      const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
       if (conditionTrue && ctx.node.kids.length > 0) {
         // Find first non-else child
         const firstNonElse = ctx.node.kids.find((k) => k.type !== "else");
@@ -410,12 +396,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "jump",
     exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
       let next;
-      if (
-        !ctx.node.atts.if ||
-        evalExpr(ctx.node.atts.if, ctx.scope, {}, ctx.rng)
-      ) {
-        next = searchForNode(ctx.root, ctx.node.atts.to);
+      if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
+        next = searchForNode(ctx.root, atts.to);
       } else {
         next = nextNode(ctx.node, ctx.root, false);
       }
@@ -426,20 +415,17 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "var" || node.type === "stash",
+    match: (node: StoryNode) => node.type === "stash",
     exec: async (ctx) => {
-      // In case of <stash> or <var stash> we render only at retrieve-time,
-      // i.e. use the original node rather than the one whose attrs we rendered
-      const node =
-        ctx.node.type === "stash" || ctx.node.atts.stash ? ctx.orig : ctx.node;
-      const rollup = collectAllText(node);
-      const value = !isBlank(rollup) ? rollup : node.atts.value;
-      const key =
-        ctx.node.atts.name ??
-        ctx.node.atts.var ??
-        ctx.node.atts.to ??
-        ctx.node.atts.key ??
-        ctx.node.atts.id;
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
+      const rollup = collectAllText(ctx.node);
+      const value = !isBlank(rollup) ? rollup : atts.value;
+      const key = atts.name ?? atts.var ?? atts.to ?? atts.key ?? atts.id;
       ctx.playthru.state[key] = value;
       return {
         ops: [],
@@ -448,26 +434,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "pre", // <pre> wraps <code>, but sometimes not
-    exec: async (ctx) => {
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, true),
-      };
-    },
-  },
-  {
     match: (node: StoryNode) => node.type === "code",
     exec: async (ctx) => {
-      const codeChildren = ctx.node.kids.filter((k) => k.type === TEXT_TAG);
-      if (codeChildren.length > 0) {
-        codeChildren.forEach((tc) => {
-          const lines = cleanSplitRegex(tc.text, /[;\n]/);
-          lines.forEach((line) => {
-            evalExpr(line, ctx.scope, {}, ctx.rng);
-          });
-        });
-      }
+      const rollup = collectAllText(ctx.node);
+      const text = await renderText(rollup, ctx.scope, ctx.provider, ctx.rng);
+      const lines = cleanSplitRegex(text, /[;\n]/);
+      lines.forEach((line) => {
+        evalExpr(line, ctx.scope, {}, ctx.rng);
+      });
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
@@ -476,18 +450,24 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     match: (node: StoryNode) => node.type === "wait" || node.type === "sleep",
-    exec: async (ctx) => ({
-      ops: [
-        {
-          type: "sleep",
-          duration:
-            parseNumberOrNull(
-              ctx.node.atts.duration ?? ctx.node.atts.for ?? ctx.node.atts.ms
-            ) ?? 1,
-        },
-      ],
-      next: nextNode(ctx.node, ctx.root, false),
-    }),
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
+      return {
+        ops: [
+          {
+            type: "sleep",
+            duration:
+              parseNumberOrNull(atts.duration ?? atts.for ?? atts.ms) ?? 1,
+          },
+        ],
+        next: nextNode(ctx.node, ctx.root, false),
+      };
+    },
   },
   {
     // Blocks are only rendered if <yield>-ed to
@@ -500,8 +480,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "yield",
     exec: async (ctx) => {
-      const targetBlockId = ctx.node.atts.to;
-      const returnToNodeId = ctx.node.atts.returnTo ?? ctx.node.atts.return;
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
+      const targetBlockId = atts.to;
+      const returnToNodeId = atts.returnTo ?? atts.return;
       if (!targetBlockId) {
         return {
           ops: [],
@@ -533,7 +519,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // Extract scope variables (all attributes except 'to', 'return', and 'returnTo')
       const scope: { [key: string]: TSerial } = {};
       const reservedAtts = ["to", "return", "returnTo"];
-      for (const [key, value] of Object.entries(ctx.node.atts)) {
+      for (const [key, value] of Object.entries(atts)) {
         if (!reservedAtts.includes(key)) {
           scope[key] = value;
         }
@@ -556,33 +542,26 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "sound" && !!node.atts.url,
-    exec: async (ctx) => ({
-      ops: [
-        {
-          type: "play-sound",
-          audio: ctx.node.atts.url,
-        },
-      ],
-      next: nextNode(ctx.node, ctx.root, false),
-    }),
-  },
-  {
     match: (node: StoryNode) => node.type === "input",
     exec: async (ctx) => {
-      const toKey = ctx.node.atts.to;
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
+      const toKey = atts.to;
       if (toKey) {
         ctx.playthru.inputKey = toKey;
       }
-      const castType =
-        ctx.node.atts.as ?? ctx.node.atts.cast ?? ctx.node.atts.type;
+      const castType = atts.as ?? atts.cast ?? atts.type;
       if (castType) {
         ctx.playthru.inputType = castType;
       }
       const next = nextNode(ctx.node, ctx.root, false);
       // If we're doing auto-playback, automatically assign instead of waiting
-      if (ctx.options.autoInput && !isBlank(ctx.node.atts.auto)) {
-        assignInput(ctx.node.atts.auto, ctx.playthru);
+      if (ctx.options.autoInput && !isBlank(atts.auto)) {
+        assignInput(atts.auto, ctx.playthru);
         return {
           ops: [],
           next,
@@ -592,10 +571,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [
           {
             type: "get-input",
-            timeLimit: parseNumberOrNull(
-              ctx.node.atts.timeLimit ?? ctx.node.atts.for
-            ),
-            charLimit: parseNumberOrNull(ctx.node.atts.charLimit),
+            timeLimit: parseNumberOrNull(atts.timeLimit ?? atts.for),
+            charLimit: parseNumberOrNull(atts.charLimit),
           },
         ],
         next,
@@ -603,41 +580,36 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm",
-    exec: async (ctx, provider) => {
-      let schema = ctx.node.atts.to ?? ctx.node.atts.schema;
-      if (isBlank(schema)) {
-        schema = "_"; // Assigns to the _ variable
+    match: (node: StoryNode) => node.type === "sound" || node.type === "audio",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.provider,
+        ctx.rng
+      );
+      let url = atts.href ?? atts.url ?? atts.src;
+      const next = nextNode(ctx.node, ctx.root, false);
+      const ops: OP[] = [];
+      if (!url) {
+        const rollup = collectAllText(ctx.node);
+        const prompt = rollup ?? atts.prompt ?? atts.gen;
+        if (!isBlank(prompt)) {
+          const result = ctx.options.doGenerateSounds
+            ? await ctx.provider.generateSound(prompt)
+            : { url: "" };
+          url = result.url;
+        }
       }
-      const rollup = collectAllText(ctx.node);
-      const prompt = rollup ?? ctx.node.atts.prompt;
-      if (!isBlank(prompt)) {
-        const result = await provider.generateJson(prompt, schema);
-        Object.assign(ctx.playthru.state, result);
-      }
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, false),
-      };
-    },
-  },
-  {
-    match: (node: StoryNode) => node.type === "sound" && !!node.atts.gen,
-    exec: async (ctx, provider) => {
-      const rollup = collectAllText(ctx.node);
-      const prompt = rollup ?? ctx.node.atts.prompt;
-      if (!isBlank(prompt)) {
-        const { url } = ctx.options.doGenerateSounds
-          ? await provider.generateSound(prompt)
-          : { url: "" };
-        return {
-          ops: [{ type: "play-sound", audio: url }],
-          next: nextNode(ctx.node, ctx.root, false),
-        };
+      if (url) {
+        ops.push({
+          type: "play-media",
+          media: url,
+        });
       }
       return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, false),
+        ops,
+        next,
       };
     },
   },
@@ -772,8 +744,6 @@ export function findNodeFromRoot(
   return found;
 }
 
-const TEXT_CONTENT_TAGS = ["p", TEXT_TAG, "li", "span", "text"];
-
 export function collectAllText(node: StoryNode, join: string = "\n"): string {
   const texts: string[] = [];
   function walk(n: StoryNode) {
@@ -799,42 +769,6 @@ export function cloneNode(node: StoryNode): StoryNode {
     text: node.text,
     kids: node.kids.map((kid) => cloneNode(kid)),
   };
-}
-
-export function nodeToRenderedNode(
-  node: StoryNode,
-  state: Record<string, TSerial>,
-  rng: PRNG
-) {
-  const rendered = { ...node };
-
-  for (const [key, value] of Object.entries(node.atts)) {
-    try {
-      rendered.atts[key] = renderHandlebars(value, state, rng);
-    } catch {
-      rendered.atts[key] = value;
-    }
-  }
-
-  if (!isBlank(node.text)) {
-    try {
-      rendered.text = renderHandlebars(node.text, state, rng);
-    } catch {
-      rendered.text = node.text;
-    }
-  }
-
-  return rendered;
-}
-
-export function createEvent(
-  from: string,
-  body: string,
-  to: string[] = [],
-  obs: string[] = [],
-  time: number = Date.now()
-): StoryEvent {
-  return { from, body, to, obs, time };
 }
 
 function assignInput(input: string, playthru: Playthru) {
@@ -923,4 +857,43 @@ function getScope(playthru: Playthru): { [key: string]: TSerial } {
       }
     },
   });
+}
+
+export async function renderText(
+  text: string,
+  scope: Record<string, TSerial>,
+  provider: ServiceProvider,
+  rng: PRNG
+): Promise<string> {
+  let result = Handlebars.compile(text)(scope);
+  result = await enhanceText(
+    result,
+    async (chunk: string) => {
+      return castToString(evalExpr(chunk, scope, {}, rng));
+    },
+    TILDE
+  );
+  result = await enhanceText(
+    result,
+    async (chunk: string) => {
+      return await provider.generateText(chunk);
+    },
+    LIQUID
+  );
+  return result;
+}
+
+export async function renderAtts(
+  atts: Record<string, string>,
+  scope: Record<string, TSerial>,
+  provider: ServiceProvider,
+  rng: PRNG
+) {
+  const out: Record<string, string> = {};
+  for (const key in atts) {
+    if (typeof atts[key] === "string") {
+      out[key] = await renderText(atts[key], scope, provider, rng);
+    }
+  }
+  return out;
 }

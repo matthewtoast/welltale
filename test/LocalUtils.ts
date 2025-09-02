@@ -4,9 +4,10 @@ import chalk from "chalk";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
+import { loadDirRecursive } from "lib/FileUtils";
 import { safeJsonParse } from "lib/JSONHelpers";
-import { DefaultServiceProvider, ServiceProvider } from "lib/ServiceProvider";
 import { S3Cache } from "lib/S3Cache";
+import { BaseServiceProvider, ServiceProvider } from "lib/ServiceProvider";
 import { compileStory } from "lib/StoryCompiler";
 import {
   advanceStory,
@@ -19,6 +20,7 @@ import {
 } from "lib/StoryEngine";
 import { isBlank, railsTimestamp } from "lib/TextHelpers";
 import OpenAI from "openai";
+import { join } from "path";
 
 loadEnv();
 
@@ -38,10 +40,19 @@ export const defaultRunnerOptions: StoryOptions = {
 const s3Client = new S3Client({ region: process.env.AWS_REGION! });
 const s3Cache = new S3Cache(s3Client, "welltale-dev");
 
-export const defaultRunnerProvider = new DefaultServiceProvider({
+class TestServiceProvider extends BaseServiceProvider {
+  async loadCartridge(storyId: string) {
+    return await loadDirRecursive(
+      join(__dirname, "fixtures", "cartridges", storyId)
+    );
+  }
+}
+
+export const defaultRunnerProvider = new TestServiceProvider({
   eleven: new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY! }),
   openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
   cache: s3Cache,
+  disableCache: true,
 });
 
 export function loadPlaythruFromDisk(id: string, abspath: string): Playthru {
@@ -89,17 +100,17 @@ export async function renderNext(
       switch (op.type) {
         case "get-input":
           break;
-        case "play-line":
+        case "play-event":
           console.log(
-            chalk.cyan.bold(`${op.speaker || FALLBACK_SPEAKER}:`) +
+            chalk.cyan.bold(`${op.event.from || FALLBACK_SPEAKER}:`) +
               " " +
-              chalk.cyan(`${op.line}`)
+              chalk.cyan(`${op.event.body}`)
           );
           break;
         case "story-end":
           console.log(chalk.magenta("The end."));
           return "halt";
-        case "play-sound":
+        case "play-media":
           // no-op in REPL mode
           break;
         case "sleep":

@@ -1,5 +1,6 @@
 import { loadDirRecursive } from "lib/FileUtils";
 import { Story } from "lib/StoryEngine";
+import { omit } from "lodash";
 import { join } from "path";
 import {
   defaultRunnerOptions,
@@ -32,7 +33,7 @@ async function go() {
     inputs: ["platypus"],
   });
 
-  console.log(playthru);
+  console.log(omit(playthru, "history"));
 }
 
 go();

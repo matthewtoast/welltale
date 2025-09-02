@@ -10,7 +10,7 @@ import { hideBin } from "yargs/helpers";
 import { z } from "zod";
 import { Cache } from "../lib/Cache";
 import { LocalCache } from "../lib/LocalCache";
-import { DefaultServiceProvider } from "../lib/ServiceProvider";
+import { BaseServiceProvider } from "../lib/ServiceProvider";
 import { compileStory } from "../lib/StoryCompiler";
 import {
   advanceStory,
@@ -25,7 +25,7 @@ const RequestSchema = z.object({
   options: StoryOptionsSchema,
 });
 
-class LocalServiceProvider extends DefaultServiceProvider {
+class LocalServiceProvider extends BaseServiceProvider {
   private cartridgeDirs: string[];
 
   constructor(

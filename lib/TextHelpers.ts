@@ -1,7 +1,4 @@
 import crypto from "crypto";
-import Handlebars from "handlebars";
-import { evalExpr } from "./EvalUtils";
-import { PRNG } from "./RandHelpers";
 
 export const BR = "<br><br>";
 
@@ -126,28 +123,6 @@ export function extractParentheticals(s: string): string[] {
   return [...parentheticals.map((s) => s.slice(1, -1).trim()), cleaned.trim()];
 }
 
-export function renderHandlebars(
-  template: string,
-  variables: Record<string, any>,
-  prng: PRNG
-): string {
-  // First pass: process ${...} expressions with evalExpr
-  let preprocessed = template.replace(/\$\{([^}]+)\}/g, (match, expr) => {
-    try {
-      const result = evalExpr(expr.trim(), variables, {}, prng);
-      return String(result);
-    } catch {
-      return match;
-    }
-  });
-
-  // Compile and execute the template with Handlebars
-  const compiledTemplate = Handlebars.compile(preprocessed);
-  const result = compiledTemplate(variables);
-
-  return result;
-}
-
 export function generatePredictableKey(
   prefix: string,
   prompt: string,
@@ -156,4 +131,47 @@ export function generatePredictableKey(
   const slug = slugify(prompt).substring(0, 32);
   const hash = sha1(prompt).substring(0, 8);
   return `${prefix}/${slug}-${hash}.${suffix}`;
+}
+
+export const LIQUID = /{%\s*([\s\S]*?)\s*%}/g;
+export const TILDE = /{~\s*([\s\S]*?)\s*~}/g;
+
+export async function enhanceText(
+  text: string,
+  enhancer: (text: string) => Promise<string>,
+  regex: RegExp
+) {
+  // Fast path: check if pattern exists at all
+  if (!regex.test(text)) return text;
+  
+  // Reset regex state after test
+  regex.lastIndex = 0;
+  
+  let match: RegExpExecArray | null;
+  let result = "";
+
+  // Collect all matches and their replacements
+  const matches: { start: number; end: number; inner: string }[] = [];
+  while ((match = regex.exec(text)) !== null) {
+    matches.push({
+      start: match.index,
+      end: regex.lastIndex,
+      inner: match[1],
+    });
+  }
+
+  // If no matches, return original text
+  if (matches.length === 0) return text;
+
+  // Build the result string with async replacements
+  let cursor = 0;
+  for (const m of matches) {
+    result += text.slice(cursor, m.start);
+    const replacement = await enhancer(m.inner);
+    result += replacement;
+    cursor = m.end;
+  }
+  result += text.slice(cursor);
+
+  return result;
 }

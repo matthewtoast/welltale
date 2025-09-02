@@ -1,12 +1,13 @@
-import { parseTaggedSpeakerLine } from "lib/DialogHelpers";
 import { autoFindPresetVoice } from "lib/ElevenLabsUtils";
 import { evalExpr } from "lib/EvalUtils";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
 import {
+  enhanceText,
   generatePredictableKey,
   isBlank,
+  LIQUID,
   parameterize,
   sha1,
   slugify,
@@ -69,55 +70,6 @@ async function test() {
     properties: { frenchy: { type: "string" } },
   });
 
-  // Parse line
-  expect(parseTaggedSpeakerLine("foo bar"), {
-    speaker: "",
-    tags: [],
-    body: "foo bar",
-    to: [],
-  });
-  expect(parseTaggedSpeakerLine("This is the narrator speaking."), {
-    speaker: "",
-    tags: [],
-    body: "This is the narrator speaking.",
-    to: [],
-  });
-  expect(parseTaggedSpeakerLine("#female:This is a woman."), {
-    speaker: "",
-    tags: ["female"],
-    body: "This is a woman.",
-    to: [],
-  });
-  expect(
-    parseTaggedSpeakerLine(
-      "Bob#old,male: This is [sarcastically] a guy speaking."
-    ),
-    {
-      speaker: "Bob",
-      tags: ["old", "male"],
-      body: "This is [sarcastically] a guy speaking.",
-      to: [],
-    }
-  );
-  expect(parseTaggedSpeakerLine("Sarah#SomeVoiceD: I love you."), {
-    speaker: "Sarah",
-    tags: ["SomeVoiceD", "female"],
-    body: "I love you.",
-    to: [],
-  });
-  expect(parseTaggedSpeakerLine("Kay#EXAV123: Oh really?"), {
-    speaker: "Kay",
-    tags: ["EXAV123"],
-    body: "Oh really?",
-    to: [],
-  });
-  expect(parseTaggedSpeakerLine("Kay#EXAV123 (to Jim, Frank): Oh really?"), {
-    speaker: "Kay",
-    tags: ["EXAV123"],
-    body: "Oh really?",
-    to: ["Jim", "Frank"],
-  });
-
   // Find preset voices
   expect(
     autoFindPresetVoice("Alice", ["female", "british"]),
@@ -164,6 +116,35 @@ async function test() {
   expect(camelCase("foo-bar"), "fooBar");
   expect(camelCase("foo_bar"), "fooBar");
   expect(camelCase("FOO_BAR"), "fooBar");
+
+  // Enhancer
+  const be1 = `
+    here look {%
+      wow
+    %} for some {%great%} stuff
+    we got
+
+    {%in
+    
+    store%}
+    for ya
+    {% %}
+    wow
+    {% it was 10% of our earnings! %}
+    yes
+  `;
+  const ae1 = await enhanceText(
+    be1,
+    async (text) => {
+      return "1";
+    },
+    LIQUID
+  );
+  console.log(ae1);
+  // expect(
+  //   ae1,
+  //   "\n    here look 1 for some 1 stuff\n    we got\n\n    1\n    for ya\n    1\n    wow\n  "
+  // );
 }
 
 test();

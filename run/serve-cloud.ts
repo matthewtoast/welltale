@@ -6,7 +6,7 @@ import * as unzipper from "unzipper";
 import { z } from "zod";
 import { Cache } from "../lib/Cache";
 import { S3Cache } from "../lib/S3Cache";
-import { DefaultServiceProvider } from "../lib/ServiceProvider";
+import { BaseServiceProvider } from "../lib/ServiceProvider";
 import { compileStory } from "../lib/StoryCompiler";
 import {
   advanceStory,
@@ -49,7 +49,7 @@ interface APIGatewayResponse {
   body: string;
 }
 
-class CloudServiceProvider extends DefaultServiceProvider {
+class CloudServiceProvider extends BaseServiceProvider {
   private s3: S3Client;
   private bucket: string;
 

@@ -68,7 +68,6 @@
   </p>
 </sec>
 
-
 <sec id="ruff">
   <p>
     N {{en}}
@@ -82,5 +81,13 @@
   </p>
   <p>
     Q1 | Q2 | Q3
+  </p>
+  </p>
+    {%
+      Give me a word that begins with the letter "R"
+    %}
+  <p>
+  <p>
+    S
   </p>
 </sec>
