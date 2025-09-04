@@ -49,17 +49,14 @@ class LocalServiceProvider extends BaseServiceProvider {
           cwd: storyPath,
           nodir: true,
         });
-
         for (const file of files) {
           const fullPath = path.join(storyPath, file);
           const content = fs.readFileSync(fullPath);
           cartridge[file] = content;
         }
-
         return cartridge;
       }
     }
-
     throw new Error(`Story '${storyId}' not found in any cartridge directory`);
   }
 }
@@ -71,23 +68,24 @@ async function main() {
       default: 3000,
       description: "Port to run the server on",
     })
-    .option("openai-key", {
+    .option("openaiKey", {
       type: "string",
       description: "OpenAI API key",
       demandOption: true,
     })
-    .option("elevenlabs-key", {
+    .option("elevenlabsKey", {
       type: "string",
       description: "ElevenLabs API key",
       demandOption: true,
     })
-    .option("cache-dir", {
+    .option("cacheDir", {
       type: "string",
       default: path.join(os.homedir(), ".welltale", "cache"),
       description: "Directory for caching generated content",
     })
     .parserConfiguration({
       "camel-case-expansion": true,
+      "strip-aliased": true,
     })
     .help()
     .parse();

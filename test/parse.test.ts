@@ -14,11 +14,10 @@ import {
 } from "lib/TextHelpers";
 import { parseSchemaString } from "lib/ZodHelpers";
 import { camelCase } from "lodash";
-import { DEFAULT_SEED } from "test/LocalUtils";
 import zodToJsonSchema from "zod-to-json-schema";
 import { expect } from "./TestUtils";
 
-const rng = new PRNG(DEFAULT_SEED);
+const rng = new PRNG("test");
 
 async function test() {
   // Eval expressions

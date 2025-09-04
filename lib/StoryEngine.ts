@@ -1,22 +1,16 @@
+import dedent from "dedent";
 import Handlebars from "handlebars";
-import {
-  cast,
-  castToString,
-  evalExpr,
-  looksLikeBoolean,
-  looksLikeNumber,
-  stringToCastType,
-} from "lib/EvalUtils";
+import { castToString, evalExpr } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
 import { dumpTree, StoryNode, TEXT_TAG } from "lib/StoryCompiler";
 import {
   cleanSplit,
   cleanSplitRegex,
+  DOLLAR,
   enhanceText,
   isBlank,
   LIQUID,
-  TILDE,
 } from "lib/TextHelpers";
 import { isEmpty, omit } from "lodash";
 import { TSerial } from "typings";
@@ -45,19 +39,21 @@ export const PlaythruSchema = z.object({
   loops: z.number(),
   address: z.string().nullable(),
   stash: z.record(z.any()),
-  inputKey: z.string().nullable(),
-  inputType: z.string().nullable(),
+  input: z.union([
+    z.object({
+      body: z.string(),
+      props: z.record(z.any()),
+      context: z.string(),
+    }),
+    z.null(),
+  ]),
   callStack: z.array(
     z.object({
       returnAddress: z.string(),
       scope: z.record(z.any()),
     })
   ),
-  state: z.record(z.any()).and(
-    z.object({
-      input: z.string(),
-    })
-  ),
+  state: z.record(z.any()),
   history: z.array(StoryEventSchema),
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
 });
@@ -77,7 +73,10 @@ export type StoryEvent = z.infer<typeof StoryEventSchema>;
 export type Playthru = z.infer<typeof PlaythruSchema>;
 export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
 
-export function createDefaultPlaythru(id: string): Playthru {
+export function createDefaultPlaythru(
+  id: string,
+  state: Record<string, TSerial> = {}
+): Playthru {
   return {
     id,
     time: Date.now(),
@@ -85,13 +84,10 @@ export function createDefaultPlaythru(id: string): Playthru {
     cycle: 0,
     loops: 0,
     address: null,
-    inputKey: "input",
-    inputType: "string",
+    input: null,
     callStack: [],
     stash: {},
-    state: {
-      input: "",
-    },
+    state,
     history: [],
   };
 }
@@ -103,7 +99,7 @@ export interface Story {
 
 export type OP =
   | { type: "sleep"; duration: number }
-  | { type: "get-input"; timeLimit: number | null; charLimit: number | null }
+  | { type: "get-input"; timeLimit: number | null }
   | { type: "play-media"; media: string }
   | { type: "play-event"; audio: string; event: StoryEvent }
   | { type: "story-end" };
@@ -156,24 +152,9 @@ export async function advanceStory(
 
   const main = findNodeFromRoot(root, (node) => node.type === "main") ?? root;
 
-  assignInput(playthru.state.input, playthru);
-
   if (!playthru.address) {
     playthru.address = main.addr;
   }
-
-  if (!isBlank(playthru.state.input)) {
-    playthru.history.push({
-      from: PLAYER_ID,
-      body: playthru.state.input,
-      to: [],
-      obs: [],
-      tags: [],
-      time: Date.now(),
-    });
-  }
-
-  provider.log(`ADV`, playthru.state.input, omit(playthru, "history"));
 
   function done(seam: SeamType, info: Record<string, string>) {
     provider.log("DONE", omit(playthru, "history"), out);
@@ -218,9 +199,56 @@ export async function advanceStory(
       node,
       playthru,
       rng,
-      scope: getScope(playthru),
       provider,
+      // We need to get a new scope on every node since it may have introduced new scope
+      scope: createScope(playthru),
     };
+
+    if (playthru.input) {
+      const { body, props, context } = playthru.input;
+      playthru.input = null;
+      const reserved = [
+        "to",
+        "obs",
+        "tags",
+        "value",
+        "default",
+        "placeholder",
+        "type",
+        "pattern",
+        "min",
+        "max",
+        "minlength",
+        "maxlength",
+      ];
+      const schema = {
+        ...omit(props, ...reserved),
+      };
+
+      // const schema = {
+      //   input: "[string] The full input, with typos corrected",
+      //   sentiment: "[number] The sentiment, as a number in the range -1..1",
+      //   valid: "[boolean] True if input was valid, false if not",
+      //   ...omit(atts, "placeholder", "context"),
+      // };
+      const json = await provider.generateJson(
+        dedent`
+          Parse fields from the input per the schema.
+          <input>${body}</input>
+          If blank, fill in all fields with your best guess.
+          Context: ${context}
+        `,
+        schema
+      );
+      playthru.history.push({
+        from: PLAYER_ID,
+        body,
+        to: cleanSplit(props.to, ","),
+        obs: cleanSplit(props.obs, ","),
+        tags: cleanSplit(props.tags, ","),
+        time: Date.now(),
+      });
+    }
 
     const handler = ACTION_HANDLERS.find((h) => h.match(node))!;
     const result = await handler.exec(ctx);
@@ -319,8 +347,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
       let text = "";
       // If we have a ref tag, assume it refers to a <stash>
@@ -338,7 +366,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           next,
         };
       }
-      text = await renderText(text, ctx.scope, ctx.provider, ctx.rng);
+      text = await renderText(text, ctx.scope, ctx.rng, ctx.provider);
       const event: StoryEvent = {
         body: ctx.rng.randomElement(cleanSplit(text, "|")),
         from: atts.from ?? atts.speaker ?? atts.voice ?? "",
@@ -368,8 +396,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
       let next;
       const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
@@ -402,8 +430,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
       let next;
       if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
@@ -423,8 +451,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
       const rollup = collectAllText(ctx.node);
       const value = !isBlank(rollup) ? rollup : atts.value;
@@ -444,7 +472,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) => node.type === "code",
     exec: async (ctx) => {
       const rollup = collectAllText(ctx.node);
-      const text = await renderText(rollup, ctx.scope, ctx.provider, ctx.rng);
+      const text = await renderText(rollup, ctx.scope, ctx.rng, ctx.provider);
       const lines = cleanSplitRegex(text, /[;\n]/);
       lines.forEach((line) => {
         evalExpr(line, ctx.scope, {}, ctx.rng);
@@ -461,8 +489,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
       return {
         ops: [
@@ -490,8 +518,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
       const targetBlockId = atts.to;
       const returnToNodeId = atts.returnTo ?? atts.return;
@@ -549,51 +577,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "input",
-    exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.provider,
-        ctx.rng
-      );
-      const toKey = atts.to;
-      if (toKey) {
-        ctx.playthru.inputKey = toKey;
-      }
-      const castType = atts.as ?? atts.cast ?? atts.type;
-      if (castType) {
-        ctx.playthru.inputType = castType;
-      }
-      const next = nextNode(ctx.node, ctx.root, false);
-      // If we're doing auto-playback, automatically assign instead of waiting
-      if (ctx.options.autoInput && !isBlank(atts.auto)) {
-        assignInput(atts.auto, ctx.playthru);
-        return {
-          ops: [],
-          next,
-        };
-      }
-      return {
-        ops: [
-          {
-            type: "get-input",
-            timeLimit: parseNumberOrNull(atts.timeLimit ?? atts.for),
-            charLimit: parseNumberOrNull(atts.charLimit),
-          },
-        ],
-        next,
-      };
-    },
-  },
-  {
     match: (node: StoryNode) => node.type === "sound" || node.type === "audio",
     exec: async (ctx) => {
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
       let url = atts.href ?? atts.url ?? atts.src;
       const next = nextNode(ctx.node, ctx.root, false);
@@ -626,28 +616,65 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
       // Get additional prompt from node content
       const prompt = await renderText(
         collectAllText(ctx.node),
         ctx.scope,
-        ctx.provider,
-        ctx.rng
+        ctx.rng,
+        ctx.provider
       );
-      const fields: string[] = [];
-      for (const [key, value] of Object.entries(atts)) {
-        fields.push(`"${key}": ${value}`);
-      }
-      const schema = `{\n  ${fields.join(",\n  ")}\n}`;
-      const result = await ctx.provider.generateJson(prompt, schema);
+      const result = await ctx.provider.generateJson(prompt, atts);
       for (const [key, value] of Object.entries(result)) {
         ctx.playthru.state[key] = value;
       }
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
+      };
+    },
+  },
+  {
+    match: (node: StoryNode) =>
+      node.type === "input" || node.type === "textarea",
+    exec: async (ctx) => {
+      const next = nextNode(ctx.node, ctx.root, false);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider
+      );
+      const context = await renderText(
+        collectAllText(ctx.node),
+        ctx.scope,
+        ctx.rng,
+        ctx.provider
+      );
+      // Next advance() we'll assign input using these atts
+      ctx.playthru.input = {
+        body: "",
+        props: { ...atts },
+        context,
+      };
+      // If autoInput mode, just go into the next loop
+      if (ctx.options.autoInput) {
+        return {
+          ops: [],
+          next,
+        };
+      }
+      // Otherwise return to client to collect actual user input
+      return {
+        ops: [
+          {
+            type: "get-input",
+            timeLimit: parseNumberOrNull(atts.timeLimit ?? atts.for),
+          },
+        ],
+        next,
       };
     },
   },
@@ -809,26 +836,7 @@ export function cloneNode(node: StoryNode): StoryNode {
   };
 }
 
-function assignInput(input: string, playthru: Playthru) {
-  if (playthru.inputKey) {
-    if (playthru.inputType) {
-      playthru.state[playthru.inputKey] = cast(
-        input,
-        stringToCastType(playthru.inputType)
-      );
-      playthru.inputType = null; // Important to unset to clear for next advance()
-    } else if (looksLikeBoolean(input)) {
-      playthru.state[playthru.inputKey] = cast(input, "boolean");
-    } else if (looksLikeNumber(input)) {
-      playthru.state[playthru.inputKey] = cast(input, "number");
-    } else {
-      playthru.state[playthru.inputKey] = input;
-    }
-    playthru.inputKey = null; // Important to unset to clear for next advance()
-  }
-}
-
-function getScope(playthru: Playthru): { [key: string]: TSerial } {
+export function createScope(playthru: Playthru): { [key: string]: TSerial } {
   const globalState = playthru.state;
   const currentScope =
     playthru.callStack.length > 0
@@ -900,37 +908,41 @@ function getScope(playthru: Playthru): { [key: string]: TSerial } {
 export async function renderText(
   text: string,
   scope: Record<string, TSerial>,
-  provider: ServiceProvider,
-  rng: PRNG
+  rng: PRNG | null,
+  provider: ServiceProvider | null
 ): Promise<string> {
   let result = Handlebars.compile(text)(scope);
-  result = await enhanceText(
-    result,
-    async (chunk: string) => {
-      return castToString(evalExpr(chunk, scope, {}, rng));
-    },
-    TILDE
-  );
-  result = await enhanceText(
-    result,
-    async (chunk: string) => {
-      return await provider.generateText(chunk);
-    },
-    LIQUID
-  );
+  if (rng) {
+    result = await enhanceText(
+      result,
+      async (chunk: string) => {
+        return castToString(evalExpr(chunk, scope, {}, rng));
+      },
+      DOLLAR
+    );
+  }
+  if (provider) {
+    result = await enhanceText(
+      result,
+      async (chunk: string) => {
+        return await provider.generateText(chunk);
+      },
+      LIQUID
+    );
+  }
   return result;
 }
 
 export async function renderAtts(
   atts: Record<string, string>,
   scope: Record<string, TSerial>,
-  provider: ServiceProvider,
-  rng: PRNG
+  rng: PRNG | null,
+  provider: ServiceProvider | null
 ) {
   const out: Record<string, string> = {};
   for (const key in atts) {
     if (typeof atts[key] === "string") {
-      out[key] = await renderText(atts[key], scope, provider, rng);
+      out[key] = await renderText(atts[key], scope, rng, provider);
     }
   }
   return out;

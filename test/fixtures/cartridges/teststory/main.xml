@@ -90,4 +90,7 @@
   <p>
     S
   </p>
+  <gen names="string[] - Array of names">
+    Generate a bunch of data for a character
+  </gen>
 </sec>

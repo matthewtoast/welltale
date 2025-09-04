@@ -1,6 +1,7 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { OpenAI } from "openai";
+import { TSerial } from "typings";
 import { Cache } from "./Cache";
 import {
   autoFindPresetVoice,
@@ -8,13 +9,15 @@ import {
   generateSpeechClip,
 } from "./ElevenLabsUtils";
 import { generateFlexibleJson, generateText } from "./OpenAIUtils";
-import { Cartridge, StoryEvent } from "./StoryEngine";
+import { StoryEvent } from "./StoryEngine";
 import { generatePredictableKey } from "./TextHelpers";
 
 export interface ServiceProvider {
-  loadCartridge(storyId: string): Promise<Cartridge>;
   generateText(prompt: string): Promise<string>;
-  generateJson(prompt: string, schema: string): Promise<Record<string, any>>;
+  generateJson(
+    prompt: string,
+    schema: Record<string, TSerial>
+  ): Promise<Record<string, any>>;
   generateSound(prompt: string): Promise<{ url: string }>;
   generateSpeech(event: StoryEvent): Promise<{ url: string }>;
   log(...args: any[]): void;
@@ -29,8 +32,6 @@ export abstract class BaseServiceProvider implements ServiceProvider {
       disableCache?: boolean;
     }
   ) {}
-
-  abstract loadCartridge(storyId: string): Promise<Cartridge>;
 
   log(...args: any[]) {
     console.info(
@@ -61,7 +62,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
 
   async generateJson(
     prompt: string,
-    schema: string
+    schema: Record<string, TSerial>
   ): Promise<Record<string, any>> {
     const useCache = !this.config.disableCache;
     const cacheKey = `${prompt}\n${schema}`;
@@ -74,8 +75,8 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     }
     const result = await generateFlexibleJson(
       this.config.openai,
-      `${prompt}\nPer the schema return only JSON:`,
-      schema,
+      prompt,
+      JSON.stringify(schema),
       "gpt-4.1"
     );
     if (!result) {
@@ -147,3 +148,5 @@ export abstract class BaseServiceProvider implements ServiceProvider {
 function shouldJsonify(a: any) {
   return Array.isArray(a) || (a && typeof a === "object");
 }
+
+export class DefaultServiceProvider extends BaseServiceProvider {}

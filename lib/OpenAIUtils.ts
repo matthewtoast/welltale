@@ -68,8 +68,8 @@ export async function generateJson<T>(
 export async function generateFlexibleJson(
   openai: OpenAI,
   prompt: string,
-  schemaDescription: string,
-  model: string = "gpt-4o-2024-08-06",
+  schema: string,
+  model: string = "gpt-4.1",
   options?: {
     temperature?: number;
     max_output_tokens?: number;
@@ -83,18 +83,15 @@ export async function generateFlexibleJson(
     metadata?: Record<string, string>;
   }
 ): Promise<Record<string, any> | null> {
-  const fullPrompt = `${prompt}\n\nReturn JSON that matches this schema:\n${schemaDescription}\n\nReturn only valid JSON, no other text.`;
-  
+  const fullPrompt = `${prompt}\n\nReturn JSON matching this structure:\n${schema}\n\nReturn only valid JSON, no other text.`;
   const response = await openai.chat.completions.create({
     model,
     messages: [{ role: "user", content: fullPrompt }],
     response_format: { type: "json_object" },
     ...options,
   });
-
   const content = response.choices[0]?.message?.content;
   if (!content) return null;
-  
   try {
     return JSON.parse(content);
   } catch {

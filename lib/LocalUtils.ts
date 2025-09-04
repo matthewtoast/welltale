@@ -1,13 +1,9 @@
-import { S3Client } from "@aws-sdk/client-s3";
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
-import { loadDirRecursive } from "lib/FileUtils";
 import { safeJsonParse } from "lib/JSONHelpers";
-import { S3Cache } from "lib/S3Cache";
-import { BaseServiceProvider, ServiceProvider } from "lib/ServiceProvider";
+import { ServiceProvider } from "lib/ServiceProvider";
 import { compileStory } from "lib/StoryCompiler";
 import {
   advanceStory,
@@ -19,47 +15,14 @@ import {
   StoryOptions,
 } from "lib/StoryEngine";
 import { isBlank, railsTimestamp } from "lib/TextHelpers";
-import OpenAI from "openai";
-import { join } from "path";
 
 loadEnv();
 
-export const DEFAULT_GAME = "welcome";
-export const DEFAULT_SEED = "seed";
-
-export const defaultRunnerOptions: StoryOptions = {
-  seed: DEFAULT_SEED,
-  verbose: true,
-  ream: 100,
-  loop: 0,
-  autoInput: false,
-  doGenerateSpeech: false,
-  doGenerateSounds: false,
-};
-
-const s3Client = new S3Client({ region: process.env.AWS_REGION! });
-const s3Cache = new S3Cache(s3Client, "welltale-dev");
-
-class TestServiceProvider extends BaseServiceProvider {
-  async loadCartridge(storyId: string) {
-    return await loadDirRecursive(
-      join(__dirname, "fixtures", "cartridges", storyId)
-    );
-  }
-}
-
-export const defaultRunnerProvider = new TestServiceProvider({
-  eleven: new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY! }),
-  openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }),
-  cache: s3Cache,
-  disableCache: true,
-});
-
-export function loadPlaythruFromDisk(id: string, abspath: string): Playthru {
+export function loadPlaythruFromDisk(abspath: string, id?: string): Playthru {
   if (isBlank(id)) {
     id = railsTimestamp();
   }
-  const fallback = createDefaultPlaythru(id);
+  const fallback = createDefaultPlaythru(id!);
   if (!existsSync(abspath)) {
     writeFileSync(abspath, "{}");
   }

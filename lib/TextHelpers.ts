@@ -60,6 +60,9 @@ export function removeLeading(t: string, c: string): string {
 }
 
 export function cleanSplit(s: string, sep: string = "\n") {
+  if (!s) {
+    return [];
+  }
   return s
     .split(sep)
     .map((s) => s.trim())
@@ -67,6 +70,9 @@ export function cleanSplit(s: string, sep: string = "\n") {
 }
 
 export function cleanSplitRegex(s: string, sep: RegExp) {
+  if (!s) {
+    return [];
+  }
   return s
     .split(sep)
     .map((s) => s.trim())
@@ -134,7 +140,7 @@ export function generatePredictableKey(
 }
 
 export const LIQUID = /{%\s*([\s\S]*?)\s*%}/g;
-export const TILDE = /{~\s*([\s\S]*?)\s*~}/g;
+export const DOLLAR = /{\$\s*([\s\S]*?)\s*\$}/g;
 
 export async function enhanceText(
   text: string,
@@ -143,10 +149,10 @@ export async function enhanceText(
 ) {
   // Fast path: check if pattern exists at all
   if (!regex.test(text)) return text;
-  
+
   // Reset regex state after test
   regex.lastIndex = 0;
-  
+
   let match: RegExpExecArray | null;
   let result = "";
 
