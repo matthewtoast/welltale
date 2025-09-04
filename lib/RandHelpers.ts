@@ -1,5 +1,4 @@
 import seedrandom from "seedrandom";
-import { noise1D, noiseSimple } from "./NoiseHelpers";
 
 export class PRNG {
   private rng: seedrandom.PRNG;
@@ -98,26 +97,4 @@ export class PRNG {
     }
     return result;
   }
-}
-
-export function pseudoRandomBetween(
-  seed: number,
-  min: number,
-  max: number
-): number {
-  // Handle edge case where min === max
-  if (min === max) return min;
-  const x = noiseSimple(seed);
-  // Ensure correct ordering if min > max
-  const [lo, hi] = min < max ? [min, max] : [max, min];
-  const result = lo + x * (hi - lo);
-  return min < max ? result : result; // preserve direction
-}
-
-export function weightedCoinToss(
-  x: number,
-  seed: number,
-  prob: number = 0.5
-): boolean {
-  return noise1D(x, seed) > prob;
 }
