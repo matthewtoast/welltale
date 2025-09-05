@@ -86,7 +86,7 @@ async function runAutorun() {
     playthru,
     story,
     seed,
-    inputs: argv.inputs!.map((i) => String(i)),
+    inputs: argv.inputs!.map((i) => i + ""),
   });
 }
 

@@ -1,7 +1,7 @@
 import { Parser } from "expr-eval";
 import { TSerial } from "typings";
 import { PRNG } from "./RandHelpers";
-import { isPresent } from "./TextHelpers";
+import { isBlank, isPresent } from "./TextHelpers";
 
 export type Tag = { name: string; rule: string; args: string[] };
 
@@ -316,6 +316,15 @@ export const unifiedHelpers: Record<string, (...args: any[]) => P | P[]> = {
     if (isString(v)) return v.split("").reverse().join("");
     return toArr(v).slice().reverse();
   },
+  blank: (v: any) => {
+    return isBlank(v);
+  },
+  empty: (v: any) => {
+    return isBlank(v);
+  },
+  not: (v: any) => {
+    return !v;
+  },
 };
 
 export const mathHelpers: Record<string, (...args: any[]) => P> = {
@@ -576,22 +585,6 @@ export function getParser(
   );
   return parser;
 }
-
-export const findMissingFuncs = (
-  expr: string,
-  funcs: Record<string, Func> = {},
-  prng: PRNG,
-  parser: Parser = makeParser()
-) => {
-  const p = getParser(funcs, prng, parser);
-  Object.assign(p.functions, funcs);
-  const called = new Set<string>();
-  const re = /([A-Za-z_]\w*)\s*\(/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(expr))) called.add(m[1]);
-  const defined = new Set(Object.keys(p.functions));
-  return [...called].filter((n) => !defined.has(n));
-};
 
 export function castToBoolean(v: any): boolean {
   if (typeof v === "boolean") return v;

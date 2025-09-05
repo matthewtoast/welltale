@@ -1,3 +1,7 @@
+export function quo(a: any) {
+  return JSON.stringify(a);
+}
+
 export function safeJsonParse(s: string): any | null {
   try {
     return JSON.parse(s);

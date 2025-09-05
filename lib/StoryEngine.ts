@@ -1,4 +1,3 @@
-import dedent from "dedent";
 import Handlebars from "handlebars";
 import { castToString, evalExpr } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
@@ -12,7 +11,7 @@ import {
   isBlank,
   LIQUID,
 } from "lib/TextHelpers";
-import { isEmpty, omit } from "lodash";
+import { get, isEmpty, omit, set } from "lodash";
 import { TSerial } from "typings";
 import { z } from "zod";
 import { ServiceProvider } from "./ServiceProvider";
@@ -38,16 +37,14 @@ export const PlaythruSchema = z.object({
   cycle: z.number(),
   loops: z.number(),
   address: z.string().nullable(),
-  stash: z.record(z.any()),
   input: z.union([
     z.object({
       body: z.string(),
-      props: z.record(z.any()),
-      context: z.string(),
+      atts: z.record(z.any()),
     }),
     z.null(),
   ]),
-  callStack: z.array(
+  stack: z.array(
     z.object({
       returnAddress: z.string(),
       scope: z.record(z.any()),
@@ -68,7 +65,6 @@ export const StoryOptionsSchema = z.object({
   doGenerateSounds: z.boolean(),
 });
 
-// Derive types from Zod schemas
 export type StoryEvent = z.infer<typeof StoryEventSchema>;
 export type Playthru = z.infer<typeof PlaythruSchema>;
 export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
@@ -85,8 +81,7 @@ export function createDefaultPlaythru(
     loops: 0,
     address: null,
     input: null,
-    callStack: [],
-    stash: {},
+    stack: [],
     state,
     history: [],
   };
@@ -150,7 +145,7 @@ export async function advanceStory(
     provider.log(dumpTree(root));
   }
 
-  const main = findNodeFromRoot(root, (node) => node.type === "main") ?? root;
+  const main = findNodes(root, (node) => node.type === "main")[0] ?? root;
 
   if (!playthru.address) {
     playthru.address = main.addr;
@@ -166,10 +161,8 @@ export async function advanceStory(
   let iterations = 0;
 
   while (true) {
-    let node: StoryNode | null = findNodeFromRoot(
-      root,
-      (node) => node.addr === playthru.address
-    );
+    let node: StoryNode | null =
+      findNodes(root, (node) => node.addr === playthru.address)[0] ?? null;
 
     if (!node) {
       const error = `Node ${playthru.address} not found`;
@@ -205,47 +198,17 @@ export async function advanceStory(
     };
 
     if (playthru.input) {
-      const { body, props, context } = playthru.input;
+      const { body, atts } = playthru.input;
+      if (atts.var) {
+        setState(ctx.scope, atts.var, body);
+      }
       playthru.input = null;
-      const reserved = [
-        "to",
-        "obs",
-        "tags",
-        "value",
-        "default",
-        "placeholder",
-        "type",
-        "pattern",
-        "min",
-        "max",
-        "minlength",
-        "maxlength",
-      ];
-      const schema = {
-        ...omit(props, ...reserved),
-      };
-
-      // const schema = {
-      //   input: "[string] The full input, with typos corrected",
-      //   sentiment: "[number] The sentiment, as a number in the range -1..1",
-      //   valid: "[boolean] True if input was valid, false if not",
-      //   ...omit(atts, "placeholder", "context"),
-      // };
-      const json = await provider.generateJson(
-        dedent`
-          Parse fields from the input per the schema.
-          <input>${body}</input>
-          If blank, fill in all fields with your best guess.
-          Context: ${context}
-        `,
-        schema
-      );
       playthru.history.push({
         from: PLAYER_ID,
         body,
-        to: cleanSplit(props.to, ","),
-        obs: cleanSplit(props.obs, ","),
-        tags: cleanSplit(props.tags, ","),
+        to: cleanSplit(atts.to, ","),
+        obs: cleanSplit(atts.obs, ","),
+        tags: cleanSplit(atts.tags, ","),
         time: Date.now(),
       });
     }
@@ -255,7 +218,7 @@ export async function advanceStory(
     out.push(...result.ops);
 
     provider.log(
-      `<${node.type} ${node.addr}${node.type.startsWith("h") ? ` "${node.text}"` : ""}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}>`,
+      `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}>`,
       `~> ${result.next?.node.addr}`,
       result.ops
     );
@@ -263,19 +226,19 @@ export async function advanceStory(
     if (result.next) {
       // Check if we're currently in a yielded block and the next node escapes it
       if (
-        playthru.callStack.length > 0 &&
+        playthru.stack.length > 0 &&
         wouldEscapeCurrentBlock(node, result.next.node, root)
       ) {
         // Pop from callstack instead of using the next node
-        const { returnAddress } = playthru.callStack.pop()!;
+        const { returnAddress } = playthru.stack.pop()!;
         playthru.address = returnAddress;
       } else {
         playthru.address = result.next.node.addr;
       }
     } else {
       // No next node - check if we should return from a block
-      if (playthru.callStack.length > 0) {
-        const { returnAddress } = playthru.callStack.pop()!;
+      if (playthru.stack.length > 0) {
+        const { returnAddress } = playthru.stack.pop()!;
         playthru.address = returnAddress;
       } else {
         if (playthru.loops < options.loop) {
@@ -326,11 +289,33 @@ export const DESCENDABLE_TAGS = [
   "sec",
   "div",
   "pre",
+  "scope",
 ];
+
+export const LOOP_TAGS = ["while"];
 
 export const ACTION_HANDLERS: ActionHandler[] = [
   {
-    match: (node) => DESCENDABLE_TAGS.includes(node.type),
+    match: (node) => node.type === "scope",
+    exec: async (ctx) => {
+      // Push a new scope onto the callStack when entering
+      const returnAddress =
+        nextNode(ctx.node, ctx.root, false)?.node.addr ?? ctx.main.addr;
+      ctx.playthru.stack.push({ returnAddress, scope: {} });
+      // Enter the scope (process children)
+      const next =
+        ctx.node.kids.length > 0
+          ? { node: ctx.node.kids[0] }
+          : nextNode(ctx.node, ctx.root, false);
+      return {
+        ops: [],
+        next,
+      };
+    },
+  },
+  {
+    match: (node) =>
+      DESCENDABLE_TAGS.includes(node.type) && node.type !== "scope",
     exec: async (ctx) => {
       const next = nextNode(ctx.node, ctx.root, true);
       return {
@@ -351,10 +336,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.provider
       );
       let text = "";
-      // If we have a ref tag, assume it refers to a <stash>
-      if (atts.ref) {
-        text = castToString(ctx.playthru.stash[atts.ref]);
-      }
       if (isBlank(text)) {
         // Assume text nodes never contain actionable children, only text
         text = collectAllText(ctx.node);
@@ -425,7 +406,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "jump",
+    match: (node: StoryNode) => node.type === "while",
     exec: async (ctx) => {
       const atts = await renderAtts(
         ctx.node.atts,
@@ -434,8 +415,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.provider
       );
       let next;
-      if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
-        next = searchForNode(ctx.root, atts.to);
+      const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
+      if (conditionTrue && ctx.node.kids.length > 0) {
+        next = nextNode(ctx.node, ctx.root, true);
       } else {
         next = nextNode(ctx.node, ctx.root, false);
       }
@@ -446,7 +428,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "stash" || node.type === "var",
+    match: (node: StoryNode) => node.type === "jump",
     exec: async (ctx) => {
       const atts = await renderAtts(
         ctx.node.atts,
@@ -454,14 +436,34 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.rng,
         ctx.provider
       );
-      const rollup = collectAllText(ctx.node);
-      const value = !isBlank(rollup) ? rollup : atts.value;
-      const key = atts.name ?? atts.var ?? atts.to ?? atts.key ?? atts.id;
-      if (ctx.node.type === "stash") {
-        ctx.playthru.stash[key] = value;
+      let next;
+      if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
+        next = searchForNode(ctx.root, atts.to ?? atts.target);
       } else {
-        ctx.playthru.state[key] = value;
+        next = nextNode(ctx.node, ctx.root, false);
       }
+      return {
+        ops: [],
+        next,
+      };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "var",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider
+      );
+      const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
+      let rollup = collectAllText(ctx.node);
+      if (!isBlank(atts.stash)) {
+        rollup = await renderText(rollup, ctx.scope, ctx.rng, ctx.provider);
+      }
+      const value = !isBlank(rollup) ? rollup : atts.value;
+      setState(ctx.scope, key, value);
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
@@ -471,8 +473,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "code",
     exec: async (ctx) => {
-      const rollup = collectAllText(ctx.node);
-      const text = await renderText(rollup, ctx.scope, ctx.rng, ctx.provider);
+      const text = await renderText(
+        collectAllText(ctx.node),
+        ctx.scope,
+        ctx.rng,
+        ctx.provider
+      );
       const lines = cleanSplitRegex(text, /[;\n]/);
       lines.forEach((line) => {
         evalExpr(line, ctx.scope, {}, ctx.rng);
@@ -484,7 +490,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "wait" || node.type === "sleep",
+    match: (node: StoryNode) => node.type === "sleep",
     exec: async (ctx) => {
       const atts = await renderAtts(
         ctx.node.atts,
@@ -521,7 +527,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.rng,
         ctx.provider
       );
-      const targetBlockId = atts.to;
+      const targetBlockId = atts.target;
       const returnToNodeId = atts.returnTo ?? atts.return;
       if (!targetBlockId) {
         return {
@@ -551,15 +557,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const next = nextNode(ctx.node, ctx.root, false);
         returnAddress = next?.node.addr ?? ctx.main.addr;
       }
-      // Extract scope variables (all attributes except 'to', 'return', and 'returnTo')
       const scope: { [key: string]: TSerial } = {};
-      const reservedAtts = ["to", "return", "returnTo"];
-      for (const [key, value] of Object.entries(atts)) {
-        if (!reservedAtts.includes(key)) {
-          scope[key] = value;
-        }
+      for (const [key, value] of Object.entries(
+        omit(atts, "to", "return", "returnTo")
+      )) {
+        setState(scope, key, value);
       }
-      ctx.playthru.callStack.push({ returnAddress, scope });
+      ctx.playthru.stack.push({ returnAddress, scope });
       // Go to first child of block (or next sibling if no children)
       if (blockResult.node.kids.length > 0) {
         return {
@@ -589,7 +593,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const next = nextNode(ctx.node, ctx.root, false);
       const ops: OP[] = [];
       if (!url) {
-        const rollup = collectAllText(ctx.node);
+        const rollup = await renderText(
+          collectAllText(ctx.node),
+          ctx.scope,
+          ctx.rng,
+          ctx.provider
+        );
         const prompt = rollup ?? atts.prompt ?? atts.gen;
         if (!isBlank(prompt)) {
           const result = ctx.options.doGenerateSounds
@@ -611,9 +620,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm",
+    match: (node: StoryNode) => node.type === "datagen",
     exec: async (ctx) => {
-      const atts = await renderAtts(
+      const schema = await renderAtts(
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
@@ -626,9 +635,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.rng,
         ctx.provider
       );
-      const result = await ctx.provider.generateJson(prompt, atts);
+      const result = await ctx.provider.generateJson(prompt, schema);
       for (const [key, value] of Object.entries(result)) {
-        ctx.playthru.state[key] = value;
+        setState(ctx.scope, key, value);
       }
       return {
         ops: [],
@@ -647,25 +656,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.rng,
         ctx.provider
       );
-      const context = await renderText(
-        collectAllText(ctx.node),
-        ctx.scope,
-        ctx.rng,
-        ctx.provider
-      );
       // Next advance() we'll assign input using these atts
       ctx.playthru.input = {
         body: "",
-        props: { ...atts },
-        context,
+        atts,
       };
-      // If autoInput mode, just go into the next loop
-      if (ctx.options.autoInput) {
-        return {
-          ops: [],
-          next,
-        };
-      }
       // Otherwise return to client to collect actual user input
       return {
         ops: [
@@ -708,16 +703,18 @@ export function nextNode(
   if (useKids && curr.kids.length > 0) {
     return { node: curr.kids[0] };
   }
-
   // Find parent and check for next sibling
   const parent = parentNodeOf(curr, root);
-  if (!parent) return null;
-
+  if (!parent) {
+    return null;
+  }
   const siblingIndex = parent.kids.findIndex((k) => k.addr === curr.addr);
   if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
     return { node: parent.kids[siblingIndex + 1] };
   }
-
+  if (LOOP_TAGS.includes(parent.type)) {
+    return { node: parent };
+  }
   // No more siblings, recurse up the tree
   return nextNode(parent, root, false);
 }
@@ -727,9 +724,11 @@ export function parentNodeOf(
   root: StoryNode
 ): StoryNode | null {
   if (node.addr === root.addr) return null;
-  return findNodeFromRoot(root, (n) => {
-    return n.kids.some((k) => k.addr === node.addr);
-  });
+  return (
+    findNodes(root, (n) => {
+      return n.kids.some((k) => k.addr === node.addr);
+    })[0] ?? null
+  );
 }
 
 export function wouldEscapeCurrentBlock(
@@ -737,28 +736,49 @@ export function wouldEscapeCurrentBlock(
   nextNode: StoryNode,
   root: StoryNode
 ): boolean {
-  // Find the closest block ancestor of the current node
+  // Find the closest block or scope ancestor of the current node
   let node: StoryNode | null = currentNode;
   let blockAncestor: StoryNode | null = null;
-
-  // Walk up the tree to find the closest block ancestor
+  // Walk up the tree to find the closest block or scope ancestor
   while (node) {
-    if (node.type === "block") {
+    if (node.type === "block" || node.type === "scope") {
       blockAncestor = node;
       break;
     }
     node = parentNodeOf(node, root);
   }
-
-  // If no block ancestor, we can't escape from a block
+  // If no block/scope ancestor, we can't escape from a block/scope
   if (!blockAncestor) {
     return false;
   }
-
-  // Check if the next node is outside this block's subtree
-  // A node is inside the block if its address starts with the block's address + "."
+  // A node is inside the block/scope if its address starts with the ancestor's address + "."
   const blockPrefix = blockAncestor.addr + ".";
   return !nextNode.addr.startsWith(blockPrefix);
+}
+
+function getState(state: Record<string, TSerial>, key: string): TSerial {
+  return get(state, key);
+}
+function setState(
+  state: Record<string, TSerial>,
+  key: string,
+  value: TSerial
+): void {
+  set(state, key, value);
+}
+
+export function walkTree<T>(
+  node: StoryNode,
+  visitor: (node: StoryNode, parent: StoryNode | null) => T | null,
+  parent: StoryNode | null = null
+): T | null {
+  const result = visitor(node, parent);
+  if (result !== null && result !== undefined) return result;
+  for (let i = 0; i < node.kids.length; i++) {
+    const childResult = walkTree(node.kids[i], visitor, node);
+    if (childResult !== null && childResult !== undefined) return childResult;
+  }
+  return null;
 }
 
 export function searchForNode(
@@ -768,61 +788,39 @@ export function searchForNode(
   if (!term || isBlank(term)) {
     return null;
   }
-  let found: StoryNode | null = null;
-  function walk(node: StoryNode) {
-    if (found) return;
-    if (node.atts.id === term) {
-      found = node;
-      return;
-    }
-    for (const kid of node.kids) {
-      walk(kid);
-      if (found) return;
-    }
-  }
-  walk(root);
+  const found = walkTree(root, (node) => (node.atts.id === term ? node : null));
   return found ? { node: found } : null;
 }
 
-export function findNodeFromRoot(
+export function findNodes(
   root: StoryNode,
-  predicate: (
-    node: StoryNode,
-    parent: StoryNode | null,
-    address: string
-  ) => boolean,
-  address: string = "0"
-): StoryNode | null {
-  let found: StoryNode | null = null;
-  function walk(node: StoryNode, parent: StoryNode | null, address: string) {
-    if (found) return;
-    if (predicate(node, parent, address)) {
-      found = node;
-      return;
-    }
-    for (let i = 0; i < node.kids.length; i++) {
-      walk(node.kids[i], node, `${address}.${i}`);
-      if (found) return;
-    }
-  }
-  walk(root, null, address);
-  return found;
+  predicate: (node: StoryNode, parent: StoryNode | null) => boolean
+): StoryNode[] {
+  const results: StoryNode[] = [];
+  walkTree(
+    root,
+    (node, parent) => {
+      if (predicate(node, parent)) {
+        results.push(node);
+      }
+      return null;
+    },
+    null
+  );
+  return results;
 }
 
 export function collectAllText(node: StoryNode, join: string = "\n"): string {
   const texts: string[] = [];
-  function walk(n: StoryNode) {
+  walkTree(node, (n) => {
     if (TEXT_CONTENT_TAGS.includes(n.type)) {
       const trimmed = n.text.trim();
       if (trimmed) {
         texts.push(trimmed);
       }
     }
-    for (const kid of n.kids) {
-      walk(kid);
-    }
-  }
-  walk(node);
+    return null;
+  });
   return texts.join(join);
 }
 
@@ -839,52 +837,33 @@ export function cloneNode(node: StoryNode): StoryNode {
 export function createScope(playthru: Playthru): { [key: string]: TSerial } {
   const globalState = playthru.state;
   const currentScope =
-    playthru.callStack.length > 0
-      ? playthru.callStack[playthru.callStack.length - 1].scope
+    playthru.stack.length > 0
+      ? playthru.stack[playthru.stack.length - 1].scope
       : null;
 
   return new Proxy({} as { [key: string]: TSerial }, {
     get(target, prop: string) {
-      // Check all scopes from most recent to oldest
-      for (let i = playthru.callStack.length - 1; i >= 0; i--) {
-        const scope = playthru.callStack[i].scope;
+      for (let i = playthru.stack.length - 1; i >= 0; i--) {
+        const scope = playthru.stack[i].scope;
         if (prop in scope) {
           return scope[prop];
         }
       }
-      // Fall back to global state
-      return globalState[prop];
+      // Return null here instead of undefined so we can reference unknown vars in evalExpr w/o throwing
+      return globalState[prop] ?? null;
     },
     set(target, prop: string, value) {
       if (currentScope) {
-        // Write to current block's scope
         currentScope[prop] = value;
       } else {
-        // No active block, write to global state
         globalState[prop] = value;
       }
       return true;
     },
-    has(target, prop: string) {
-      // Check all scopes
-      for (const entry of playthru.callStack) {
-        if (prop in entry.scope) return true;
-      }
-      return prop in globalState;
-    },
-    ownKeys(target) {
-      // Merge all keys from all scopes and global state
-      const keys = new Set(Object.keys(globalState));
-      for (const entry of playthru.callStack) {
-        Object.keys(entry.scope).forEach((key) => keys.add(key));
-      }
-      return Array.from(keys);
-    },
     getOwnPropertyDescriptor(target, prop: string) {
-      // Needed for proper enumeration
       // Check all scopes first
-      for (let i = playthru.callStack.length - 1; i >= 0; i--) {
-        const scope = playthru.callStack[i].scope;
+      for (let i = playthru.stack.length - 1; i >= 0; i--) {
+        const scope = playthru.stack[i].scope;
         if (prop in scope) {
           return {
             configurable: true,
@@ -911,6 +890,9 @@ export async function renderText(
   rng: PRNG | null,
   provider: ServiceProvider | null
 ): Promise<string> {
+  if (isBlank(text) || text.length < 3) {
+    return text;
+  }
   let result = Handlebars.compile(text)(scope);
   if (rng) {
     result = await enhanceText(

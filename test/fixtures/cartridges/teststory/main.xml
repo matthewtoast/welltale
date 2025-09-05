@@ -1,7 +1,7 @@
-<stash id="stash-1">
+<var id="stash-1" stash="true">
   K
   L
-</stash>
+</var>
 
 <p>
   A
@@ -14,7 +14,7 @@
   <p>
     C
   </p>
-  <yield to="a-block" />
+  <yield target="a-block" />
   <p>
     G
   </p>
@@ -36,7 +36,7 @@
   <p>
     H
   </p>
-  <yield to="another-block" return="meow" foo="bar" />
+  <yield target="another-block" return="meow" foo="bar" />
   <p>
     [NOT SHOWN]
   </p>
@@ -73,24 +73,48 @@
     N {{en}}
   </p>
   <p>
-    O - shouldn't show blank var foo declared in block: {{foo}}
+    O - shouldn't show blank var foo declared in block: ({{foo}})
   </p>
-  <input to="ppp" />
+  <input var="ppp" />
   <p>
-    P - input = {{ppp}}
+    P - input should appear here = ({{ppp}})
   </p>
   <p>
-    Q1 | Q2 | Q3
+    Q 1 | Q 2 | Q 3
   </p>
-  </p>
+  <!-- </p>
     {%
       Give me a word that begins with the letter "R"
     %}
-  <p>
+  <p> -->
   <p>
     S
   </p>
-  <gen names="string[] - Array of names">
-    Generate a bunch of data for a character
+  <jump target="blub" />
+</sec>
+
+<sec id="blub">
+  <!-- <gen nextVar="string - The name" otherVar="number - any number between 1 and 10">
+    Give me a good human Medieval name starting with the letter "T"
   </gen>
+  <p>
+    {{nextVar}} {{otherVar}}
+  </p> -->
+
+  <scope>
+    <var name="v" value="V" />
+    <p>
+      {{v}} - inner scope text with its own inner var
+    </p>
+  </scope>
+  <p>
+    W - but there should not be a 'v' variable here: ({{v}})
+  </p>
+  <while cond='empty(xxx) or not startsWith(lower(xxx), "x")'>
+    <p>... Say a word beginning with the letter "x".</p>
+    <input var="xxx" />
+  </while>
+  <p>
+    X - {{xxx}}
+  </p>
 </sec>

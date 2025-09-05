@@ -23,6 +23,9 @@ async function test() {
   // Eval expressions
   expect(evalExpr("2 + 2", {}, {}, rng), 4);
   expect(evalExpr("2 + a", { a: 3 }, {}, rng), 5);
+  expect(evalExpr("1 or 3", {}, {}, rng), true);
+  expect(evalExpr("1 and false", {}, {}, rng), false);
+  expect(evalExpr("1 and true", {}, {}, rng), true);
   expect(evalExpr("foo > 5", { foo: 4 }, {}, rng), false);
   expect(
     evalExpr(
@@ -36,6 +39,15 @@ async function test() {
       rng
     ),
     10
+  );
+  expect(
+    evalExpr(
+      'empty(xxx) and not startsWith(lower(xxx), "x")',
+      { xxx: null },
+      {},
+      rng
+    ),
+    true
   );
 
   const state = { a: 0 };
@@ -139,11 +151,10 @@ async function test() {
     },
     LIQUID
   );
-  console.log(ae1);
-  // expect(
-  //   ae1,
-  //   "\n    here look 1 for some 1 stuff\n    we got\n\n    1\n    for ya\n    1\n    wow\n  "
-  // );
+  expect(
+    ae1,
+    "\n    here look 1 for some 1 stuff\n    we got\n\n    1\n    for ya\n    1\n    wow\n    1\n    yes\n  "
+  );
 }
 
 test();

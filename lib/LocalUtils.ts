@@ -48,7 +48,14 @@ export async function renderNext(
   provider: ServiceProvider
 ) {
   if (!isBlank(input)) {
-    playthru.state.input = input;
+    if (!playthru.input) {
+      playthru.input = {
+        atts: {},
+        body: input,
+      };
+    } else {
+      playthru.input.body = input;
+    }
   }
   const root = await compileStory(story.cartridge);
   const { ops, seam, info } = await advanceStory(
