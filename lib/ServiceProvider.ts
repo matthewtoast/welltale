@@ -8,7 +8,7 @@ import {
   generateSoundEffect,
   generateSpeechClip,
 } from "./ElevenLabsUtils";
-import { generateFlexibleJson, generateText } from "./OpenAIUtils";
+import { generateJson, generateJsonWithWeb, generateText } from "./OpenAIUtils";
 import { StoryEvent } from "./StoryEngine";
 import { generatePredictableKey } from "./TextHelpers";
 
@@ -16,7 +16,8 @@ export interface ServiceProvider {
   generateText(prompt: string): Promise<string>;
   generateJson(
     prompt: string,
-    schema: Record<string, TSerial>
+    schema: Record<string, TSerial>,
+    useWebSearch: boolean
   ): Promise<Record<string, any>>;
   generateSound(prompt: string): Promise<{ url: string }>;
   generateSpeech(event: StoryEvent): Promise<{ url: string }>;
@@ -48,7 +49,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return cached.toString();
       }
     }
-    const result = await generateText(this.config.openai, prompt, "gpt-4.1");
+    const result = await generateText(this.config.openai, prompt);
     if (!result) {
       console.warn("Failed to generate completion");
       return "";
@@ -62,7 +63,8 @@ export abstract class BaseServiceProvider implements ServiceProvider {
 
   async generateJson(
     prompt: string,
-    schema: Record<string, TSerial>
+    schema: Record<string, TSerial>,
+    useWebSearch: boolean = false
   ): Promise<Record<string, any>> {
     const useCache = !this.config.disableCache;
     const cacheKey = `${prompt}\n${schema}`;
@@ -73,12 +75,13 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return JSON.parse(cached.toString());
       }
     }
-    const result = await generateFlexibleJson(
-      this.config.openai,
-      prompt,
-      JSON.stringify(schema),
-      "gpt-4.1"
-    );
+    const result = useWebSearch
+      ? await generateJsonWithWeb(
+          this.config.openai,
+          prompt,
+          JSON.stringify(schema)
+        )
+      : await generateJson(this.config.openai, prompt, JSON.stringify(schema));
     if (!result) {
       console.warn("Failed to generate completion");
       return {};

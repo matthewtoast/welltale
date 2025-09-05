@@ -1,11 +1,11 @@
+import dedent from "dedent";
 import OpenAI from "openai";
+import { TSerial } from "typings";
 
 type Msg = {
   role: "user" | "assistant" | "system" | "developer";
   content: string;
 };
-
-const webTool = [{ type: "web_search" as const }];
 
 const asInput = (p: string | Msg[]) =>
   typeof p === "string"
@@ -27,25 +27,61 @@ const readText = (r: { output?: unknown }): string => {
     .join("");
 };
 
+export const DEFAULT_MODEL = "gpt-4.1";
+
 export async function generateText(
   openai: OpenAI,
   prompt: string,
-  model: string = "gpt-4.1"
+  useWebSearch: boolean = false,
+  model: string = DEFAULT_MODEL
 ) {
   const r = await openai.responses.create({
     model,
     input: prompt,
-    tools: webTool,
+    tools: useWebSearch ? [{ type: "web_search" as const }] : [],
   });
   return readText(r);
 }
 
-export async function generateFlexibleJson(
+export async function extractJson(
+  openai: OpenAI,
+  text: string,
+  schema: string,
+  model: string = DEFAULT_MODEL
+): Promise<Record<string, TSerial>> {
+  return generateJson(
+    openai,
+    dedent`
+      Per the given schema, extract structured data from this input:
+      <input>
+        ${text}
+      </input>
+    `.trim(),
+    schema,
+    model
+  );
+}
+
+export async function generateJsonWithWeb(
   openai: OpenAI,
   prompt: string,
   schema: string,
-  model: string = "gpt-4.1"
+  model: string = DEFAULT_MODEL
 ) {
+  return extractJson(
+    openai,
+    await generateText(openai, prompt, true /* useWebSearch */, model),
+    schema,
+    model
+  );
+}
+
+export async function generateJson(
+  openai: OpenAI,
+  prompt: string,
+  schema: string,
+  model: string = DEFAULT_MODEL
+): Promise<Record<string, TSerial>> {
   const preface = "Return only a JSON object. Follow this schema:\n" + schema;
   const r = await openai.responses.create({
     model,
@@ -53,7 +89,6 @@ export async function generateFlexibleJson(
       { role: "developer", content: [{ type: "input_text", text: preface }] },
       { role: "user", content: [{ type: "input_text", text: prompt }] },
     ],
-    tools: webTool,
     text: {
       format: { type: "json_object" },
     },
@@ -65,12 +100,12 @@ export async function generateFlexibleJson(
 export async function generateChatResponse(
   openai: OpenAI,
   messages: Msg[],
-  model: string = "gpt-4.1"
+  model: string = DEFAULT_MODEL
 ) {
   const r = await openai.responses.create({
     model,
     input: asInput(messages),
-    tools: webTool,
+    tools: [{ type: "web_search" as const }],
   });
   return readText(r);
 }

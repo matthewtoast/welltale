@@ -656,3 +656,17 @@ export function looksLikeNumber(s: string): boolean {
 }
 
 export type CastableType = "boolean" | "number" | "string";
+
+export function isTruthy(v: any) {
+  if (typeof v === "string") {
+    return v !== "false" && v !== "";
+  }
+  if (typeof v === "number") {
+    return v !== 0 && !isNaN(v);
+  }
+  return !!v;
+}
+
+export function isFalsy(v: any) {
+  return !isTruthy(v);
+}

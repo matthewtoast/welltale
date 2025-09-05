@@ -13,7 +13,7 @@ execSync(
     --playthruPath ${quo(join(cwd, "test/fixtures/playthrus/teststory-playthru.json"))} \
     --openaiKey ${process.env.OPENAI_API_KEY} \
     --elevenlabsKey ${process.env.ELEVENLABS_API_KEY} \
-    -i "input1" -i "invalid" -i "Xylophone"
+    -i "input1" -i "invalid1" -i "invalid2" -i "Xylophone"
     `,
   { stdio: "inherit", cwd }
 );

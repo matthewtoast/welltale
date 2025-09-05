@@ -1,5 +1,5 @@
 import Handlebars from "handlebars";
-import { castToString, evalExpr } from "lib/EvalUtils";
+import { castToString, evalExpr, isTruthy } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
 import { dumpTree, StoryNode, TEXT_TAG } from "lib/StoryCompiler";
@@ -52,6 +52,7 @@ export const PlaythruSchema = z.object({
   ),
   state: z.record(z.any()),
   history: z.array(StoryEventSchema),
+  meta: z.record(z.any()),
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
 });
 
@@ -71,7 +72,8 @@ export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
 
 export function createDefaultPlaythru(
   id: string,
-  state: Record<string, TSerial> = {}
+  state: Record<string, TSerial> = {},
+  meta: Record<string, TSerial> = {}
 ): Playthru {
   return {
     id,
@@ -83,6 +85,7 @@ export function createDefaultPlaythru(
     input: null,
     stack: [],
     state,
+    meta,
     history: [],
   };
 }
@@ -438,7 +441,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       );
       let next;
       if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
-        next = searchForNode(ctx.root, atts.to ?? atts.target);
+        next = searchForNode(
+          ctx.root,
+          atts.to ?? atts.target ?? atts.destination
+        );
       } else {
         next = nextNode(ctx.node, ctx.root, false);
       }
@@ -620,9 +626,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "datagen",
+    match: (node: StoryNode) => node.type === "gen",
     exec: async (ctx) => {
-      const schema = await renderAtts(
+      const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
@@ -635,7 +641,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.rng,
         ctx.provider
       );
-      const result = await ctx.provider.generateJson(prompt, schema);
+      const useWebSearch = isTruthy(atts.$web) ? true : false;
+      const result = await ctx.provider.generateJson(
+        prompt,
+        atts,
+        useWebSearch
+      );
       for (const [key, value] of Object.entries(result)) {
         setState(ctx.scope, key, value);
       }
@@ -684,6 +695,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
 ];
+
+export function publicAtts<T extends Record<string, any>>(atts: T): T {
+  const out: Record<string, any> = {};
+  for (const key in atts) {
+    if (!key.startsWith("$") && !key.startsWith("_")) {
+      out[key] = atts[key];
+    }
+  }
+  return out as T;
+}
 
 export function skipBlock(
   blockNode: StoryNode,

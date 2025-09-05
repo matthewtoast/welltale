@@ -36,7 +36,7 @@
   <p>
     H
   </p>
-  <yield target="another-block" return="meow" foo="bar" />
+  <yield target="another-block" returnTo="meow" foo="bar" />
   <p>
     [NOT SHOWN]
   </p>
@@ -75,9 +75,9 @@
   <p>
     O - shouldn't show blank var foo declared in block: ({{foo}})
   </p>
-  <input var="ppp" />
+  <input var="pop" />
   <p>
-    P - input should appear here = ({{ppp}})
+    P - input should appear here = ({{pop}})
   </p>
   <p>
     Q 1 | Q 2 | Q 3
@@ -100,7 +100,7 @@
   <p>
     {{nextVar}} {{otherVar}}
   </p> -->
-
+  <span>U</span>
   <scope>
     <var name="v" value="V" />
     <p>
@@ -110,11 +110,11 @@
   <p>
     W - but there should not be a 'v' variable here: ({{v}})
   </p>
-  <while cond='empty(xxx) or not startsWith(lower(xxx), "x")'>
-    <p>... Say a word beginning with the letter "x".</p>
-    <input var="xxx" />
+  <while cond='empty(xx) or not startsWith(lower(xx), "x")'>
+    <p from="Bob">... Say a word beginning with the letter "x".</p>
+    <input var="xx" />
   </while>
   <p>
-    X - {{xxx}}
+    X - input finally started with x: "{{xx}}"
   </p>
 </sec>
