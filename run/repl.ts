@@ -81,7 +81,7 @@ async function runRepl() {
     loop: 0,
     autoInput: false,
     doGenerateSpeech: false,
-    doGenerateSounds: false,
+    doGenerateAudio: false,
   };
 
   const provider = new DefaultServiceProvider({

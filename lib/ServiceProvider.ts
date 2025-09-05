@@ -1,10 +1,10 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import chalk from "chalk";
 import { OpenAI } from "openai";
 import { TSerial } from "typings";
 import { Cache } from "./Cache";
 import {
   autoFindPresetVoice,
+  composeTrack,
   generateSoundEffect,
   generateSpeechClip,
 } from "./ElevenLabsUtils";
@@ -13,15 +13,18 @@ import { StoryEvent } from "./StoryEngine";
 import { generatePredictableKey } from "./TextHelpers";
 
 export interface ServiceProvider {
-  generateText(prompt: string): Promise<string>;
+  generateText(prompt: string, useWebSearch: boolean): Promise<string>;
   generateJson(
     prompt: string,
     schema: Record<string, TSerial>,
     useWebSearch: boolean
   ): Promise<Record<string, any>>;
   generateSound(prompt: string): Promise<{ url: string }>;
-  generateSpeech(event: StoryEvent): Promise<{ url: string }>;
-  log(...args: any[]): void;
+  generateMusic(prompt: string): Promise<{ url: string }>;
+  generateSpeech(event: {
+    from: string;
+    body: string;
+  }): Promise<{ url: string }>;
 }
 
 export abstract class BaseServiceProvider implements ServiceProvider {
@@ -34,13 +37,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     }
   ) {}
 
-  log(...args: any[]) {
-    console.info(
-      chalk.gray(...args.map((a) => (shouldJsonify(a) ? JSON.stringify(a) : a)))
-    );
-  }
-
-  async generateText(prompt: string): Promise<string> {
+  async generateText(prompt: string, useWebSearch: boolean): Promise<string> {
     const useCache = !this.config.disableCache;
     const key = generatePredictableKey("text", prompt, "txt");
     if (useCache) {
@@ -49,7 +46,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return cached.toString();
       }
     }
-    const result = await generateText(this.config.openai, prompt);
+    const result = await generateText(this.config.openai, prompt, useWebSearch);
     if (!result) {
       console.warn("Failed to generate completion");
       return "";
@@ -96,7 +93,6 @@ export abstract class BaseServiceProvider implements ServiceProvider {
   async generateSound(prompt: string): Promise<{ url: string }> {
     const useCache = !this.config.disableCache;
     const key = generatePredictableKey("sfx", prompt, "mp3");
-
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -104,13 +100,33 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return { url };
       }
     }
-
     const audio = await generateSoundEffect({
       client: this.config.eleven,
       text: prompt,
       durationSeconds: 5,
     });
+    const url = await this.config.cache.set(
+      key,
+      Buffer.from(audio),
+      "audio/mpeg"
+    );
+    return { url };
+  }
 
+  async generateMusic(prompt: string): Promise<{ url: string }> {
+    const useCache = !this.config.disableCache;
+    const key = generatePredictableKey("music", prompt, "mp3");
+    if (useCache) {
+      const cached = await this.config.cache.get(key);
+      if (cached) {
+        const url = await this.config.cache.set(key, cached, "audio/mpeg");
+        return { url };
+      }
+    }
+    const audio = await composeTrack({
+      client: this.config.eleven,
+      prompt,
+    });
     const url = await this.config.cache.set(
       key,
       Buffer.from(audio),

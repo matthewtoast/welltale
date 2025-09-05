@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import Handlebars from "handlebars";
 import { castToString, evalExpr, isTruthy } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
@@ -53,6 +54,7 @@ export const PlaythruSchema = z.object({
   state: z.record(z.any()),
   history: z.array(StoryEventSchema),
   meta: z.record(z.any()),
+  cache: z.record(z.any()),
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
 });
 
@@ -63,7 +65,7 @@ export const StoryOptionsSchema = z.object({
   ream: z.number(),
   autoInput: z.boolean(),
   doGenerateSpeech: z.boolean(),
-  doGenerateSounds: z.boolean(),
+  doGenerateAudio: z.boolean(),
 });
 
 export type StoryEvent = z.infer<typeof StoryEventSchema>;
@@ -86,6 +88,7 @@ export function createDefaultPlaythru(
     stack: [],
     state,
     meta,
+    cache: {},
     history: [],
   };
 }
@@ -145,7 +148,7 @@ export async function advanceStory(
   playthru.turn++;
 
   if (calls++ < 1) {
-    provider.log(dumpTree(root));
+    console.info(chalk.gray(dumpTree(root)));
   }
 
   const main = findNodes(root, (node) => node.type === "main")[0] ?? root;
@@ -155,7 +158,6 @@ export async function advanceStory(
   }
 
   function done(seam: SeamType, info: Record<string, string>) {
-    provider.log("DONE", omit(playthru, "history"), out);
     playthru.cycle = rng.cycle;
     return { ops: out, playthru, seam, info };
   }
@@ -220,10 +222,10 @@ export async function advanceStory(
     const result = await handler.exec(ctx);
     out.push(...result.ops);
 
-    provider.log(
-      `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}>`,
-      `~> ${result.next?.node.addr}`,
-      result.ops
+    console.info(
+      chalk.gray(
+        `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${result.next?.node.addr} ${JSON.stringify(result.ops)}`
+      )
     );
 
     if (result.next) {
@@ -587,7 +589,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "sound" || node.type === "audio",
+    match: (node: StoryNode) =>
+      node.type === "sound" ||
+      node.type === "audio" ||
+      node.type === "music" ||
+      node.type === "speech" ||
+      node.type === "voice",
     exec: async (ctx) => {
       const atts = await renderAtts(
         ctx.node.atts,
@@ -607,10 +614,32 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         );
         const prompt = rollup ?? atts.prompt ?? atts.gen;
         if (!isBlank(prompt)) {
-          const result = ctx.options.doGenerateSounds
-            ? await ctx.provider.generateSound(prompt)
-            : { url: "" };
-          url = result.url;
+          if (ctx.options.doGenerateAudio) {
+            switch (ctx.node.type) {
+              case "sound":
+              case "audio":
+                const audio = await ctx.provider.generateSound(prompt);
+                url = audio.url;
+                break;
+              case "music":
+                const music = await ctx.provider.generateMusic(prompt);
+                url = music.url;
+                break;
+              case "speech":
+              case "voice":
+                const voice = await ctx.provider.generateSpeech({
+                  from: atts.voice ?? atts.from ?? atts.speaker,
+                  body: prompt,
+                });
+                url = voice.url;
+                break;
+              default:
+                url = "";
+                break;
+            }
+          } else {
+            url = "";
+          }
         }
       }
       if (url) {
@@ -928,7 +957,7 @@ export async function renderText(
     result = await enhanceText(
       result,
       async (chunk: string) => {
-        return await provider.generateText(chunk);
+        return await provider.generateText(chunk, false);
       },
       LIQUID
     );

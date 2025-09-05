@@ -1,4 +1,28 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { MusicComposeRequestOutputFormat } from "@elevenlabs/elevenlabs-js/api";
+
+const DEFAULT_OUTPUT_FORMAT = "mp3_44100_128" as const;
+
+type AudioOutputFormat =
+  | "mp3_22050_32"
+  | "mp3_44100_32"
+  | "mp3_44100_64"
+  | "mp3_44100_96"
+  | "mp3_44100_128"
+  | "mp3_44100_192"
+  | "pcm_8000"
+  | "pcm_16000"
+  | "pcm_22050"
+  | "pcm_24000"
+  | "pcm_44100"
+  | "pcm_48000"
+  | "ulaw_8000"
+  | "alaw_8000"
+  | "opus_48000_32"
+  | "opus_48000_64"
+  | "opus_48000_96"
+  | "opus_48000_128"
+  | "opus_48000_192";
 
 export const makeClient = (apiKey = process.env.ELEVENLABS_API_KEY ?? "") =>
   new ElevenLabsClient({ apiKey });
@@ -31,37 +55,37 @@ async function streamToUint8Array(
   return result;
 }
 
+export const composeTrack = async ({
+  client,
+  prompt,
+  musicLengthMs = 30000,
+  outputFormat = DEFAULT_OUTPUT_FORMAT,
+}: {
+  client: ElevenLabsClient;
+  prompt: string;
+  musicLengthMs?: number;
+  outputFormat?: MusicComposeRequestOutputFormat;
+}): Promise<Uint8Array> => {
+  const stream = await client.music.compose({
+    prompt,
+    musicLengthMs,
+    outputFormat,
+  });
+  return streamToUint8Array(stream);
+};
+
 export const generateSoundEffect = async ({
   client,
   text,
   durationSeconds,
   promptInfluence = 0.3,
-  outputFormat = "mp3_44100_128",
+  outputFormat = DEFAULT_OUTPUT_FORMAT,
 }: {
   client: ElevenLabsClient;
   text: string;
   durationSeconds?: number;
   promptInfluence?: number;
-  outputFormat?:
-    | "mp3_22050_32"
-    | "mp3_44100_32"
-    | "mp3_44100_64"
-    | "mp3_44100_96"
-    | "mp3_44100_128"
-    | "mp3_44100_192"
-    | "pcm_8000"
-    | "pcm_16000"
-    | "pcm_22050"
-    | "pcm_24000"
-    | "pcm_44100"
-    | "pcm_48000"
-    | "ulaw_8000"
-    | "alaw_8000"
-    | "opus_48000_32"
-    | "opus_48000_64"
-    | "opus_48000_96"
-    | "opus_48000_128"
-    | "opus_48000_192";
+  outputFormat?: AudioOutputFormat;
 }): Promise<Uint8Array> => {
   const stream = await client.textToSoundEffects.convert({
     text,
@@ -77,32 +101,13 @@ export const generateSpeechClip = async ({
   voiceId,
   text,
   modelId = "eleven_multilingual_v2",
-  outputFormat = "mp3_44100_128",
+  outputFormat = DEFAULT_OUTPUT_FORMAT,
 }: {
   client: ElevenLabsClient;
   voiceId: string;
   text: string;
   modelId?: string;
-  outputFormat?:
-    | "mp3_22050_32"
-    | "mp3_44100_32"
-    | "mp3_44100_64"
-    | "mp3_44100_96"
-    | "mp3_44100_128"
-    | "mp3_44100_192"
-    | "pcm_8000"
-    | "pcm_16000"
-    | "pcm_22050"
-    | "pcm_24000"
-    | "pcm_44100"
-    | "pcm_48000"
-    | "ulaw_8000"
-    | "alaw_8000"
-    | "opus_48000_32"
-    | "opus_48000_64"
-    | "opus_48000_96"
-    | "opus_48000_128"
-    | "opus_48000_192";
+  outputFormat?: AudioOutputFormat;
 }): Promise<Uint8Array> => {
   const stream = await client.textToSpeech.convert(voiceId, {
     text,

@@ -115,6 +115,6 @@
     <input var="xx" />
   </while>
   <p>
-    X - input finally started with x: "{{xx}}"
+    X - input finally started with "{{xx}}"
   </p>
 </sec>

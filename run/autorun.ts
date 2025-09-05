@@ -71,7 +71,7 @@ async function runAutorun() {
     loop: 0,
     autoInput: true,
     doGenerateSpeech: false,
-    doGenerateSounds: false,
+    doGenerateAudio: false,
   };
 
   const provider = new DefaultServiceProvider({

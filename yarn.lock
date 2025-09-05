@@ -571,10 +571,10 @@
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.28.2.tgz#2ae5a9d51cc583bd1f5673b3bb70d6d819682473"
   integrity sha512-KHp2IflsnGywDjBWDkR9iEqiWSpc8GIi0lgTT3mOElT0PP1tG26P4tmFI2YvAdzgq9RGyoHZQEIEdZy6Ec5xCA==
 
-"@elevenlabs/elevenlabs-js@^2.9.0":
-  version "2.9.0"
-  resolved "https://registry.yarnpkg.com/@elevenlabs/elevenlabs-js/-/elevenlabs-js-2.9.0.tgz#0891789acb11d29a7692f2dae12787ac935bc6a2"
-  integrity sha512-kPccEQfShzSUR0ZtgTiTuzkMFs//Gw6VyKZD6oAeAKBLmuYpS4ecG1/FfB3G0X0RWb5Z8VUy0UMgPCQKQQt7qA==
+"@elevenlabs/elevenlabs-js@^2.14.0":
+  version "2.14.0"
+  resolved "https://registry.yarnpkg.com/@elevenlabs/elevenlabs-js/-/elevenlabs-js-2.14.0.tgz#094dee91f7983d03f28a0c657a756a8e99824fa8"
+  integrity sha512-RG7JycG3HhbJq+JIyWiCP33PAblHqt8lolPeJkIJTlzrwrpN6sMZp/y8izwmabRo5DlA3xdYypMxY9+cVS41Tw==
   dependencies:
     command-exists "^1.2.9"
     node-fetch "^2.7.0"
