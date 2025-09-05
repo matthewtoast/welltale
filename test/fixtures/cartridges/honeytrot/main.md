@@ -18,21 +18,6 @@ voices:
 
 # main
 
-<main>
-  <music
-    gen="modern high tech spy thriller intro music, subtle, intriguing"
-    background="true"
-    fadeOutAfter="10000" />
-  <sleep duration="2000" />
-  <p>You're playing Honeytrot, by Matthew Trost.</p>
-  <sleep duration="2000" />
-  <p>
-    This story
-    What's your codename?
-  </p>
-
-</main>
-
   <p>Before we begin, what's your first name?</p>
   <input to="maybeName" />
 

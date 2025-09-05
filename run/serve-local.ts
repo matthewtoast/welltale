@@ -14,14 +14,14 @@ import { BaseServiceProvider } from "../lib/ServiceProvider";
 import { compileStory } from "../lib/StoryCompiler";
 import {
   advanceStory,
-  PlaythruSchema,
+  SessionSchema,
   StoryOptionsSchema,
   type Cartridge,
 } from "../lib/StoryEngine";
 
 const RequestSchema = z.object({
   storyId: z.string(),
-  playthru: PlaythruSchema,
+  session: SessionSchema,
   options: StoryOptionsSchema,
 });
 
@@ -115,13 +115,13 @@ async function main() {
   app.post("/advance", async (req, res) => {
     try {
       const parsed = RequestSchema.parse(req.body);
-      const { storyId, playthru, options } = parsed;
+      const { storyId, session, options } = parsed;
       const cartridge = await serviceProvider.loadCartridge(storyId);
       const root = compileStory(cartridge);
       const result = await advanceStory(
         serviceProvider,
         root,
-        playthru,
+        session,
         options
       );
       res.json(result);

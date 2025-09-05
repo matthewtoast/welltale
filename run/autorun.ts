@@ -2,7 +2,7 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
-import { loadPlaythruFromDisk, runUntilComplete } from "lib/LocalUtils";
+import { loadSessionFromDisk, runUntilComplete } from "lib/LocalUtils";
 import { DefaultServiceProvider } from "lib/ServiceProvider";
 import { Story, StoryOptions } from "lib/StoryEngine";
 import { last } from "lodash";
@@ -29,9 +29,9 @@ async function runAutorun() {
       description: "Path to the dir containing the cartridge files",
       demandOption: true,
     })
-    .option("playthruPath", {
+    .option("sessionPath", {
       type: "string",
-      description: "Path to the JSON file at which to save playthru data",
+      description: "Path to the JSON file at which to save session data",
       demandOption: true,
     })
     .option("openaiKey", {
@@ -60,7 +60,7 @@ async function runAutorun() {
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const story: Story = { id: gameId, cartridge };
-  const playthru = loadPlaythruFromDisk(argv.playthruPath, gameId);
+  const session = loadSessionFromDisk(argv.sessionPath, gameId);
 
   console.info(chalk.gray(`Auto-running game...`));
 
@@ -83,7 +83,7 @@ async function runAutorun() {
   return await runUntilComplete({
     options,
     provider,
-    playthru,
+    session,
     story,
     seed,
     inputs: argv.inputs!.map((i) => i + ""),

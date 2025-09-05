@@ -24,4 +24,4 @@ The main object in Welltale is the story. Each story has a title, a description,
 
 A story may have multiple cartridges - in case of version updates - but there is always exactly one primary cartridge at a time.
 
-When a user plays a Welltale story, all of their inputs and any resulting state changes are recorded in an object called the _playthru_. The playback instance is an association between the cartridge, the user, and the user's inputs for that particular playback. A user might start a separate playback instance of the same story (cartridge) if they want.
+When a user plays a Welltale story, all of their inputs and any resulting state changes are recorded in an object called the _session_. The playback instance is an association between the cartridge, the user, and the user's inputs for that particular playback. A user might start a separate playback instance of the same story (cartridge) if they want.

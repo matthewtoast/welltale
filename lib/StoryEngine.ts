@@ -31,7 +31,7 @@ const StoryEventSchema = z.object({
   tags: z.array(z.string()),
 });
 
-export const PlaythruSchema = z.object({
+export const SessionSchema = z.object({
   id: z.string(),
   time: z.number(),
   turn: z.number(),
@@ -69,14 +69,14 @@ export const StoryOptionsSchema = z.object({
 });
 
 export type StoryEvent = z.infer<typeof StoryEventSchema>;
-export type Playthru = z.infer<typeof PlaythruSchema>;
+export type Session = z.infer<typeof SessionSchema>;
 export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
 
-export function createDefaultPlaythru(
+export function createDefaultSession(
   id: string,
   state: Record<string, TSerial> = {},
   meta: Record<string, TSerial> = {}
-): Playthru {
+): Session {
   return {
     id,
     time: Date.now(),
@@ -110,7 +110,7 @@ export interface ActionContext {
   main: StoryNode;
   root: StoryNode;
   node: StoryNode;
-  playthru: Playthru;
+  session: Session;
   rng: PRNG;
   provider: ServiceProvider;
   scope: { [key: string]: TSerial };
@@ -138,14 +138,14 @@ let calls = 0;
 export async function advanceStory(
   provider: ServiceProvider,
   root: StoryNode,
-  playthru: Playthru,
+  session: Session,
   options: StoryOptions
 ) {
   const out: OP[] = [];
 
-  const rng = new PRNG(options.seed, playthru.cycle % 10_000);
-  playthru.time = Date.now();
-  playthru.turn++;
+  const rng = new PRNG(options.seed, session.cycle % 10_000);
+  session.time = Date.now();
+  session.turn++;
 
   if (calls++ < 1) {
     console.info(chalk.gray(dumpTree(root)));
@@ -153,13 +153,13 @@ export async function advanceStory(
 
   const main = findNodes(root, (node) => node.type === "main")[0] ?? root;
 
-  if (!playthru.address) {
-    playthru.address = main.addr;
+  if (!session.address) {
+    session.address = main.addr;
   }
 
   function done(seam: SeamType, info: Record<string, string>) {
-    playthru.cycle = rng.cycle;
-    return { ops: out, playthru, seam, info };
+    session.cycle = rng.cycle;
+    return { ops: out, session, seam, info };
   }
 
   const visits: Record<string, number> = {};
@@ -167,10 +167,10 @@ export async function advanceStory(
 
   while (true) {
     let node: StoryNode | null =
-      findNodes(root, (node) => node.addr === playthru.address)[0] ?? null;
+      findNodes(root, (node) => node.addr === session.address)[0] ?? null;
 
     if (!node) {
-      const error = `Node ${playthru.address} not found`;
+      const error = `Node ${session.address} not found`;
       console.warn(error);
       return done(SeamType.ERROR, { error });
     }
@@ -195,20 +195,20 @@ export async function advanceStory(
       main,
       root,
       node,
-      playthru,
+      session,
       rng,
       provider,
       // We need to get a new scope on every node since it may have introduced new scope
-      scope: createScope(playthru),
+      scope: createScope(session),
     };
 
-    if (playthru.input) {
-      const { body, atts } = playthru.input;
+    if (session.input) {
+      const { body, atts } = session.input;
       if (atts.var) {
         setState(ctx.scope, atts.var, body);
       }
-      playthru.input = null;
-      playthru.history.push({
+      session.input = null;
+      session.history.push({
         from: PLAYER_ID,
         body,
         to: cleanSplit(atts.to, ","),
@@ -231,24 +231,24 @@ export async function advanceStory(
     if (result.next) {
       // Check if we're currently in a yielded block and the next node escapes it
       if (
-        playthru.stack.length > 0 &&
+        session.stack.length > 0 &&
         wouldEscapeCurrentBlock(node, result.next.node, root)
       ) {
         // Pop from callstack instead of using the next node
-        const { returnAddress } = playthru.stack.pop()!;
-        playthru.address = returnAddress;
+        const { returnAddress } = session.stack.pop()!;
+        session.address = returnAddress;
       } else {
-        playthru.address = result.next.node.addr;
+        session.address = result.next.node.addr;
       }
     } else {
       // No next node - check if we should return from a block
-      if (playthru.stack.length > 0) {
-        const { returnAddress } = playthru.stack.pop()!;
-        playthru.address = returnAddress;
+      if (session.stack.length > 0) {
+        const { returnAddress } = session.stack.pop()!;
+        session.address = returnAddress;
       } else {
-        if (playthru.loops < options.loop) {
-          playthru.loops += 1;
-          playthru.address = null;
+        if (session.loops < options.loop) {
+          session.loops += 1;
+          session.address = null;
         } else {
           out.push({ type: "story-end" });
         }
@@ -306,7 +306,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // Push a new scope onto the callStack when entering
       const returnAddress =
         nextNode(ctx.node, ctx.root, false)?.node.addr ?? ctx.main.addr;
-      ctx.playthru.stack.push({ returnAddress, scope: {} });
+      ctx.session.stack.push({ returnAddress, scope: {} });
       // Enter the scope (process children)
       const next =
         ctx.node.kids.length > 0
@@ -369,7 +369,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         audio: url,
         event,
       });
-      ctx.playthru.history.push(event);
+      ctx.session.history.push(event);
       return {
         ops,
         next,
@@ -571,7 +571,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       )) {
         setState(scope, key, value);
       }
-      ctx.playthru.stack.push({ returnAddress, scope });
+      ctx.session.stack.push({ returnAddress, scope });
       // Go to first child of block (or next sibling if no children)
       if (blockResult.node.kids.length > 0) {
         return {
@@ -697,7 +697,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.provider
       );
       // Next advance() we'll assign input using these atts
-      ctx.playthru.input = {
+      ctx.session.input = {
         body: "",
         atts,
       };
@@ -884,17 +884,21 @@ export function cloneNode(node: StoryNode): StoryNode {
   };
 }
 
-export function createScope(playthru: Playthru): { [key: string]: TSerial } {
-  const globalState = playthru.state;
+export function createScope(session: Session): { [key: string]: TSerial } {
+  const globalState = {
+    ...session.state,
+    session,
+  } as Record<string, TSerial>;
+
   const currentScope =
-    playthru.stack.length > 0
-      ? playthru.stack[playthru.stack.length - 1].scope
+    session.stack.length > 0
+      ? session.stack[session.stack.length - 1].scope
       : null;
 
   return new Proxy({} as { [key: string]: TSerial }, {
     get(target, prop: string) {
-      for (let i = playthru.stack.length - 1; i >= 0; i--) {
-        const scope = playthru.stack[i].scope;
+      for (let i = session.stack.length - 1; i >= 0; i--) {
+        const scope = session.stack[i].scope;
         if (prop in scope) {
           return scope[prop];
         }
@@ -912,8 +916,8 @@ export function createScope(playthru: Playthru): { [key: string]: TSerial } {
     },
     getOwnPropertyDescriptor(target, prop: string) {
       // Check all scopes first
-      for (let i = playthru.stack.length - 1; i >= 0; i--) {
-        const scope = playthru.stack[i].scope;
+      for (let i = session.stack.length - 1; i >= 0; i--) {
+        const scope = session.stack[i].scope;
         if (prop in scope) {
           return {
             configurable: true,

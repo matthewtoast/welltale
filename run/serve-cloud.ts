@@ -10,14 +10,14 @@ import { BaseServiceProvider } from "../lib/ServiceProvider";
 import { compileStory } from "../lib/StoryCompiler";
 import {
   advanceStory,
-  PlaythruSchema,
+  SessionSchema,
   StoryOptionsSchema,
   type Cartridge,
 } from "../lib/StoryEngine";
 
 const RequestSchema = z.object({
   storyId: z.string(),
-  playthru: PlaythruSchema,
+  session: SessionSchema,
   options: StoryOptionsSchema,
 });
 
@@ -145,7 +145,9 @@ function getServiceProvider(): CloudServiceProvider {
   return serviceProvider;
 }
 
-export async function handler(event: APIGatewayEvent): Promise<APIGatewayResponse> {
+export async function handler(
+  event: APIGatewayEvent
+): Promise<APIGatewayResponse> {
   try {
     if (!event.body) {
       return {
@@ -157,13 +159,13 @@ export async function handler(event: APIGatewayEvent): Promise<APIGatewayRespons
 
     const body = JSON.parse(event.body);
     const parsed = RequestSchema.parse(body);
-    const { storyId, playthru, options } = parsed;
+    const { storyId, session, options } = parsed;
 
     const provider = getServiceProvider();
     const cartridge = await provider.loadCartridge(storyId);
     const root = compileStory(cartridge);
 
-    const result = await advanceStory(provider, root, playthru, options);
+    const result = await advanceStory(provider, root, session, options);
 
     return {
       statusCode: 200,

@@ -7,10 +7,10 @@ import { ServiceProvider } from "lib/ServiceProvider";
 import { compileStory } from "lib/StoryCompiler";
 import {
   advanceStory,
-  createDefaultPlaythru,
+  createDefaultSession,
   FALLBACK_SPEAKER,
-  Playthru,
   SeamType,
+  Session,
   Story,
   StoryOptions,
 } from "lib/StoryEngine";
@@ -18,11 +18,11 @@ import { isBlank, railsTimestamp } from "lib/TextHelpers";
 
 loadEnv();
 
-export function loadPlaythruFromDisk(abspath: string, id?: string): Playthru {
+export function loadSessionFromDisk(abspath: string, id?: string): Session {
   if (isBlank(id)) {
     id = railsTimestamp();
   }
-  const fallback = createDefaultPlaythru(id!);
+  const fallback = createDefaultSession(id!);
   if (!existsSync(abspath)) {
     writeFileSync(abspath, "{}");
   }
@@ -36,32 +36,32 @@ export function loadPlaythruFromDisk(abspath: string, id?: string): Playthru {
   };
 }
 
-export function savePlaythruToDisk(state: Playthru, abspath: string) {
+export function saveSessionToDisk(state: Session, abspath: string) {
   writeFileSync(abspath, JSON.stringify(state, null, 2));
 }
 
 export async function renderNext(
   input: string,
-  playthru: Playthru,
+  session: Session,
   story: Story,
   options: StoryOptions,
   provider: ServiceProvider
 ) {
   if (!isBlank(input)) {
-    if (!playthru.input) {
-      playthru.input = {
+    if (!session.input) {
+      session.input = {
         atts: {},
         body: input,
       };
     } else {
-      playthru.input.body = input;
+      session.input.body = input;
     }
   }
   const root = await compileStory(story.cartridge);
   const { ops, seam, info } = await advanceStory(
     provider,
     root,
-    playthru,
+    session,
     options
   );
   async function render() {
@@ -98,7 +98,7 @@ export async function runUntilComplete(
   info: {
     options: StoryOptions;
     provider: ServiceProvider;
-    playthru: Playthru;
+    session: Session;
     story: Story;
     seed: string;
     inputs: string[];
@@ -110,7 +110,7 @@ export async function runUntilComplete(
     if (input) {
       seam = await renderNext(
         input,
-        info.playthru,
+        info.session,
         info.story,
         { ...info.options, seed: info.seed },
         info.provider
@@ -120,7 +120,7 @@ export async function runUntilComplete(
   } else if (seam === SeamType.GRANT) {
     seam = await renderNext(
       "",
-      info.playthru,
+      info.session,
       info.story,
       { ...info.options, seed: info.seed },
       info.provider

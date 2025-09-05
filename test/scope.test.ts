@@ -1,13 +1,9 @@
 import { PRNG } from "lib/RandHelpers";
-import {
-  createDefaultPlaythru,
-  createScope,
-  renderText,
-} from "lib/StoryEngine";
+import { createDefaultSession, createScope, renderText } from "lib/StoryEngine";
 import { expect } from "./TestUtils";
 
 async function go() {
-  const playthru = createDefaultPlaythru("test", {
+  const session = createDefaultSession("test", {
     a: {
       b: {
         c: "coco",
@@ -22,7 +18,7 @@ async function go() {
       },
     },
   });
-  const scope = createScope(playthru);
+  const scope = createScope(session);
   const text = await renderText(
     `hello {{f}} or {{a.b.c}} or {$ 1 + g.h.i $}`,
     scope,

@@ -12,9 +12,9 @@ import readline from "readline";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import {
-  loadPlaythruFromDisk,
+  loadSessionFromDisk,
   renderNext,
-  savePlaythruToDisk,
+  saveSessionToDisk,
 } from "../lib/LocalUtils";
 
 const CAROT = "> ";
@@ -31,9 +31,9 @@ async function runRepl() {
       description: "Path to the dir containing the cartridge files",
       demandOption: true,
     })
-    .option("playthruPath", {
+    .option("sessionPath", {
       type: "string",
-      description: "Path to the JSON file at which to save playthru data",
+      description: "Path to the JSON file at which to save session data",
       demandOption: true,
     })
     .option("openaiKey", {
@@ -70,7 +70,7 @@ async function runRepl() {
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const story: Story = { id: gameId, cartridge };
-  const playthru = loadPlaythruFromDisk(argv.playthruPath, gameId);
+  const session = loadSessionFromDisk(argv.sessionPath, gameId);
 
   console.info(chalk.gray(`Starting REPL...`));
 
@@ -92,13 +92,13 @@ async function runRepl() {
 
   let seam = await renderNext(
     "",
-    playthru,
+    session,
     story,
     { ...options, seed },
     provider
   );
 
-  savePlaythruToDisk(playthru, argv.playthruPath);
+  saveSessionToDisk(session, argv.sessionPath);
 
   if (seam === SeamType.FINISH || seam === SeamType.ERROR) {
     rl.close();
@@ -112,12 +112,12 @@ async function runRepl() {
     try {
       seam = await renderNext(
         fixed,
-        playthru,
+        session,
         story,
         { ...options, seed },
         provider
       );
-      savePlaythruToDisk(playthru, argv.playthruPath);
+      saveSessionToDisk(session, argv.sessionPath);
     } catch (err) {
       console.error(chalk.red(err));
     }
