@@ -18,6 +18,7 @@ async function runAutorun() {
       alias: "i",
       type: "array",
       description: "Array of raw inputs to send into the story, in order",
+      default: [],
     })
     .option("seed", {
       type: "string",
@@ -49,6 +50,16 @@ async function runAutorun() {
       default: join(homedir(), ".welltale", "cache"),
       description: "Directory for caching generated content",
     })
+    .option("sessionResume", {
+      type: "boolean",
+      default: false,
+      description: "Run story as if resuming",
+    })
+    .option("sessionTurn", {
+      type: "number",
+      default: 0,
+      description: "Which turn to assume the game starts from",
+    })
     .parserConfiguration({
       "camel-case-expansion": true,
       "strip-aliased": true,
@@ -61,8 +72,8 @@ async function runAutorun() {
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const story: Story = { id: gameId, cartridge };
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
-
-  console.info(chalk.gray(`Auto-running game...`));
+  session.resume = argv.sessionResume;
+  session.turn = argv.sessionTurn;
 
   const options: StoryOptions = {
     seed: argv.seed,
@@ -73,6 +84,8 @@ async function runAutorun() {
     doGenerateSpeech: false,
     doGenerateAudio: false,
   };
+
+  console.info(chalk.gray(`Auto-running game...`, options));
 
   const provider = new DefaultServiceProvider({
     eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
