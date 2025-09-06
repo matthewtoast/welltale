@@ -18,7 +18,7 @@
 ## JavaScript & TypeScript
 
 - Use yarn (not npm)
-- Check for type errors after making changes
+- Run yarn typecheck after changes to check for type errors
 - Use function declaration style (`function foo() {...}`)
 - Don't use 'any' type
 - Don't add try/catch blocks
