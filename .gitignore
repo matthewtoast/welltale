@@ -41,3 +41,4 @@ Thumbs.db
 db/*
 
 run/sessions/*
+test/fixtures/sessions/*
