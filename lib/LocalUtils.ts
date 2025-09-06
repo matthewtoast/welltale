@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
 import { safeJsonParse } from "lib/JSONHelpers";
@@ -15,6 +15,7 @@ import {
   StoryOptions,
 } from "lib/StoryEngine";
 import { isBlank, railsTimestamp } from "lib/TextHelpers";
+import { dirname } from "path";
 
 loadEnv();
 
@@ -23,6 +24,10 @@ export function loadSessionFromDisk(abspath: string, id?: string): Session {
     id = railsTimestamp();
   }
   const fallback = createDefaultSession(id!);
+  const dir = dirname(abspath);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
   if (!existsSync(abspath)) {
     writeFileSync(abspath, "{}");
   }
