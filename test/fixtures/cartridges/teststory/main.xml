@@ -110,11 +110,13 @@
   <p>
     W - but there should not be a 'v' variable here: ({{v}})
   </p>
+  <log />
   <while cond='empty(xx) or not startsWith(lower(xx), "x")'>
     <p from="Bob">... Say a word beginning with the letter "x".</p>
     <input var="xx" />
   </while>
+  <log />
   <p>
-    X - input finally started with "{{xx}}"
+    X - input finally started with x = "{{xx}}"
   </p>
 </sec>

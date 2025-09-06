@@ -37,6 +37,7 @@ export const SessionSchema = z.object({
   turn: z.number(),
   cycle: z.number(),
   loops: z.number(),
+  resume: z.boolean(),
   address: z.string().nullable(),
   input: z.union([
     z.object({
@@ -83,6 +84,7 @@ export function createDefaultSession(
     turn: 0,
     cycle: 0,
     loops: 0,
+    resume: false,
     address: null,
     input: null,
     stack: [],
@@ -140,12 +142,36 @@ export async function advanceStory(
   root: StoryNode,
   session: Session,
   options: StoryOptions
-) {
+): Promise<{
+  ops: OP[];
+  session: Session;
+  seam: SeamType;
+  info: Record<string, string>;
+}> {
   const out: OP[] = [];
 
   const rng = new PRNG(options.seed, session.cycle % 10_000);
   session.time = Date.now();
-  session.turn++;
+
+  if (session.turn < 1) {
+    findNodes(root, (node) => node.type === "meta").forEach((meta) => {
+      if (!isBlank(meta.atts.description)) {
+        session.meta[meta.atts.name ?? meta.atts.property] =
+          meta.atts.description;
+      }
+    });
+  } else {
+    if (session.resume) {
+      session.resume = false;
+      const resume = findNodes(root, (node) => node.type === "resume")[0];
+      if (resume) {
+        // TODO: If we can+should resume, first do the <resume> block.
+        // Then after the resume block is finished, go to the address we originally had
+      }
+    }
+  }
+
+  session.turn += 1;
 
   if (calls++ < 1) {
     console.info(chalk.gray(dumpTree(root)));
@@ -285,6 +311,8 @@ const TEXT_CONTENT_TAGS = [
 
 export const DESCENDABLE_TAGS = [
   "root",
+  "head",
+  "html",
   "body",
   "div",
   "ul",
@@ -292,7 +320,26 @@ export const DESCENDABLE_TAGS = [
   "li",
   "section",
   "sec",
-  "div",
+  "nav",
+  "main",
+  "aside",
+  "article",
+  "header",
+  "footer",
+  "figure",
+  "figcaption",
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "td",
+  "th",
+  "form",
+  "fieldset",
+  "legend",
+  "details",
+  "summary",
   "pre",
   "scope",
 ];
@@ -612,7 +659,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           ctx.rng,
           ctx.provider
         );
-        const prompt = rollup ?? atts.prompt ?? atts.gen;
+        const prompt = !isBlank(rollup) ? rollup : (atts.prompt ?? atts.gen);
         if (!isBlank(prompt)) {
           if (ctx.options.doGenerateAudio) {
             switch (ctx.node.type) {
@@ -710,6 +757,45 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           },
         ],
         next,
+      };
+    },
+  },
+  {
+    match: (node) => node.type === "log",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider
+      );
+      const rollup = await renderText(
+        collectAllText(ctx.node),
+        ctx.scope,
+        ctx.rng,
+        ctx.provider
+      );
+      const message = !isBlank(rollup) ? rollup : atts.message;
+      if (message) {
+        console.info(atts.message);
+      }
+      if (!message || atts.dump) {
+        console.dir(
+          {
+            atts,
+            session: omit(ctx.session, "history"),
+            options: ctx.options,
+            scope: ctx.scope,
+          },
+          {
+            depth: null,
+            colors: true,
+          }
+        );
+      }
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.root, false),
       };
     },
   },
@@ -885,10 +971,7 @@ export function cloneNode(node: StoryNode): StoryNode {
 }
 
 export function createScope(session: Session): { [key: string]: TSerial } {
-  const globalState = {
-    ...session.state,
-    session,
-  } as Record<string, TSerial>;
+  const globalState = session.state;
 
   const currentScope =
     session.stack.length > 0
@@ -904,7 +987,7 @@ export function createScope(session: Session): { [key: string]: TSerial } {
         }
       }
       // Return null here instead of undefined so we can reference unknown vars in evalExpr w/o throwing
-      return globalState[prop] ?? null;
+      return globalState[prop] ?? ({ session } as any)[prop] ?? null;
     },
     set(target, prop: string, value) {
       if (currentScope) {
