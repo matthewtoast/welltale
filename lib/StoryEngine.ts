@@ -363,8 +363,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // Push a new scope onto the callStack when entering
       const returnAddress =
         nextNode(ctx.node, ctx.root, false)?.node.addr ?? ctx.origin.addr;
-      ctx.session.stack.push({ 
-        returnAddress, 
+      ctx.session.stack.push({
+        returnAddress,
         scope: {},
         blockType: "scope",
       });
@@ -662,8 +662,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       )) {
         setState(scope, key, value);
       }
-      ctx.session.stack.push({ 
-        returnAddress, 
+      ctx.session.stack.push({
+        returnAddress,
         scope,
         blockType: "yield",
       });
@@ -707,7 +707,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           ctx.rng,
           ctx.provider
         );
-        const prompt = !isBlank(rollup) ? rollup : (atts.prompt ?? atts.gen);
+        const prompt = !isBlank(rollup) ? rollup : atts.make;
         if (!isBlank(prompt)) {
           if (ctx.options.doGenerateAudio) {
             switch (ctx.node.type) {
@@ -750,7 +750,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "gen",
+    match: (node: StoryNode) => node.type === "make",
     exec: async (ctx) => {
       const atts = await renderAtts(
         ctx.node.atts,
@@ -765,7 +765,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.rng,
         ctx.provider
       );
-      const useWebSearch = isTruthy(atts.$web) ? true : false;
+      const useWebSearch = isTruthy(atts.web) ? true : false;
       const result = await ctx.provider.generateJson(
         prompt,
         atts,
@@ -923,7 +923,7 @@ export function wouldEscapeCurrentBlock(
   // Find the closest container ancestor that uses the stack
   let node: StoryNode | null = currentNode;
   let blockAncestor: StoryNode | null = null;
-  
+
   while (node) {
     if (
       node.type === "block" ||
@@ -936,11 +936,11 @@ export function wouldEscapeCurrentBlock(
     }
     node = parentNodeOf(node, root);
   }
-  
+
   if (!blockAncestor) {
     return false;
   }
-  
+
   // Check if next node would escape the current container
   const blockPrefix = blockAncestor.addr + ".";
   return !nextNode.addr.startsWith(blockPrefix);

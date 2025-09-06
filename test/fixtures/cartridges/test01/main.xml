@@ -94,9 +94,9 @@
 </sec>
 
 <sec id="blub">
-  <!-- <gen nextVar="string - The name" otherVar="number - any number between 1 and 10">
+  <!-- <make nextVar="string - The name" otherVar="number - any number between 1 and 10">
     Give me a good human Medieval name starting with the letter "T"
-  </gen>
+  </make>
   <p>
     {{nextVar}} {{otherVar}}
   </p> -->

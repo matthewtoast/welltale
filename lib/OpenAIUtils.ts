@@ -53,9 +53,9 @@ export async function extractJson(
     openai,
     dedent`
       Per the given schema, extract structured data from this input:
-      <input>
+      <INPUT>
         ${text}
-      </input>
+      </INPUT>
     `.trim(),
     schema,
     model

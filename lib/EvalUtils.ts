@@ -325,6 +325,13 @@ export const unifiedHelpers: Record<string, (...args: any[]) => P | P[]> = {
   not: (v: any) => {
     return !v;
   },
+  // Type casting functions
+  toNumber: (v: any) => castToNumber(v),
+  toNum: (v: any) => castToNumber(v),
+  toString: (v: any) => castToString(v),
+  toStr: (v: any) => castToString(v),
+  toBoolean: (v: any) => castToBoolean(v),
+  toBool: (v: any) => castToBoolean(v),
 };
 
 export const mathHelpers: Record<string, (...args: any[]) => P> = {
