@@ -109,7 +109,7 @@ export type OP =
 
 export interface ActionContext {
   options: StoryOptions;
-  main: StoryNode;
+  origin: StoryNode;
   root: StoryNode;
   node: StoryNode;
   session: Session;
@@ -160,13 +160,16 @@ export async function advanceStory(
           meta.atts.description;
       }
     });
+    const intro = findNodes(root, (node) => node.type === "intro")[0];
+    if (intro) {
+      // TODO: The <intro> node, if present, runs only once before any other content is played
+    }
   } else {
     if (session.resume) {
       session.resume = false;
       const resume = findNodes(root, (node) => node.type === "resume")[0];
       if (resume) {
-        // TODO: If we can+should resume, first do the <resume> block.
-        // Then after the resume block is finished, go to the address we originally had
+        // TODO: If we can+should resume, run the <resume> block then go to the address we left off at
       }
     }
   }
@@ -174,13 +177,16 @@ export async function advanceStory(
   session.turn += 1;
 
   if (calls++ < 1) {
-    console.info(chalk.gray(dumpTree(root)));
+    if (options.verbose) {
+      console.info(chalk.gray(dumpTree(root)));
+    }
   }
 
-  const main = findNodes(root, (node) => node.type === "main")[0] ?? root;
+  // The origin (if present) is the node the author wants to treat as the de-facto beginning of playback
+  const origin = findNodes(root, (node) => node.type === "origin")[0] ?? root;
 
   if (!session.address) {
-    session.address = main.addr;
+    session.address = origin.addr;
   }
 
   function done(seam: SeamType, info: Record<string, string>) {
@@ -218,7 +224,7 @@ export async function advanceStory(
 
     const ctx: ActionContext = {
       options,
-      main,
+      origin: origin,
       root,
       node,
       session,
@@ -248,11 +254,13 @@ export async function advanceStory(
     const result = await handler.exec(ctx);
     out.push(...result.ops);
 
-    console.info(
-      chalk.gray(
-        `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${result.next?.node.addr} ${JSON.stringify(result.ops)}`
-      )
-    );
+    if (options.verbose) {
+      console.info(
+        chalk.gray(
+          `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${result.next?.node.addr} ${JSON.stringify(result.ops)}`
+        )
+      );
+    }
 
     if (result.next) {
       // Check if we're currently in a yielded block and the next node escapes it
@@ -311,7 +319,6 @@ const TEXT_CONTENT_TAGS = [
 
 export const DESCENDABLE_TAGS = [
   "root",
-  "head",
   "html",
   "body",
   "div",
@@ -320,28 +327,14 @@ export const DESCENDABLE_TAGS = [
   "li",
   "section",
   "sec",
-  "nav",
+  "pre",
+  "scope",
+  // Common HTML tags we'll treat as playable content
   "main",
   "aside",
   "article",
-  "header",
-  "footer",
-  "figure",
-  "figcaption",
-  "table",
-  "thead",
-  "tbody",
-  "tfoot",
-  "tr",
-  "td",
-  "th",
-  "form",
-  "fieldset",
-  "legend",
   "details",
   "summary",
-  "pre",
-  "scope",
 ];
 
 export const LOOP_TAGS = ["while"];
@@ -352,7 +345,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       // Push a new scope onto the callStack when entering
       const returnAddress =
-        nextNode(ctx.node, ctx.root, false)?.node.addr ?? ctx.main.addr;
+        nextNode(ctx.node, ctx.root, false)?.node.addr ?? ctx.origin.addr;
       ctx.session.stack.push({ returnAddress, scope: {} });
       // Enter the scope (process children)
       const next =
@@ -606,11 +599,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           returnAddress = returnResult.node.addr;
         } else {
           const next = nextNode(ctx.node, ctx.root, false);
-          returnAddress = next?.node.addr ?? ctx.main.addr;
+          returnAddress = next?.node.addr ?? ctx.origin.addr;
         }
       } else {
         const next = nextNode(ctx.node, ctx.root, false);
-        returnAddress = next?.node.addr ?? ctx.main.addr;
+        returnAddress = next?.node.addr ?? ctx.origin.addr;
       }
       const scope: { [key: string]: TSerial } = {};
       for (const [key, value] of Object.entries(

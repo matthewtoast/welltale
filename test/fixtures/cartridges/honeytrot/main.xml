@@ -1,4 +1,4 @@
-<main>
+<origin>
   <music
     gen="modern high tech spy thriller intro music, subtle, intriguing"
     background="true"
@@ -50,7 +50,7 @@
       </else>
     </if>
   </div>
-</main>
+</origin>
 
 <resume>
   <if cond="blank(codename)">
