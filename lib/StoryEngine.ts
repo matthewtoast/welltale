@@ -50,6 +50,7 @@ export const SessionSchema = z.object({
     z.object({
       returnAddress: z.string(),
       scope: z.record(z.any()),
+      blockType: z.enum(["scope", "yield", "intro", "resume"]).optional(),
     })
   ),
   state: z.record(z.any()),
@@ -152,28 +153,6 @@ export async function advanceStory(
 
   const rng = new PRNG(options.seed, session.cycle % 10_000);
   session.time = Date.now();
-
-  if (session.turn < 1) {
-    findNodes(root, (node) => node.type === "meta").forEach((meta) => {
-      if (!isBlank(meta.atts.description)) {
-        session.meta[meta.atts.name ?? meta.atts.property] =
-          meta.atts.description;
-      }
-    });
-    const intro = findNodes(root, (node) => node.type === "intro")[0];
-    if (intro) {
-      // TODO: The <intro> node, if present, runs only once before any other content is played
-    }
-  } else {
-    if (session.resume) {
-      session.resume = false;
-      const resume = findNodes(root, (node) => node.type === "resume")[0];
-      if (resume) {
-        // TODO: If we can+should resume, run the <resume> block then go to the address we left off at
-      }
-    }
-  }
-
   session.turn += 1;
 
   if (calls++ < 1) {
@@ -185,7 +164,44 @@ export async function advanceStory(
   // The origin (if present) is the node the author wants to treat as the de-facto beginning of playback
   const origin = findNodes(root, (node) => node.type === "origin")[0] ?? root;
 
-  if (!session.address) {
+  // Extract metadata on first turn
+  if (session.turn === 1) {
+    findNodes(root, (node) => node.type === "meta").forEach((meta) => {
+      if (!isBlank(meta.atts.description)) {
+        session.meta[meta.atts.name ?? meta.atts.property] =
+          meta.atts.description;
+      }
+    });
+  }
+
+  // Check for resume first (takes precedence over intro)
+  if (session.resume) {
+    session.resume = false;
+    const resume = findNodes(root, (node) => node.type === "resume")[0];
+    if (resume) {
+      session.stack.push({
+        returnAddress: session.address || origin.addr,
+        scope: {},
+        blockType: "resume",
+      });
+      session.address = resume.addr;
+    } else if (!session.address) {
+      session.address = origin.addr;
+    }
+  } else if (session.turn === 1) {
+    // Check for intro on first turn (only if not resuming)
+    const intro = findNodes(root, (node) => node.type === "intro")[0];
+    if (intro) {
+      session.stack.push({
+        returnAddress: origin.addr,
+        scope: {},
+        blockType: "intro",
+      });
+      session.address = intro.addr;
+    } else {
+      session.address = origin.addr;
+    }
+  } else if (!session.address) {
     session.address = origin.addr;
   }
 
@@ -224,7 +240,7 @@ export async function advanceStory(
 
     const ctx: ActionContext = {
       options,
-      origin: origin,
+      origin,
       root,
       node,
       session,
@@ -329,6 +345,7 @@ export const DESCENDABLE_TAGS = [
   "sec",
   "pre",
   "scope",
+  "origin",
   // Common HTML tags we'll treat as playable content
   "main",
   "aside",
@@ -346,7 +363,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // Push a new scope onto the callStack when entering
       const returnAddress =
         nextNode(ctx.node, ctx.root, false)?.node.addr ?? ctx.origin.addr;
-      ctx.session.stack.push({ returnAddress, scope: {} });
+      ctx.session.stack.push({ 
+        returnAddress, 
+        scope: {},
+        blockType: "scope",
+      });
       // Enter the scope (process children)
       const next =
         ctx.node.kids.length > 0
@@ -559,6 +580,36 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    // Intro nodes process their children like any container
+    match: (node: StoryNode) => node.type === "intro",
+    exec: async (ctx) => {
+      const next = nextNode(ctx.node, ctx.root, true);
+      return { ops: [], next };
+    },
+  },
+  {
+    // Resume nodes are processed only when explicitly resuming, otherwise skipped
+    match: (node: StoryNode) => node.type === "resume",
+    exec: async (ctx) => {
+      // Check if we're in a resume context
+      const inResumeContext = ctx.session.stack.some(
+        (frame) => frame.blockType === "resume"
+      );
+
+      if (inResumeContext) {
+        // Process children when actually resuming
+        const next =
+          ctx.node.kids.length > 0
+            ? { node: ctx.node.kids[0] }
+            : nextNode(ctx.node, ctx.root, false);
+        return { ops: [], next };
+      } else {
+        // Skip resume block in normal flow
+        return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
+      }
+    },
+  },
+  {
     // Blocks are only rendered if <yield>-ed to
     match: (node: StoryNode) => node.type === "block",
     exec: async (ctx) => ({
@@ -611,7 +662,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       )) {
         setState(scope, key, value);
       }
-      ctx.session.stack.push({ returnAddress, scope });
+      ctx.session.stack.push({ 
+        returnAddress, 
+        scope,
+        blockType: "yield",
+      });
       // Go to first child of block (or next sibling if no children)
       if (blockResult.node.kids.length > 0) {
         return {
@@ -865,22 +920,28 @@ export function wouldEscapeCurrentBlock(
   nextNode: StoryNode,
   root: StoryNode
 ): boolean {
-  // Find the closest block or scope ancestor of the current node
+  // Find the closest container ancestor that uses the stack
   let node: StoryNode | null = currentNode;
   let blockAncestor: StoryNode | null = null;
-  // Walk up the tree to find the closest block or scope ancestor
+  
   while (node) {
-    if (node.type === "block" || node.type === "scope") {
+    if (
+      node.type === "block" ||
+      node.type === "scope" ||
+      node.type === "intro" ||
+      node.type === "resume"
+    ) {
       blockAncestor = node;
       break;
     }
     node = parentNodeOf(node, root);
   }
-  // If no block/scope ancestor, we can't escape from a block/scope
+  
   if (!blockAncestor) {
     return false;
   }
-  // A node is inside the block/scope if its address starts with the ancestor's address + "."
+  
+  // Check if next node would escape the current container
   const blockPrefix = blockAncestor.addr + ".";
   return !nextNode.addr.startsWith(blockPrefix);
 }

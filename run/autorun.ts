@@ -60,6 +60,10 @@ async function runAutorun() {
       default: 0,
       description: "Which turn to assume the game starts from",
     })
+    .option("sessionAddress", {
+      type: "string",
+      description: "Address at which to resume playback",
+    })
     .parserConfiguration({
       "camel-case-expansion": true,
       "strip-aliased": true,
@@ -74,6 +78,7 @@ async function runAutorun() {
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
   session.resume = argv.sessionResume;
   session.turn = argv.sessionTurn;
+  session.address = argv.sessionAddress ?? null;
 
   const options: StoryOptions = {
     seed: argv.seed,
