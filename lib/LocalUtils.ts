@@ -17,6 +17,8 @@ import {
 import { isBlank, railsTimestamp } from "lib/TextHelpers";
 import { dirname } from "path";
 
+export const CAROT = "> ";
+
 loadEnv();
 
 export function loadSessionFromDisk(abspath: string, id?: string): Session {
@@ -53,6 +55,7 @@ export async function renderNext(
   provider: ServiceProvider
 ) {
   if (!isBlank(input)) {
+    console.log(chalk.greenBright(`${CAROT}${input}`));
     if (!session.input) {
       session.input = {
         atts: {},

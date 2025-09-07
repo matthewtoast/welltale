@@ -12,12 +12,11 @@ import readline from "readline";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import {
+  CAROT,
   loadSessionFromDisk,
   renderNext,
   saveSessionToDisk,
 } from "../lib/LocalUtils";
-
-const CAROT = "> ";
 
 async function runRepl() {
   const argv = await yargs(hideBin(process.argv))
@@ -58,14 +57,6 @@ async function runRepl() {
     .help()
     .parse();
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: chalk.greenBright(CAROT),
-  });
-
-  rl.on("close", () => process.exit(0));
-
   const seed = argv.seed;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
@@ -79,7 +70,6 @@ async function runRepl() {
     verbose: true,
     ream: 100,
     loop: 0,
-    autoInput: false,
     doGenerateSpeech: false,
     doGenerateAudio: false,
     models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
@@ -100,6 +90,14 @@ async function runRepl() {
   );
 
   saveSessionToDisk(session, argv.sessionPath);
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: chalk.greenBright(CAROT),
+  });
+
+  rl.on("close", () => process.exit(0));
 
   if (seam === SeamType.FINISH || seam === SeamType.ERROR) {
     rl.close();

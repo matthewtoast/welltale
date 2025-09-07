@@ -68,7 +68,6 @@ export const StoryOptionsSchema = z.object({
   seed: z.string(),
   loop: z.number(),
   ream: z.number(),
-  autoInput: z.boolean(),
   doGenerateSpeech: z.boolean(),
   doGenerateAudio: z.boolean(),
   models: z
@@ -1060,6 +1059,67 @@ export function cloneNode(node: StoryNode): StoryNode {
     text: node.text,
     kids: node.kids.map((kid) => cloneNode(kid)),
   };
+}
+
+async function processInputValue(
+  raw: string,
+  atts: Record<string, TSerial>,
+  ctx: ActionContext
+): Promise<{ success: boolean; value?: TSerial; errorMessage?: string }> {
+  let value: TSerial = raw;
+
+  // 1. AI Enhancement
+  if (atts.make) {
+    const enhanced = await ctx.provider.generateJson(
+      `Given user input "${value}", return a value that matches: ${atts.make}`,
+      { input: value, type: atts.type, pattern: atts.pattern },
+      { models: ctx.options.models, useWebSearch: false }
+    );
+    value = enhanced.value || value;
+  }
+
+  // 2. Pattern Validation
+  if (atts.pattern) {
+    const pattern = castToString(atts.pattern);
+    if (!new RegExp(pattern).test(castToString(value))) {
+      const errorMessage = atts.error
+        ? castToString(atts.error)
+        : "Invalid format";
+      return { success: false, errorMessage };
+    }
+  }
+
+  // 3. Parse Expression (using existing evalExpr)
+  if (atts.parse) {
+    value = evalExpr(
+      castToString(atts.parse),
+      { ...ctx.scope, input: value },
+      {},
+      ctx.rng
+    );
+  }
+
+  // 4. Type Casting (new enhanced function)
+  value = castToTypeEnhanced(value, castToString(atts.type));
+
+  // Validate result isn't null/undefined unless explicitly allowed
+  if (value === null || value === undefined) {
+    // 5. Default Fallback
+    if (atts.default !== undefined) {
+      const defaultValue = castToTypeEnhanced(
+        atts.default,
+        castToString(atts.type)
+      );
+      return { success: true, value: defaultValue };
+    }
+
+    const errorMessage = atts.error
+      ? castToString(atts.error)
+      : "Please provide a valid input and try again.";
+    return { success: false, errorMessage };
+  }
+
+  return { success: true, value };
 }
 
 export function createScope(session: Session): { [key: string]: TSerial } {

@@ -25,6 +25,11 @@ async function runAutorun() {
       description: "Seed for random number generator",
       default: "seed",
     })
+    .option("verbose", {
+      type: "boolean",
+      description: "Verbose logging on (true/false)",
+      default: false,
+    })
     .option("cartridgeDir", {
       type: "string",
       description: "Path to the dir containing the cartridge files",
@@ -82,10 +87,9 @@ async function runAutorun() {
 
   const options: StoryOptions = {
     seed: argv.seed,
-    verbose: true,
+    verbose: argv.verbose,
     ream: 100,
     loop: 0,
-    autoInput: true,
     doGenerateSpeech: false,
     doGenerateAudio: false,
     models: ["openai/gpt-4.1", "anthropic/claude-3.5-sonnet"],
@@ -99,6 +103,10 @@ async function runAutorun() {
     cache: new LocalCache(argv.cacheDir),
   });
 
+  console.info({
+    inputs: argv.inputs,
+    options,
+  });
   return await runUntilComplete({
     options,
     provider,

@@ -677,3 +677,35 @@ export function isTruthy(v: any) {
 export function isFalsy(v: any) {
   return !isTruthy(v);
 }
+
+export function castToTypeEnhanced(value: TSerial, type?: string): TSerial {
+  if (!type || type === 'string') return castToString(value);
+  if (type === 'number') return castToNumber(value);
+  if (type === 'boolean') return castToBoolean(value);
+  
+  // Handle enums (e.g., "elf|dwarf|human")
+  if (type.includes('|')) {
+    const options = type.split('|').map(s => s.trim());
+    const normalized = castToString(value).toLowerCase().trim();
+    const match = options.find(opt => opt.toLowerCase() === normalized);
+    if (match) return match;
+    
+    // Try fuzzy match for common variations
+    for (const opt of options) {
+      if (normalized.includes(opt.toLowerCase()) || 
+          opt.toLowerCase().includes(normalized)) {
+        return opt;
+      }
+    }
+    return null;
+  }
+  
+  // Handle arrays if type is like "string[]"
+  if (type.endsWith('[]')) {
+    const itemType = type.slice(0, -2);
+    const arr = Array.isArray(value) ? value : [value];
+    return arr.map(item => castToTypeEnhanced(item, itemType));
+  }
+  
+  return value;
+}
