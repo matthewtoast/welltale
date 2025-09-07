@@ -13,9 +13,10 @@ import {
   LIQUID,
 } from "lib/TextHelpers";
 import { get, isEmpty, omit, set } from "lodash";
-import { TSerial } from "typings";
+import { NonEmpty, TSerial } from "typings";
 import { z } from "zod";
-import { ServiceProvider } from "./ServiceProvider";
+import { MODELS } from "./OpenRouterUtils";
+import { GenerateOptions, ServiceProvider } from "./ServiceProvider";
 
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
@@ -60,6 +61,8 @@ export const SessionSchema = z.object({
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
 });
 
+const ModelSchema = z.enum(MODELS as any);
+
 export const StoryOptionsSchema = z.object({
   verbose: z.boolean(),
   seed: z.string(),
@@ -68,6 +71,10 @@ export const StoryOptionsSchema = z.object({
   autoInput: z.boolean(),
   doGenerateSpeech: z.boolean(),
   doGenerateAudio: z.boolean(),
+  models: z
+    .tuple([ModelSchema, ModelSchema])
+    .rest(ModelSchema)
+    .transform((val) => val as NonEmpty<(typeof MODELS)[number]>),
 });
 
 export type StoryEvent = z.infer<typeof StoryEventSchema>;
@@ -399,7 +406,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       let text = "";
       if (isBlank(text)) {
@@ -413,7 +421,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           next,
         };
       }
-      text = await renderText(text, ctx.scope, ctx.rng, ctx.provider);
+      text = await renderText(
+        text,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
       const event: StoryEvent = {
         body: ctx.rng.randomElement(cleanSplit(text, "|")),
         from: atts.from ?? atts.speaker ?? atts.voice ?? "",
@@ -444,7 +458,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       let next;
       const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
@@ -478,7 +493,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       let next;
       const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
@@ -500,7 +516,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       let next;
       if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
@@ -524,12 +541,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
       let rollup = collectAllText(ctx.node);
       if (!isBlank(atts.stash)) {
-        rollup = await renderText(rollup, ctx.scope, ctx.rng, ctx.provider);
+        rollup = await renderText(
+          rollup,
+          ctx.scope,
+          ctx.rng,
+          ctx.provider,
+          ctx.options.models
+        );
       }
       const value = !isBlank(rollup) ? rollup : atts.value;
       setState(ctx.scope, key, value);
@@ -546,7 +570,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         collectAllText(ctx.node),
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       const lines = cleanSplitRegex(text, /[;\n]/);
       lines.forEach((line) => {
@@ -565,7 +590,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       return {
         ops: [
@@ -624,7 +650,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       const targetBlockId = atts.target;
       const returnToNodeId = atts.returnTo ?? atts.return;
@@ -695,7 +722,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       let url = atts.href ?? atts.url ?? atts.src;
       const next = nextNode(ctx.node, ctx.root, false);
@@ -705,7 +733,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           collectAllText(ctx.node),
           ctx.scope,
           ctx.rng,
-          ctx.provider
+          ctx.provider,
+          ctx.options.models
         );
         const prompt = !isBlank(rollup) ? rollup : atts.make;
         if (!isBlank(prompt)) {
@@ -756,20 +785,26 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       // Get additional prompt from node content
       const prompt = await renderText(
         collectAllText(ctx.node),
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       const useWebSearch = isTruthy(atts.web) ? true : false;
+      const generateOptions: GenerateOptions = {
+        models: ctx.options.models,
+        useWebSearch,
+      };
       const result = await ctx.provider.generateJson(
         prompt,
         atts,
-        useWebSearch
+        generateOptions
       );
       for (const [key, value] of Object.entries(result)) {
         setState(ctx.scope, key, value);
@@ -789,7 +824,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       // Next advance() we'll assign input using these atts
       ctx.session.input = {
@@ -815,13 +851,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.node.atts,
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       const rollup = await renderText(
         collectAllText(ctx.node),
         ctx.scope,
         ctx.rng,
-        ctx.provider
+        ctx.provider,
+        ctx.options.models
       );
       const message = !isBlank(rollup) ? rollup : atts.message;
       if (message) {
@@ -1079,7 +1117,8 @@ export async function renderText(
   text: string,
   scope: Record<string, TSerial>,
   rng: PRNG | null,
-  provider: ServiceProvider | null
+  provider: ServiceProvider | null,
+  models: NonEmpty<(typeof MODELS)[number]>
 ): Promise<string> {
   if (isBlank(text) || text.length < 3) {
     return text;
@@ -1098,7 +1137,10 @@ export async function renderText(
     result = await enhanceText(
       result,
       async (chunk: string) => {
-        return await provider.generateText(chunk, false);
+        return await provider.generateText(chunk, {
+          models,
+          useWebSearch: false,
+        });
       },
       LIQUID
     );
@@ -1110,12 +1152,13 @@ export async function renderAtts(
   atts: Record<string, string>,
   scope: Record<string, TSerial>,
   rng: PRNG | null,
-  provider: ServiceProvider | null
+  provider: ServiceProvider | null,
+  models: NonEmpty<(typeof MODELS)[number]>
 ) {
   const out: Record<string, string> = {};
   for (const key in atts) {
     if (typeof atts[key] === "string") {
-      out[key] = await renderText(atts[key], scope, rng, provider);
+      out[key] = await renderText(atts[key], scope, rng, provider, models);
     }
   }
   return out;

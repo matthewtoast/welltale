@@ -1,6 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { OpenAI } from "openai";
-import { TSerial } from "typings";
+import { TSerial, NonEmpty } from "typings";
 import { Cache } from "./Cache";
 import {
   autoFindPresetVoice,
@@ -8,16 +8,28 @@ import {
   generateSoundEffect,
   generateSpeechClip,
 } from "./ElevenLabsUtils";
-import { generateJson, generateJsonWithWeb, generateText } from "./OpenAIUtils";
+import {
+  generateJson,
+  generateJsonWithWeb,
+  generateText,
+  MODELS,
+} from "./OpenRouterUtils";
 import { StoryEvent } from "./StoryEngine";
 import { generatePredictableKey } from "./TextHelpers";
 
+type Model = (typeof MODELS)[number];
+
+export type GenerateOptions = {
+  models: NonEmpty<Model>;
+  useWebSearch: boolean;
+};
+
 export interface ServiceProvider {
-  generateText(prompt: string, useWebSearch: boolean): Promise<string>;
+  generateText(prompt: string, options: GenerateOptions): Promise<string>;
   generateJson(
     prompt: string,
     schema: Record<string, TSerial>,
-    useWebSearch: boolean
+    options: GenerateOptions
   ): Promise<Record<string, any>>;
   generateSound(prompt: string): Promise<{ url: string }>;
   generateMusic(prompt: string): Promise<{ url: string }>;
@@ -37,7 +49,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     }
   ) {}
 
-  async generateText(prompt: string, useWebSearch: boolean): Promise<string> {
+  async generateText(prompt: string, options: GenerateOptions): Promise<string> {
     const useCache = !this.config.disableCache;
     const key = generatePredictableKey("text", prompt, "txt");
     if (useCache) {
@@ -46,7 +58,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return cached.toString();
       }
     }
-    const result = await generateText(this.config.openai, prompt, useWebSearch);
+    const result = await generateText(this.config.openai, prompt, options.useWebSearch, options.models);
     if (!result) {
       console.warn("Failed to generate completion");
       return "";
@@ -61,7 +73,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
   async generateJson(
     prompt: string,
     schema: Record<string, TSerial>,
-    useWebSearch: boolean = false
+    options: GenerateOptions
   ): Promise<Record<string, any>> {
     const useCache = !this.config.disableCache;
     const cacheKey = `${prompt}\n${schema}`;
@@ -72,13 +84,14 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return JSON.parse(cached.toString());
       }
     }
-    const result = useWebSearch
+    const result = options.useWebSearch
       ? await generateJsonWithWeb(
           this.config.openai,
           prompt,
-          JSON.stringify(schema)
+          JSON.stringify(schema),
+          options.models
         )
-      : await generateJson(this.config.openai, prompt, JSON.stringify(schema));
+      : await generateJson(this.config.openai, prompt, JSON.stringify(schema), options.models);
     if (!result) {
       console.warn("Failed to generate completion");
       return {};

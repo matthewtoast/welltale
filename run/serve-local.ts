@@ -68,7 +68,7 @@ async function main() {
       default: 3000,
       description: "Port to run the server on",
     })
-    .option("openaiKey", {
+    .option("openRouterApiKey", {
       type: "string",
       description: "OpenAI API key",
       demandOption: true,
@@ -96,7 +96,7 @@ async function main() {
     path.join(os.homedir(), ".welltale", "cartridges"),
   ];
 
-  const openai = new OpenAI({ apiKey: argv.openaiKey });
+  const openai = new OpenAI({ apiKey: argv.openRouterApiKey });
   const elevenlabs = new ElevenLabsClient({ apiKey: argv.elevenlabsKey });
   const cache = new LocalCache(argv.cacheDir);
 

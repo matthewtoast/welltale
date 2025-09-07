@@ -36,7 +36,7 @@ async function runRepl() {
       description: "Path to the JSON file at which to save session data",
       demandOption: true,
     })
-    .option("openaiKey", {
+    .option("openRouterApiKey", {
       type: "string",
       description: "OpenAI API key",
       demandOption: true,
@@ -82,11 +82,12 @@ async function runRepl() {
     autoInput: false,
     doGenerateSpeech: false,
     doGenerateAudio: false,
+    models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
   };
 
   const provider = new DefaultServiceProvider({
     eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
-    openai: new OpenAI({ apiKey: argv.openaiKey }),
+    openai: new OpenAI({ apiKey: argv.openRouterApiKey }),
     cache: new LocalCache(argv.cacheDir),
   });
 

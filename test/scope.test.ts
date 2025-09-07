@@ -23,7 +23,8 @@ async function go() {
     `hello {{f}} or {{a.b.c}} or {$ 1 + g.h.i $}`,
     scope,
     new PRNG("test"),
-    null
+    null,
+    ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"]
   );
   expect(text, "hello foo or coco or 4");
 }
