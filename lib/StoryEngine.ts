@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import dedent from "dedent";
 import Handlebars from "handlebars";
 import {
   castToString,
@@ -855,56 +856,42 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const inp = ctx.session.input;
       if (!inp || inp.addr !== ctx.node.addr) {
         const r = atts.retries ? Number(atts.retries) || 0 : undefined;
-        ctx.session.input = { body: "", atts, addr: ctx.node.addr, retries: r };
+        ctx.session.input = {
+          body: null,
+          atts,
+          addr: ctx.node.addr,
+          retries: r,
+        };
       }
 
-      if (ctx.session.input && ctx.session.input.body !== "") {
+      if (ctx.session.input && ctx.session.input.body !== null) {
         const raw = ctx.session.input.body;
-        const res = await processInputValue(raw, atts, ctx);
-        if (res.success) {
-          const key = atts.var || atts.name || atts.key;
-          if (key && res.value !== undefined)
-            setState(ctx.scope, key, res.value);
-          ctx.session.input = null;
-          return { ops: [], next: nextAfter ?? null };
-        }
-        const ops: OP[] = [];
-        if (!isBlank(atts.error)) {
-          const event: StoryEvent = {
-            body: atts.error,
-            from: atts.from ?? atts.speaker ?? atts.voice ?? "",
-            to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
-            obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
-            tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
-            time: Date.now(),
-          };
-          ops.push({ type: "play-event", audio: "", event });
-          ctx.session.history.push(event);
-        }
-        const err = ctx.node.kids.find((k) => k.type === "error");
-        let left = ctx.session.input.retries;
-        if (typeof left === "number" && left > 0) {
-          left = left - 1;
-          ctx.session.input.retries = left;
-        }
-        ctx.session.input.body = null;
-        if (left === 0) {
-          const target = atts.failover
-            ? searchForNode(ctx.root, atts.failover)
-            : null;
-          if (target) {
-            ctx.session.input = null;
-            return { ops, next: target };
+        const groups: Record<string, FieldSpec> = parseFieldGroups(atts);
+        const keys = Object.keys(groups);
+
+        let extracted: Record<string, TSerial> = {};
+        const parsed = safeJsonParse(raw);
+        if (parsed && typeof parsed === "object") {
+          extracted = parsed as Record<string, TSerial>;
+        } else {
+          for (const key of keys) {
+            const spec = groups[key];
+            extracted[key] = await processInputValue(
+              castToString(raw),
+              spec,
+              ctx
+            );
           }
-          ctx.session.meta.error = `Input failed for fields [${fieldNames.join(", ")}]. Last value: ${raw}`;
-          return { ops, next: null };
         }
-        if (err) {
-          ctx.session.input.returnTo = ctx.node.addr;
-          return { ops, next: { node: err } };
+
+        for (const key in extracted) {
+          ctx.scope[key] = extracted[key];
         }
-        return { ops, next: { node: ctx.node } };
+
+        ctx.session.input = null;
+        return { ops: [], next: nextAfter ?? null };
       }
+
       return {
         ops: [
           {
@@ -1139,49 +1126,35 @@ async function processInputValue(
   raw: string,
   atts: Record<string, string>,
   ctx: ActionContext
-): Promise<{ success: boolean; value?: TSerial; error?: string }> {
+): Promise<TSerial> {
   let value: TSerial = raw;
+  const type = atts.type ?? "string";
+  const fallback = atts.default ?? "";
 
-  const t = atts.type ? castToString(atts.type) : undefined;
-  const isBlankInput = castToString(raw).trim() === "";
-  let handledBlankWithMake = false;
-  if (isBlankInput && atts.make) {
+  // AI Enhancement
+  if (!isBlank(atts.make)) {
     const enhanced = await ctx.provider.generateJson(
-      `Generate a value that matches: ${atts.make}`,
-      { type: atts.type, pattern: atts.pattern },
-      { models: ctx.options.models, useWebSearch: false }
+      dedent`
+        Extract the most appropriate value of type "${type}" from the input, per the instruction, conforming to the pattern.
+        <input>${raw}</input>
+        <instruction>${atts.make}</instruction>
+        <pattern>${atts.pattern ?? ".*"}</pattern>
+      `,
+      { value: type },
+      {
+        models: ["openai/gpt-5-mini", "openai/gpt-5-nano"],
+        useWebSearch: false,
+      }
     );
-    value = enhanced.value ?? value;
-    handledBlankWithMake = true;
-  } else if (isBlankInput && atts.default !== undefined) {
-    return {
-      success: true,
-      value: t ? castToTypeEnhanced(atts.default, t) : atts.default,
-    };
+    value = enhanced.value;
   }
 
-  // 1. AI Enhancement
-  if (atts.make && !handledBlankWithMake) {
-    const enhanced = await ctx.provider.generateJson(
-      `Given user input "${value}", return a value that matches: ${atts.make}`,
-      { input: value, type: atts.type, pattern: atts.pattern },
-      { models: ctx.options.models, useWebSearch: false }
-    );
-    value = enhanced.value || value;
+  // Default Fallback
+  if (isBlank(value)) {
+    value = fallback;
   }
 
-  // 2. Pattern Validation
-  if (atts.pattern) {
-    const pattern = castToString(atts.pattern);
-    if (!new RegExp(pattern).test(castToString(value))) {
-      const errorMessage = atts.error
-        ? castToString(atts.error)
-        : "Invalid format";
-      return { success: false, error: errorMessage };
-    }
-  }
-
-  // 3. Parse Expression (using existing evalExpr)
+  // Parse Expression (using existing evalExpr)
   if (atts.parse) {
     value = evalExpr(
       castToString(atts.parse),
@@ -1189,28 +1162,25 @@ async function processInputValue(
       {},
       ctx.rng
     );
-  }
-
-  // 4. Type Casting (new enhanced function)
-  if (t) value = castToTypeEnhanced(value, t);
-
-  // Validate result isn't null/undefined unless explicitly allowed
-  if (value === null || value === undefined) {
-    // 5. Default Fallback
-    if (atts.default !== undefined) {
-      const defaultValue = t
-        ? castToTypeEnhanced(atts.default, t)
-        : atts.default;
-      return { success: true, value: defaultValue };
+    if (value === undefined || value === null) {
+      value = fallback;
     }
-
-    const errorMessage = atts.error
-      ? castToString(atts.error)
-      : "Please provide a valid input and try again.";
-    return { success: false, error: errorMessage };
   }
 
-  return { success: true, value };
+  // Pattern Validation
+  if (atts.pattern) {
+    const pattern = castToString(atts.pattern);
+    if (!new RegExp(pattern).test(castToString(value))) {
+      value = fallback; // If not valid, make blank to be filled in by defaults later
+    }
+  }
+
+  // Type Casting
+  if (atts.type) {
+    value = castToTypeEnhanced(value, atts.type);
+  }
+
+  return value;
 }
 
 export function createScope(session: Session): { [key: string]: TSerial } {

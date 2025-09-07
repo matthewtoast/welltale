@@ -75,7 +75,7 @@
   <p>
     O - shouldn't show blank var foo declared in block: ({{foo}})
   </p>
-  <input pop.type="string" />
+  <input pop.type="string" pop.default="" />
   <p>
     P - input should appear here = ({{pop}})
   </p>
@@ -113,7 +113,7 @@
   <log />
   <while cond='empty(xx) or not startsWith(lower(xx), "x")'>
     <p from="Bob">... Say a word beginning with the letter "x".</p>
-    <input xx.type="string" />
+    <input xx.type="string" xx.default="" />
   </while>
   <log />
   <p>

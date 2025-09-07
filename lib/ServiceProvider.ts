@@ -32,7 +32,7 @@ export interface ServiceProvider {
     prompt: string,
     schema: Record<string, TSerial>,
     options: GenerateOptions
-  ): Promise<Record<string, any>>;
+  ): Promise<Record<string, TSerial>>;
   generateSound(prompt: string): Promise<{ url: string }>;
   generateMusic(prompt: string): Promise<{ url: string }>;
   generateSpeech(event: {

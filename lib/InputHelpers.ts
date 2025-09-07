@@ -4,7 +4,6 @@ export type FieldSpec = {
   pattern?: string;
   default?: string;
   make?: string;
-  error?: string;
 };
 
 export function parseFieldGroups(

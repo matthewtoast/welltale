@@ -1,0 +1,15 @@
+<p>What's your name?</p>
+<input name.type="string" name.default="" />
+<p>Hello {{name}}!</p>
+
+<p>What age are you?</p>
+<input age.type="number" age.parse="clamp(toNumber(input), 1, 120)" age.default="25" />
+<p>You are {{age}} years old.</p>
+
+<p>What's your email?</p>
+<input email.type="string" email.pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" email.default="user@example.com" />
+<p>Your email is {{email}}.</p>
+
+<p>What class are you?</p>
+<input class.type="warrior|mage|rogue" class.default="warrior" />
+<p>You are a {{class}}!</p>

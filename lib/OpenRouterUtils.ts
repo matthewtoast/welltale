@@ -3,8 +3,13 @@ import OpenAI from "openai";
 import { NonEmpty, TSerial } from "typings";
 
 export const MODELS = [
-  "openai/gpt-4o",
+  "openai/gpt-5",
+  "openai/gpt-5-mini",
+  "openai/gpt-5-nano",
   "openai/gpt-4.1",
+  "openai/gpt-4.1-mini",
+  "openai/gpt-4.1-nano",
+  "openai/gpt-4o",
   "anthropic/claude-3.5-sonnet",
   "deepseek/deepseek-r1",
   "deepseek/deepseek-v3.1",
@@ -18,12 +23,6 @@ type Msg = {
   role: "user" | "assistant" | "system" | "developer";
   content: string;
 };
-
-const DEFAULT_ROUTE: NonEmpty<Model> = [
-  "openai/gpt-4.1",
-  "anthropic/claude-3.5-sonnet",
-  "deepseek/deepseek-r1",
-];
 
 const asInput = (p: string | Msg[]) =>
   typeof p === "string"
