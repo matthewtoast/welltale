@@ -99,6 +99,10 @@ export async function renderNext(
     }
   }
   await render();
+  if (seam === SeamType.ERROR) {
+    const msg = typeof info?.error === "string" && info.error ? info.error : "Unknown error";
+    console.log(chalk.red.bold(`ERROR: ${msg}`));
+  }
   return seam;
 }
 

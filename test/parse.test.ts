@@ -1,5 +1,5 @@
 import { autoFindPresetVoice } from "lib/ElevenLabsUtils";
-import { evalExpr } from "lib/EvalUtils";
+import { evalExpr, castToTypeEnhanced } from "lib/EvalUtils";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
@@ -122,6 +122,16 @@ async function test() {
   expect(parseNumberOrNull("invalid"), null);
   expect(parseNumberOrNull(""), 0);
   expect(parseNumberOrNull("  123  "), 123);
+
+  // castToTypeEnhanced
+  expect(castToTypeEnhanced("123", "number"), 123);
+  expect(castToTypeEnhanced(42, "string"), "42");
+  expect(castToTypeEnhanced("true", "boolean"), true);
+  expect(castToTypeEnhanced("WARRIOR", "warrior|mage|rogue"), "warrior");
+  expect(castToTypeEnhanced("war", "warrior|mage|rogue"), "warrior");
+  expect(castToTypeEnhanced("paladin", "warrior|mage|rogue"), null);
+  expect(castToTypeEnhanced(["1", "2"], "number[]"), [1, 2]);
+  expect(castToTypeEnhanced("1", "number[]"), [1]);
 
   // String transform
   expect(camelCase("foo-bar"), "fooBar");

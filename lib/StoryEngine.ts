@@ -892,7 +892,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             ctx.session.input = null;
             return { ops, next: target };
           }
-          ctx.session.meta.error = `Input failed for ${atts.var ?? atts.name ?? atts.key ?? "input"}`;
+          const key = atts.var || atts.name || atts.key || "input";
+          ctx.session.meta.error = `Input failed for ${key}. Last value: ${raw}`;
           return { ops, next: null };
         }
         if (err) {
