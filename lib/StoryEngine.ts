@@ -49,6 +49,9 @@ export const SessionSchema = z.object({
     z.object({
       body: z.string(),
       atts: z.record(z.any()),
+      addr: z.string().optional(),
+      retries: z.number().optional(),
+      returnTo: z.string().optional(),
     }),
     z.null(),
   ]),
@@ -263,10 +266,6 @@ export async function advanceStory(
 
     if (session.input) {
       const { body, atts } = session.input;
-      if (atts.var) {
-        setState(ctx.scope, atts.var, body);
-      }
-      session.input = null;
       session.history.push({
         from: PLAYER_ID,
         body,
@@ -287,6 +286,11 @@ export async function advanceStory(
           `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${result.next?.node.addr} ${JSON.stringify(result.ops)}`
         )
       );
+    }
+
+    const errMsg = castToString((session.meta as any)?.error ?? "");
+    if (errMsg) {
+      return done(SeamType.ERROR, { error: errMsg });
     }
 
     if (result.next) {
@@ -388,6 +392,21 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [],
         next,
       };
+    },
+  },
+  {
+    match: (node) => node.type === "error",
+    exec: async (ctx) => {
+      const returnAddress =
+        ctx.session.input?.returnTo ??
+        nextNode(ctx.node, ctx.root, false)?.node.addr ??
+        ctx.origin.addr;
+      ctx.session.stack.push({ returnAddress, scope: {}, blockType: "scope" });
+      const next =
+        ctx.node.kids.length > 0
+          ? { node: ctx.node.kids[0] }
+          : nextNode(ctx.node, ctx.root, false);
+      return { ops: [], next };
     },
   },
   {
@@ -823,7 +842,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) =>
       node.type === "input" || node.type === "textarea",
     exec: async (ctx) => {
-      const next = nextNode(ctx.node, ctx.root, false);
+      const nextAfter = nextNode(ctx.node, ctx.root, false);
       const atts = await renderAtts(
         ctx.node.atts,
         ctx.scope,
@@ -831,12 +850,57 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.provider,
         ctx.options.models
       );
-      // Next advance() we'll assign input using these atts
-      ctx.session.input = {
-        body: "",
-        atts,
-      };
-      // Otherwise return to client to collect actual user input
+      const inp = ctx.session.input;
+      if (!inp || inp.addr !== ctx.node.addr) {
+        const r = atts.retries ? Number(atts.retries) || 0 : undefined;
+        ctx.session.input = { body: "", atts, addr: ctx.node.addr, retries: r };
+      }
+
+      if (ctx.session.input && ctx.session.input.body !== "") {
+        const raw = ctx.session.input.body;
+        const res = await processInputValue(raw, atts, ctx);
+        if (res.success) {
+          const key = atts.var || atts.name || atts.key;
+          if (key && res.value !== undefined)
+            setState(ctx.scope, key, res.value);
+          ctx.session.input = null;
+          return { ops: [], next: nextAfter ?? null };
+        }
+        const ops: OP[] = [];
+        if (!isBlank(atts.error)) {
+          const event: StoryEvent = {
+            body: atts.error,
+            from: atts.from ?? atts.speaker ?? atts.voice ?? "",
+            to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
+            obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
+            tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
+            time: Date.now(),
+          };
+          ops.push({ type: "play-event", audio: "", event });
+          ctx.session.history.push(event);
+        }
+        const err = ctx.node.kids.find((k) => k.type === "error");
+        let left = ctx.session.input.retries;
+        if (typeof left === "number" && left > 0) {
+          left = left - 1;
+          ctx.session.input.retries = left;
+        }
+        ctx.session.input.body = "";
+        if (left === 0) {
+          const target = atts.failover ? searchForNode(ctx.root, atts.failover) : null;
+          if (target) {
+            ctx.session.input = null;
+            return { ops, next: target };
+          }
+          ctx.session.meta.error = `Input failed for ${atts.var ?? atts.name ?? atts.key ?? "input"}`;
+          return { ops, next: null };
+        }
+        if (err) {
+          ctx.session.input.returnTo = ctx.node.addr;
+          return { ops, next: { node: err } };
+        }
+        return { ops, next: { node: ctx.node } };
+      }
       return {
         ops: [
           {
@@ -844,7 +908,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             timeLimit: parseNumberOrNull(atts.timeLimit ?? atts.for),
           },
         ],
-        next,
+        next: { node: ctx.node },
       };
     },
   },
@@ -971,7 +1035,8 @@ export function wouldEscapeCurrentBlock(
       node.type === "block" ||
       node.type === "scope" ||
       node.type === "intro" ||
-      node.type === "resume"
+      node.type === "resume" ||
+      node.type === "error"
     ) {
       blockAncestor = node;
       break;
@@ -1068,13 +1133,31 @@ export function cloneNode(node: StoryNode): StoryNode {
 
 async function processInputValue(
   raw: string,
-  atts: Record<string, TSerial>,
+  atts: Record<string, string>,
   ctx: ActionContext
-): Promise<{ success: boolean; value?: TSerial; errorMessage?: string }> {
+): Promise<{ success: boolean; value?: TSerial; error?: string }> {
   let value: TSerial = raw;
 
+  const t = atts.type ? castToString(atts.type) : undefined;
+  const isBlankInput = castToString(raw).trim() === "";
+  let handledBlankWithMake = false;
+  if (isBlankInput && atts.make) {
+    const enhanced = await ctx.provider.generateJson(
+      `Generate a value that matches: ${atts.make}`,
+      { type: atts.type, pattern: atts.pattern },
+      { models: ctx.options.models, useWebSearch: false }
+    );
+    value = enhanced.value ?? value;
+    handledBlankWithMake = true;
+  } else if (isBlankInput && atts.default !== undefined) {
+    return {
+      success: true,
+      value: t ? castToTypeEnhanced(atts.default, t) : atts.default,
+    };
+  }
+
   // 1. AI Enhancement
-  if (atts.make) {
+  if (atts.make && !handledBlankWithMake) {
     const enhanced = await ctx.provider.generateJson(
       `Given user input "${value}", return a value that matches: ${atts.make}`,
       { input: value, type: atts.type, pattern: atts.pattern },
@@ -1090,7 +1173,7 @@ async function processInputValue(
       const errorMessage = atts.error
         ? castToString(atts.error)
         : "Invalid format";
-      return { success: false, errorMessage };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -1105,23 +1188,22 @@ async function processInputValue(
   }
 
   // 4. Type Casting (new enhanced function)
-  value = castToTypeEnhanced(value, castToString(atts.type));
+  if (t) value = castToTypeEnhanced(value, t);
 
   // Validate result isn't null/undefined unless explicitly allowed
   if (value === null || value === undefined) {
     // 5. Default Fallback
     if (atts.default !== undefined) {
-      const defaultValue = castToTypeEnhanced(
-        atts.default,
-        castToString(atts.type)
-      );
+      const defaultValue = t
+        ? castToTypeEnhanced(atts.default, t)
+        : atts.default;
       return { success: true, value: defaultValue };
     }
 
     const errorMessage = atts.error
       ? castToString(atts.error)
       : "Please provide a valid input and try again.";
-    return { success: false, errorMessage };
+    return { success: false, error: errorMessage };
   }
 
   return { success: true, value };
