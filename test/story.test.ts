@@ -7,7 +7,7 @@ loadEnv();
 
 const cwd = join(__dirname, "..");
 
-console.log("\n=== Test 0: Multiple tag type flow with blocks ===");
+console.log("\n=== Tag Flow + Blocks ===");
 execSync(
   `yarn ts ./run/autorun.ts \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test01"))} \
@@ -19,7 +19,7 @@ execSync(
   { stdio: "inherit", cwd }
 );
 
-console.log("\n=== Test 1: Basic intro (turn 1) ===");
+console.log("\n=== Intro Tag, Turn 1 ===");
 execSync(
   `yarn ts ./run/autorun.ts \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test02"))} \
@@ -30,7 +30,7 @@ execSync(
   { stdio: "inherit", cwd }
 );
 
-console.log("\n=== Test 2: Resume (turn 1, resume=true) ===");
+console.log("\n=== Resume Tag, Turn 1 ===");
 execSync(
   `yarn ts ./run/autorun.ts \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test02"))} \
@@ -43,9 +43,7 @@ execSync(
   { stdio: "inherit", cwd }
 );
 
-console.log(
-  "\n=== Test 3: Resume with address (turn 1, resume=true, address=0.3) ==="
-);
+console.log("\n=== Test 3: Resume Tag + Previous Address ===");
 execSync(
   `yarn ts ./run/autorun.ts \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test02"))} \

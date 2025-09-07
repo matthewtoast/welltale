@@ -7,9 +7,10 @@ loadEnv();
 
 const cwd = join(__dirname, "..");
 
-console.log("\n=== Test 4: Input System ===");
+console.log("\n=== Input System ===");
 console.log(`
 The rendered output of this test should be:
+---
 HOST: Welcome! Let's test the input system.
 HOST: What's your name?
 > Alice
@@ -29,6 +30,7 @@ HOST: What. Class. ARE YOU!?
 > warrior
 HOST: You are a warrior.
 HOST: Test complete!
+---
 `);
 execSync(
   `yarn ts ./run/autorun.ts \
@@ -36,7 +38,7 @@ execSync(
     --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test03-session.json"))} \
     --openRouterApiKey ${process.env.OPENROUTER_API_KEY} \
     --elevenlabsKey ${process.env.ELEVENLABS_API_KEY} \
-    -i "Alice" -i "28" -i -i "invalid" -i "alice@example.com -i "invalid" -i "warrior"
+    -i "Alice" -i "28" -i -i "invalid" -i "alice+foo@example.com" -i "invalid" -i "warrior"
     `,
   { stdio: "inherit", cwd }
 );
