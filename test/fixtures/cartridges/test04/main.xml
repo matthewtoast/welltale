@@ -1,13 +1,12 @@
 <p>Welcome! Let's test failover.</p>
 
 <p>What's your name?</p>
-<input var="name" type="string" />
+<input name.type="string" />
 <p>Hello {{name}}!</p>
 
 <p>Choose your class.</p>
-<input var="class" type="warrior|mage|rogue" retries="1" error="Once again..." failover="end" />
+<input class.type="warrior|mage|rogue" retries="1" error="Once again..." failover="end" />
 <p>You are a {{class}}.</p>
 
 <p id="end">Failover path taken.</p>
 <p>Test complete!</p>
-

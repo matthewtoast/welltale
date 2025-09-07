@@ -2,7 +2,10 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
-import { DefaultServiceProvider } from "lib/ServiceProvider";
+import {
+  DefaultServiceProvider,
+  MockServiceProvider,
+} from "lib/ServiceProvider";
 import { SeamType, Story, StoryOptions } from "lib/StoryEngine";
 import { last } from "lodash";
 import OpenAI from "openai";
@@ -25,6 +28,11 @@ async function runRepl() {
       description: "Seed for random number generator",
       default: "seed",
     })
+    .option("mock", {
+      type: "boolean",
+      description: "Use mock service provider for service calls",
+      default: false,
+    })
     .option("cartridgeDir", {
       type: "string",
       description: "Path to the dir containing the cartridge files",
@@ -38,6 +46,11 @@ async function runRepl() {
     .option("openRouterApiKey", {
       type: "string",
       description: "OpenAI API key",
+      demandOption: true,
+    })
+    .option("openRouterBaseUrl", {
+      type: "string",
+      description: "OpenRouter base URL",
       demandOption: true,
     })
     .option("elevenlabsKey", {
@@ -75,11 +88,16 @@ async function runRepl() {
     models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
   };
 
-  const provider = new DefaultServiceProvider({
-    eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
-    openai: new OpenAI({ apiKey: argv.openRouterApiKey }),
-    cache: new LocalCache(argv.cacheDir),
-  });
+  const provider = argv.mock
+    ? new MockServiceProvider()
+    : new DefaultServiceProvider({
+        eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
+        openai: new OpenAI({
+          apiKey: argv.openRouterApiKey,
+          baseURL: argv.openRouterBaseUrl,
+        }),
+        cache: new LocalCache(argv.cacheDir),
+      });
 
   let seam = await renderNext(
     "",

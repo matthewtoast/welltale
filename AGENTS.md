@@ -13,7 +13,7 @@
 - Prefer libraries' actual types over writing your own
 - Don't create classes (unless instructed)
 - When researching APIs and docs, use latest content (2025)
-- Put reusable/generit utility functions in separate files
+- Put reusable/generic utility functions in separate files
 
 ## JavaScript & TypeScript
 

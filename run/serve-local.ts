@@ -70,7 +70,12 @@ async function main() {
     })
     .option("openRouterApiKey", {
       type: "string",
-      description: "OpenAI API key",
+      description: "OpenRouter-compatible API key",
+      demandOption: true,
+    })
+    .option("openRouterBaseUrl", {
+      type: "string",
+      description: "OpenRouter base URL",
       demandOption: true,
     })
     .option("elevenlabsKey", {
@@ -96,7 +101,10 @@ async function main() {
     path.join(os.homedir(), ".welltale", "cartridges"),
   ];
 
-  const openai = new OpenAI({ apiKey: argv.openRouterApiKey });
+  const openai = new OpenAI({
+    apiKey: argv.openRouterApiKey,
+    baseURL: argv.openRouterBaseUrl,
+  });
   const elevenlabs = new ElevenLabsClient({ apiKey: argv.elevenlabsKey });
   const cache = new LocalCache(argv.cacheDir);
 

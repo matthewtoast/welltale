@@ -12,6 +12,7 @@ execSync(
   `yarn ts ./run/autorun.ts \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test01"))} \
     --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test01-session.json"))} \
+    --openRouterBaseUrl ${process.env.OPENROUTER_BASE_URL} \
     --openRouterApiKey ${process.env.OPENROUTER_API_KEY} \
     --elevenlabsKey ${process.env.ELEVENLABS_API_KEY} \
     -i "input1" -i "invalid1" -i "invalid2" -i "Xylophone"
@@ -24,6 +25,7 @@ execSync(
   `yarn ts ./run/autorun.ts \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test02"))} \
     --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test02-session.json"))} \
+    --openRouterBaseUrl ${process.env.OPENROUTER_BASE_URL} \
     --openRouterApiKey ${process.env.OPENROUTER_API_KEY} \
     --elevenlabsKey ${process.env.ELEVENLABS_API_KEY}
     `,
@@ -37,6 +39,7 @@ execSync(
     --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test02-session.json"))} \
     --sessionResume \
     --sessionTurn 1 \
+    --openRouterBaseUrl ${process.env.OPENROUTER_BASE_URL} \
     --openRouterApiKey ${process.env.OPENROUTER_API_KEY} \
     --elevenlabsKey ${process.env.ELEVENLABS_API_KEY}
     `,
@@ -51,6 +54,7 @@ execSync(
     --sessionResume \
     --sessionTurn 1 \
     --sessionAddress "0.3" \
+    --openRouterBaseUrl ${process.env.OPENROUTER_BASE_URL} \
     --openRouterApiKey ${process.env.OPENROUTER_API_KEY} \
     --elevenlabsKey ${process.env.ELEVENLABS_API_KEY}
     `,

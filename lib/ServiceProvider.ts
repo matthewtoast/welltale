@@ -1,6 +1,7 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { map } from "lodash";
 import { OpenAI } from "openai";
-import { TSerial, NonEmpty } from "typings";
+import { NonEmpty, TSerial } from "typings";
 import { Cache } from "./Cache";
 import {
   autoFindPresetVoice,
@@ -8,6 +9,7 @@ import {
   generateSoundEffect,
   generateSpeechClip,
 } from "./ElevenLabsUtils";
+import { safeJsonParse } from "./JSONHelpers";
 import {
   generateJson,
   generateJsonWithWeb,
@@ -49,7 +51,10 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     }
   ) {}
 
-  async generateText(prompt: string, options: GenerateOptions): Promise<string> {
+  async generateText(
+    prompt: string,
+    options: GenerateOptions
+  ): Promise<string> {
     const useCache = !this.config.disableCache;
     const key = generatePredictableKey("text", prompt, "txt");
     if (useCache) {
@@ -58,7 +63,12 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return cached.toString();
       }
     }
-    const result = await generateText(this.config.openai, prompt, options.useWebSearch, options.models);
+    const result = await generateText(
+      this.config.openai,
+      prompt,
+      options.useWebSearch,
+      options.models
+    );
     if (!result) {
       console.warn("Failed to generate completion");
       return "";
@@ -74,7 +84,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     prompt: string,
     schema: Record<string, TSerial>,
     options: GenerateOptions
-  ): Promise<Record<string, any>> {
+  ): Promise<Record<string, TSerial>> {
     const useCache = !this.config.disableCache;
     const cacheKey = `${prompt}\n${schema}`;
     const key = generatePredictableKey("json", cacheKey, "json");
@@ -91,7 +101,12 @@ export abstract class BaseServiceProvider implements ServiceProvider {
           JSON.stringify(schema),
           options.models
         )
-      : await generateJson(this.config.openai, prompt, JSON.stringify(schema), options.models);
+      : await generateJson(
+          this.config.openai,
+          prompt,
+          JSON.stringify(schema),
+          options.models
+        );
     if (!result) {
       console.warn("Failed to generate completion");
       return {};
@@ -177,8 +192,53 @@ export abstract class BaseServiceProvider implements ServiceProvider {
   }
 }
 
-function shouldJsonify(a: any) {
-  return Array.isArray(a) || (a && typeof a === "object");
+export class DefaultServiceProvider extends BaseServiceProvider {}
+
+function extractBracketContent(prompt: string): string | null {
+  const match = prompt.match(/\[\[\s*(.*?)\s*\]\]/);
+  return match ? match[1] : null;
 }
 
-export class DefaultServiceProvider extends BaseServiceProvider {}
+export class MockServiceProvider implements ServiceProvider {
+  async generateText(
+    prompt: string,
+    options: GenerateOptions
+  ): Promise<string> {
+    return (
+      extractBracketContent(prompt) ?? `Mock completion for prompt: ${prompt}`
+    );
+  }
+
+  async generateJson(
+    prompt: string,
+    schema: Record<string, TSerial>,
+    options: GenerateOptions
+  ): Promise<Record<string, TSerial>> {
+    return (
+      safeJsonParse(extractBracketContent(prompt)) ??
+      map(schema, (value, key) => `Mock ${key}`)
+    );
+  }
+
+  async generateSound(prompt: string): Promise<{ url: string }> {
+    return {
+      url:
+        extractBracketContent(prompt) ?? "https://example.com/mock-sound.mp3",
+    };
+  }
+
+  async generateMusic(prompt: string): Promise<{ url: string }> {
+    return {
+      url:
+        extractBracketContent(prompt) ?? "https://example.com/mock-music.mp3",
+    };
+  }
+
+  async generateSpeech(line: StoryEvent): Promise<{ url: string }> {
+    return {
+      url:
+        extractBracketContent(line.body) ??
+        "https://example.com/mock-speech.mp3",
+    };
+  }
+}

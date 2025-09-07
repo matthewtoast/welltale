@@ -2,7 +2,10 @@ export function quo(a: any) {
   return JSON.stringify(a);
 }
 
-export function safeJsonParse(s: string): any | null {
+export function safeJsonParse(s: string | null): any | null {
+  if (!s) {
+    return null;
+  }
   try {
     return JSON.parse(s);
   } catch (e) {

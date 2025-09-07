@@ -3,7 +3,10 @@ import chalk from "chalk";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
 import { loadSessionFromDisk, runUntilComplete } from "lib/LocalUtils";
-import { DefaultServiceProvider } from "lib/ServiceProvider";
+import {
+  DefaultServiceProvider,
+  MockServiceProvider,
+} from "lib/ServiceProvider";
 import { Story, StoryOptions } from "lib/StoryEngine";
 import { last } from "lodash";
 import OpenAI from "openai";
@@ -25,6 +28,11 @@ async function runAutorun() {
       description: "Seed for random number generator",
       default: "seed",
     })
+    .option("mock", {
+      type: "boolean",
+      description: "Use mock service provider for service calls",
+      default: false,
+    })
     .option("verbose", {
       type: "boolean",
       description: "Verbose logging on (true/false)",
@@ -43,6 +51,11 @@ async function runAutorun() {
     .option("openRouterApiKey", {
       type: "string",
       description: "OpenAI API key",
+      demandOption: true,
+    })
+    .option("openRouterBaseUrl", {
+      type: "string",
+      description: "OpenRouter base URL",
       demandOption: true,
     })
     .option("elevenlabsKey", {
@@ -97,11 +110,16 @@ async function runAutorun() {
 
   console.info(chalk.gray(`Auto-running game...`, options));
 
-  const provider = new DefaultServiceProvider({
-    eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
-    openai: new OpenAI({ apiKey: argv.openRouterApiKey }),
-    cache: new LocalCache(argv.cacheDir),
-  });
+  const provider = argv.mock
+    ? new MockServiceProvider()
+    : new DefaultServiceProvider({
+        eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
+        openai: new OpenAI({
+          apiKey: argv.openRouterApiKey,
+          baseURL: argv.openRouterBaseUrl,
+        }),
+        cache: new LocalCache(argv.cacheDir),
+      });
 
   console.info({
     inputs: argv.inputs,

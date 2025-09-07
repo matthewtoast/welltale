@@ -25,6 +25,7 @@ const RequiredEnvVars = z.object({
   AWS_BUCKET: z.string(),
   AWS_REGION: z.string().default("us-east-1"),
   OPENROUTER_API_KEY: z.string(),
+  OPENROUTER_BASE_URL: z.string(),
   ELEVENLABS_API_KEY: z.string(),
 });
 
@@ -126,7 +127,10 @@ function getServiceProvider(): CloudServiceProvider {
   if (!serviceProvider) {
     const env = validateEnvironment();
 
-    const openai = new OpenAI({ apiKey: env.OPENROUTER_API_KEY });
+    const openai = new OpenAI({
+      apiKey: env.OPENROUTER_API_KEY,
+      baseURL: env.OPENROUTER_BASE_URL,
+    });
     const elevenlabs = new ElevenLabsClient({ apiKey: env.ELEVENLABS_API_KEY });
     const s3 = new S3Client({ region: env.AWS_REGION });
     const cache = new S3Cache(s3, env.AWS_BUCKET);
