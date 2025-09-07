@@ -20,6 +20,8 @@ import {
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
 import { z } from "zod";
+import { FieldSpec, parseFieldGroups } from "./InputHelpers";
+import { safeJsonParse } from "./JSONHelpers";
 import { MODELS } from "./OpenRouterUtils";
 import { GenerateOptions, ServiceProvider } from "./ServiceProvider";
 
@@ -885,15 +887,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           left = left - 1;
           ctx.session.input.retries = left;
         }
-        ctx.session.input.body = "";
+        ctx.session.input.body = null;
         if (left === 0) {
-          const target = atts.failover ? searchForNode(ctx.root, atts.failover) : null;
+          const target = atts.failover
+            ? searchForNode(ctx.root, atts.failover)
+            : null;
           if (target) {
             ctx.session.input = null;
             return { ops, next: target };
           }
-          const key = atts.var || atts.name || atts.key || "input";
-          ctx.session.meta.error = `Input failed for ${key}. Last value: ${raw}`;
+          ctx.session.meta.error = `Input failed for fields [${fieldNames.join(", ")}]. Last value: ${raw}`;
           return { ops, next: null };
         }
         if (err) {
