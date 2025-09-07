@@ -21,7 +21,7 @@ const ELEMENT_NODE = 1;
 
 export const toAttrs = (el: Element): Record<string, string> => {
   const out: Record<string, string> = {};
-  const a: any = (el as any).attributes;
+  const a = el.attributes;
   for (let i = 0; a && i < a.length; i++) {
     const item = a.item(i);
     if (item) out[item.name] = item.value;

@@ -48,19 +48,16 @@ export function saveSessionToDisk(state: Session, abspath: string) {
 }
 
 export async function renderNext(
-  input: string,
+  input: string | null,
   session: Session,
   story: Story,
   options: StoryOptions,
   provider: ServiceProvider
 ) {
-  if (!isBlank(input)) {
+  if (input !== null) {
     console.log(chalk.greenBright(`${CAROT}${input}`));
     if (!session.input) {
-      session.input = {
-        atts: {},
-        body: input,
-      };
+      session.input = { atts: {}, body: input };
     } else {
       session.input.body = input;
     }
@@ -100,7 +97,10 @@ export async function renderNext(
   }
   await render();
   if (seam === SeamType.ERROR) {
-    const msg = typeof info?.error === "string" && info.error ? info.error : "Unknown error";
+    const msg =
+      typeof info?.error === "string" && info.error
+        ? info.error
+        : "Unknown error";
     console.log(chalk.red.bold(`ERROR: ${msg}`));
   }
   return seam;
@@ -118,8 +118,8 @@ export async function runUntilComplete(
   seam: SeamType = SeamType.GRANT
 ) {
   if (seam === SeamType.INPUT) {
-    const input = info.inputs.shift();
-    if (input) {
+    if (info.inputs.length > 0) {
+      const input = info.inputs.shift()!;
       seam = await renderNext(
         input,
         info.session,
@@ -131,7 +131,7 @@ export async function runUntilComplete(
     }
   } else if (seam === SeamType.GRANT) {
     seam = await renderNext(
-      "",
+      null,
       info.session,
       info.story,
       { ...info.options, seed: info.seed },

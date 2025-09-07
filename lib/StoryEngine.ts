@@ -69,7 +69,7 @@ export const SessionSchema = z.object({
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
 });
 
-const ModelSchema = z.enum(MODELS as any);
+const ModelSchema = z.enum(MODELS);
 
 export const StoryOptionsSchema = z.object({
   verbose: z.boolean(),
@@ -288,7 +288,7 @@ export async function advanceStory(
       );
     }
 
-    const errMsg = castToString((session.meta as any)?.error ?? "");
+    const errMsg = castToString(session.meta?.error ?? "");
     if (errMsg) {
       return done(SeamType.ERROR, { error: errMsg });
     }
@@ -1227,7 +1227,7 @@ export function createScope(session: Session): { [key: string]: TSerial } {
         }
       }
       // Return null here instead of undefined so we can reference unknown vars in evalExpr w/o throwing
-      return globalState[prop] ?? ({ session } as any)[prop] ?? null;
+      return globalState[prop] ?? { session }[prop] ?? null;
     },
     set(target, prop: string, value) {
       if (currentScope) {
