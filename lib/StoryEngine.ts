@@ -1,6 +1,11 @@
 import chalk from "chalk";
 import Handlebars from "handlebars";
-import { castToString, evalExpr, isTruthy } from "lib/EvalUtils";
+import {
+  castToString,
+  castToTypeEnhanced,
+  evalExpr,
+  isTruthy,
+} from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
 import { dumpTree, StoryNode, TEXT_TAG } from "lib/StoryCompiler";
