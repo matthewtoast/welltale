@@ -1,0 +1,28 @@
+<p>Welcome! Let's test the input system.</p>
+
+<p>What's your name?</p>
+<input var="name" type="string" />
+<p>Hello {{name}}!</p>
+
+<p>What age are you?</p>
+<input var="age" type="number" parse="clamp(toNumber(input), 1, 120)" default="25" />
+<p>You are {{age}} years old.</p>
+
+<p>What's your email?</p>
+<input var="email" type="string" pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" error="Please enter a valid email address." />
+<p>Your email is {{email}}.</p>
+
+<p>What class are you?</p>
+<input var="class" type="warrior|mage|rogue" retries="2">
+  <error>
+    <p>
+      Once again...
+    </p>
+    <p>
+      What. Class. ARE YOU!?
+    </p>
+  </error>
+</input>
+<p>You are a {{class}}!</p>
+
+<p>Test complete!</p>

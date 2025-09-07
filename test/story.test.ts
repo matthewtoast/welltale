@@ -7,7 +7,7 @@ loadEnv();
 
 const cwd = join(__dirname, "..");
 
-// Test 0: Run the core test showing story flow thru many tag types
+console.log("\n=== Test 0: Multiple tag type flow with blocks ===");
 execSync(
   `yarn ts ./run/autorun.ts \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test01"))} \
@@ -19,7 +19,6 @@ execSync(
   { stdio: "inherit", cwd }
 );
 
-// Test 1: Basic intro test (turn 1, no resume)
 console.log("\n=== Test 1: Basic intro (turn 1) ===");
 execSync(
   `yarn ts ./run/autorun.ts \
@@ -31,7 +30,6 @@ execSync(
   { stdio: "inherit", cwd }
 );
 
-// Test 2: Resume test (turn 1 with resume flag)
 console.log("\n=== Test 2: Resume (turn 1, resume=true) ===");
 execSync(
   `yarn ts ./run/autorun.ts \
@@ -45,7 +43,6 @@ execSync(
   { stdio: "inherit", cwd }
 );
 
-// Test 3: Resume test with specific address (turn 1 with resume flag and address at div)
 console.log(
   "\n=== Test 3: Resume with address (turn 1, resume=true, address=0.3) ==="
 );
