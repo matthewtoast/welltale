@@ -47,7 +47,7 @@ export const SessionSchema = z.object({
   address: z.string().nullable(),
   input: z.union([
     z.object({
-      body: z.string(),
+      body: z.string().nullable(),
       atts: z.record(z.any()),
       addr: z.string().optional(),
       retries: z.number().optional(),
@@ -268,7 +268,7 @@ export async function advanceStory(
       const { body, atts } = session.input;
       session.history.push({
         from: PLAYER_ID,
-        body,
+        body: castToString(body),
         to: cleanSplit(atts.to, ","),
         obs: cleanSplit(atts.obs, ","),
         tags: cleanSplit(atts.tags, ","),

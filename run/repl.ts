@@ -100,7 +100,7 @@ async function runRepl() {
       });
 
   let seam = await renderNext(
-    "",
+    null,
     session,
     story,
     { ...options, seed },
