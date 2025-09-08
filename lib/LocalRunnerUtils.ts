@@ -9,10 +9,11 @@ import {
   advanceStory,
   createDefaultSession,
   FALLBACK_SPEAKER,
+  OP,
   PlayMediaOptions,
+  RunnableStory,
   SeamType,
   Session,
-  Story,
   StoryOptions,
 } from "lib/StoryEngine";
 import {
@@ -85,7 +86,7 @@ export async function playMedia({
 export async function renderNext(
   input: string | null,
   session: Session,
-  story: Story,
+  story: RunnableStory,
   options: RunnerOptions,
   provider: ServiceProvider
 ) {
@@ -151,36 +152,31 @@ export async function runUntilComplete(
     options: RunnerOptions;
     provider: ServiceProvider;
     session: Session;
-    story: Story;
+    story: RunnableStory;
     seed: string;
     inputs: string[];
   },
-  seam: SeamType = SeamType.GRANT
+  seam: SeamType = SeamType.GRANT,
+  // Provided so a caller can accumulate what is produced through this run
+  // or even throw in a courtesy wait() to avoid rate limiting or something
+  thunk?: (resp: {
+    ops: OP[];
+    seam: SeamType;
+    session: Session;
+  }) => Promise<void>
 ) {
-  if (seam === SeamType.INPUT) {
-    const input = info.inputs.shift() ?? "";
-    const resp = await renderNext(
-      input,
-      info.session,
-      info.story,
-      { ...info.options, seed: info.seed },
-      info.provider
-    );
-    seam = resp.seam;
-    return runUntilComplete(info, seam);
+  if (seam === SeamType.ERROR || seam === SeamType.FINISH) {
+    return seam;
   }
-
-  if (seam === SeamType.GRANT) {
-    const resp = await renderNext(
-      null,
-      info.session,
-      info.story,
-      { ...info.options, seed: info.seed },
-      info.provider
-    );
-    seam = resp.seam;
-    return runUntilComplete(info, seam);
+  const resp = await renderNext(
+    seam === SeamType.INPUT ? (info.inputs.shift() ?? "") : null,
+    info.session,
+    info.story,
+    { ...info.options, seed: info.seed },
+    info.provider
+  );
+  if (thunk) {
+    await thunk({ ...resp, session: info.session });
   }
-
-  return seam;
+  return runUntilComplete(info, resp.seam);
 }

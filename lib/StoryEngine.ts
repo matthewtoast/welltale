@@ -114,8 +114,7 @@ export function createDefaultSession(
   };
 }
 
-export interface Story {
-  id: string;
+export interface RunnableStory {
   cartridge: Cartridge;
 }
 

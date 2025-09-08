@@ -1,5 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { MusicComposeRequestOutputFormat } from "@elevenlabs/elevenlabs-js/api";
+import { inferGenderFromName } from "./DialogHelpers";
 
 const DEFAULT_OUTPUT_FORMAT = "mp3_44100_128" as const;
 
@@ -131,6 +132,10 @@ export function autoFindPresetVoice(speaker: string, tags: string[]) {
       return PRESET_VOICES[i].id;
     }
   }
+  const gender = inferGenderFromName(speaker);
+  if (gender && !tags.includes(gender)) {
+    tags.push(gender);
+  }
   let bestMatch = null;
   let maxMatches = 0;
   for (let i = 0; i < PRESET_VOICES.length; i++) {
@@ -141,204 +146,276 @@ export function autoFindPresetVoice(speaker: string, tags: string[]) {
       bestMatch = voice;
     }
   }
-  return bestMatch ? bestMatch.id : "21m00Tcm4TlvDq8ikWAM";
+  return bestMatch ? bestMatch.id : NEUTRAL_VOICE;
 }
+
+export const NEUTRAL_VOICE = "21m00Tcm4TlvDq8ikWAM";
 
 export const PRESET_VOICES = [
   {
     name: "Adam",
     id: "pNInz6obpgDQGcFmaJgB",
-    tags: ["male", "deep", "american", "narration"],
+    tags: ["male", "man", "deep", "american", "narration"],
   },
   {
     name: "Alice",
     id: "Xb7hH8MSUJpSbSDYk0k2",
-    tags: ["female", "confident", "british", "news"],
+    tags: ["female", "woman", "confident", "british", "news"],
   },
   {
     name: "Antoni",
     id: "ErXwobaYiN019PkySvjV",
-    tags: ["male", "young", "american", "narration"],
+    tags: ["male", "man", "boy", "young", "american", "narration"],
   },
   {
     name: "Arnold",
     id: "VR6AewLTigWG4xSOukaG",
-    tags: ["male", "crisp", "american", "narration"],
+    tags: ["male", "man", "crisp", "american", "narration"],
   },
   {
     name: "Bill",
     id: "pqHfZKP75CvOlQylNhV4",
-    tags: ["male", "strong", "american", "documentary"],
+    tags: ["male", "man", "strong", "american", "documentary"],
   },
   {
     name: "Brian",
     id: "nPczCjzI2devNBz1zQrb",
-    tags: ["male", "deep", "american", "narration"],
+    tags: ["male", "man", "deep", "american", "narration"],
   },
   {
     name: "Callum",
     id: "N2lVS1w4EtoT3dr4eOWO",
-    tags: ["male", "hoarse", "american", "games"],
+    tags: ["male", "man", "hoarse", "american", "games"],
   },
   {
     name: "Charlie",
     id: "IKne3meq5aSn9XLyUdCD",
-    tags: ["male", "casual", "australian", "conversational"],
+    tags: ["male", "man", "casual", "australian", "conversational"],
   },
   {
     name: "Charlotte",
     id: "XB0fDUnXU5powFXDhCwa",
-    tags: ["female", "middle aged", "seductive", "games"],
+    tags: ["female", "woman", "middle aged", "seductive", "games"],
   },
   {
     name: "Chris",
     id: "iP95p4xoKVk53GoZ742B",
-    tags: ["male", "casual", "american", "conversational"],
+    tags: ["male", "man", "casual", "american", "conversational"],
   },
   {
     name: "Clyde",
     id: "2EiwWnXFnvU5JabPnv8n",
-    tags: ["male", "war veteran", "american", "games"],
+    tags: ["male", "man", "war veteran", "american", "games"],
   },
   {
     name: "Daniel",
     id: "onwK4e9ZLuTAKqWW03F9",
-    tags: ["male", "deep", "british", "news"],
+    tags: ["male", "man", "deep", "british", "news"],
   },
   {
     name: "Dave",
     id: "CYw3kZ02Hs0563khs1Fj",
-    tags: ["male", "young", "conversational", "british-essex", "games"],
+    tags: [
+      "male",
+      "man",
+      "boy",
+      "young",
+      "conversational",
+      "british-essex",
+      "games",
+    ],
   },
   {
     name: "Domi",
     id: "AZnzlk1XvdvUeBnXmlld",
-    tags: ["female", "young", "strong", "american", "narration"],
+    tags: [
+      "female",
+      "woman",
+      "girl",
+      "young",
+      "strong",
+      "american",
+      "narration",
+    ],
   },
   {
     name: "Dorothy",
     id: "ThT5KcBeYPX3keUQqHPh",
-    tags: ["female", "young", "pleasant", "british"],
+    tags: ["female", "woman", "girl", "young", "pleasant", "british"],
   },
   {
     name: "Drew",
     id: "29vD33N1CtxCmqQRPOHJ",
-    tags: ["male", "american", "news"],
+    tags: ["male", "man", "american", "news"],
   },
   {
     name: "Emily",
     id: "LcfcDJNUP1GQjkzn1xUU",
-    tags: ["female", "young", "calm", "american", "meditation"],
+    tags: [
+      "female",
+      "woman",
+      "girl",
+      "young",
+      "calm",
+      "american",
+      "meditation",
+    ],
   },
   {
     name: "Ethan",
     id: "g5CIjZEefAph4nQFvHAz",
-    tags: ["male", "young", "american", "asmr"],
+    tags: ["male", "man", "boy", "young", "american", "asmr"],
   },
   {
     name: "Fin",
     id: "D38z5RcWu1voky8WS1ja",
-    tags: ["male", "old", "sailor", "irish", "games"],
+    tags: ["male", "man", "old", "sailor", "irish", "games"],
   },
   {
     name: "Freya",
     id: "jsCqWAovK2LkecY7zXl4",
-    tags: ["female", "young", "american"],
+    tags: ["female", "woman", "girl", "young", "american"],
   },
   {
     name: "George",
     id: "JBFqnCBsd6RMkjVDRZzb",
-    tags: ["male", "raspy", "british", "narration"],
+    tags: ["male", "man", "raspy", "british", "narration"],
   },
   {
     name: "Gigi",
     id: "jBpfuIE2acCO8z3wKNLl",
-    tags: ["female", "young", "childish", "american", "animation"],
+    tags: [
+      "female",
+      "woman",
+      "girl",
+      "young",
+      "childish",
+      "american",
+      "animation",
+    ],
   },
   {
     name: "Giovanni",
     id: "zcAOhNBS3c14rBihAFp1",
-    tags: ["male", "young", "foreigner", "english-italian", "audiobook"],
+    tags: [
+      "male",
+      "man",
+      "boy",
+      "young",
+      "foreigner",
+      "english-italian",
+      "audiobook",
+    ],
   },
   {
     name: "Glinda",
     id: "z9fAnlkpzviPz146aGWa",
-    tags: ["female", "witch", "american", "games"],
+    tags: ["female", "woman", "witch", "american", "games"],
   },
   {
     name: "Grace",
     id: "oWAxZDx7w5VEj9dCyTzz",
-    tags: ["female", "young", "american-southern", "audiobook"],
+    tags: [
+      "female",
+      "woman",
+      "girl",
+      "young",
+      "american-southern",
+      "audiobook",
+    ],
   },
   {
     name: "Harry",
     id: "SOYHLrjzK2X1ezoPC6cr",
-    tags: ["male", "young", "anxious", "american", "games"],
+    tags: ["male", "man", "boy", "young", "anxious", "american", "games"],
   },
   {
     name: "James",
     id: "ZQe5CZNOzWyzPSCn5a3c",
-    tags: ["male", "old", "calm", "australian", "news"],
+    tags: ["male", "man", "old", "calm", "australian", "news"],
   },
   {
     name: "Jeremy",
     id: "bVMeCyTHy58xNoL34h3p",
-    tags: ["male", "young", "excited", "american-irish", "narration"],
+    tags: [
+      "male",
+      "man",
+      "boy",
+      "young",
+      "excited",
+      "american-irish",
+      "narration",
+    ],
   },
   {
     name: "Jessie",
     id: "t0jbNlBVZ17f02VDIeMI",
-    tags: ["male", "old", "raspy", "american", "games"],
+    tags: ["male", "man", "old", "raspy", "american", "games"],
   },
   {
     name: "Joseph",
     id: "Zlb1dXrM653N07WRdFW3",
-    tags: ["male", "british", "news"],
+    tags: ["male", "man", "british", "news"],
   },
   {
     name: "Josh",
     id: "TxGEqnHWrfWFTfGW9XjX",
-    tags: ["male", "young", "deep", "american", "narration"],
+    tags: ["male", "man", "boy", "young", "deep", "american", "narration"],
   },
   {
     name: "Liam",
     id: "TX3LPaxmHKxFdv7VOQHJ",
-    tags: ["male", "young", "american", "narration"],
+    tags: ["male", "man", "boy", "young", "american", "narration"],
   },
   {
     name: "Lily",
     id: "pFZP5JQG7iQjIQuC4Bku",
-    tags: ["female", "raspy", "british", "narration"],
+    tags: ["female", "woman", "raspy", "british", "narration"],
   },
   {
     name: "Matilda",
     id: "XrExE9yKIg1WjnnlVkGX",
-    tags: ["female", "young", "warm", "american", "audiobook"],
+    tags: ["female", "woman", "girl", "young", "warm", "american", "audiobook"],
   },
   {
     name: "Michael",
     id: "flq6f7yk4E4fJM5XTYuZ",
-    tags: ["male", "old", "american", "audiobook"],
+    tags: ["male", "man", "old", "american", "audiobook"],
   },
   {
     name: "Mimi",
     id: "zrHiDhphv9ZnVXBqCLjz",
-    tags: ["female", "young", "childish", "english-swedish", "animation"],
+    tags: [
+      "female",
+      "woman",
+      "young",
+      "childish",
+      "english-swedish",
+      "animation",
+    ],
   },
   {
     name: "Nicole",
     id: "piTKgcLEGmPE4e6mEKli",
-    tags: ["female", "young", "whisper", "american", "audiobook"],
+    tags: [
+      "female",
+      "woman",
+      "girl",
+      "young",
+      "whisper",
+      "american",
+      "audiobook",
+    ],
   },
   {
     name: "Patrick",
     id: "ODq5zmih8GrVes37Dizd",
-    tags: ["male", "shouty", "american", "games"],
+    tags: ["male", "man", "shouty", "american", "games"],
   },
   {
     name: "Paul",
     id: "5Q0t7uMcjvnagumLfvZi",
-    tags: ["male", "ground reporter", "american", "news"],
+    tags: ["male", "man", "ground reporter", "american", "news"],
   },
   {
     name: "Rachel",
@@ -356,21 +433,21 @@ export const PRESET_VOICES = [
   {
     name: "Sam",
     id: "yoZ06aMxZJJ28mfd3POQ",
-    tags: ["male", "young", "raspy", "american", "narration"],
+    tags: ["male", "man", "boy", "young", "raspy", "american", "narration"],
   },
   {
     name: "Sarah",
     id: "EXAVITQu4vr4xnSDxMaL",
-    tags: ["female", "young", "soft", "american", "news"],
+    tags: ["female", "woman", "girl", "young", "soft", "american", "news"],
   },
   {
     name: "Serena",
     id: "pMsXgVXv3BLzUgSXRplE",
-    tags: ["female", "pleasant", "american", "interactive"],
+    tags: ["female", "woman", "pleasant", "american", "interactive"],
   },
   {
     name: "Thomas",
     id: "GBv7mTt0atIp3Br8iCZE",
-    tags: ["male", "young", "calm", "american", "meditation"],
+    tags: ["male", "man", "boy", "young", "calm", "american", "meditation"],
   },
 ];

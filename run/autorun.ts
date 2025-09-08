@@ -11,7 +11,7 @@ import {
   DefaultServiceProvider,
   MockServiceProvider,
 } from "lib/ServiceProvider";
-import { Story } from "lib/StoryEngine";
+import { RunnableStory } from "lib/StoryEngine";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
@@ -101,7 +101,7 @@ async function runAutorun() {
   const seed = argv.seed;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
-  const story: Story = { id: gameId, cartridge };
+  const story: RunnableStory = { cartridge };
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
   session.resume = argv.sessionResume;
   session.turn = argv.sessionTurn;
