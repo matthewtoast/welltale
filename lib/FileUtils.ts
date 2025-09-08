@@ -19,15 +19,12 @@ export async function loadDirRecursive(
 
   async function walk(currentPath: string, basePath: string) {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
-
     for (const entry of entries) {
       const fullPath = path.join(currentPath, entry.name);
       const relativePath = path.relative(basePath, fullPath);
-
       if (exclude(relativePath, entry)) {
         continue;
       }
-
       if (entry.isDirectory()) {
         await walk(fullPath, basePath);
       } else if (entry.isFile()) {

@@ -2,6 +2,7 @@ import chalk from "chalk";
 import dedent from "dedent";
 import Handlebars from "handlebars";
 import {
+  castToBoolean,
   castToString,
   castToTypeEnhanced,
   evalExpr,
@@ -118,11 +119,22 @@ export interface Story {
   cartridge: Cartridge;
 }
 
+export type PlayMediaOptions = {
+  media: string; // URL
+  volume: number | null;
+  fadeDurationMs: number | null; // Milliseconds
+  fadeAtMs: number | null; // Milliseconds
+  background: boolean | null;
+};
+
 export type OP =
   | { type: "sleep"; duration: number }
   | { type: "get-input"; timeLimit: number | null }
-  | { type: "play-media"; media: string }
-  | { type: "play-event"; audio: string; event: StoryEvent }
+  | ({ type: "play-media" } & PlayMediaOptions)
+  | ({
+      type: "play-event";
+      event: StoryEvent;
+    } & PlayMediaOptions)
   | { type: "story-end" };
 
 export interface ActionContext {
@@ -467,8 +479,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         : { url: "" };
       ops.push({
         type: "play-event",
-        audio: url,
+        media: url,
         event,
+        fadeAtMs: parseNumberOrNull(atts.fadeAt),
+        fadeDurationMs: parseNumberOrNull(atts.fadeDuration),
+        volume: parseNumberOrNull(atts.fadeDuration),
+        background: castToBoolean(atts.background),
       });
       ctx.session.history.push(event);
       return {
@@ -796,6 +812,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops.push({
           type: "play-media",
           media: url,
+          fadeAtMs: parseNumberOrNull(atts.fadeAt),
+          fadeDurationMs: parseNumberOrNull(atts.fadeDuration),
+          volume: parseNumberOrNull(atts.fadeDuration),
+          background: castToBoolean(atts.background),
         });
       }
       return {

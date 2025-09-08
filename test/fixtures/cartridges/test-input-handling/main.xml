@@ -1,5 +1,5 @@
 <p>What's your name?</p>
-<input name.type="string" name.default="" />
+<input name.type="string" name.default="Bob" />
 <p>Hello {{name}}!</p>
 
 <p>What age are you?</p>

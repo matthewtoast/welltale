@@ -6,7 +6,7 @@ import {
   DefaultServiceProvider,
   MockServiceProvider,
 } from "lib/ServiceProvider";
-import { SeamType, Story, StoryOptions } from "lib/StoryEngine";
+import { SeamType, Story } from "lib/StoryEngine";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
@@ -18,8 +18,9 @@ import {
   CAROT,
   loadSessionFromDisk,
   renderNext,
+  RunnerOptions,
   saveSessionToDisk,
-} from "../lib/LocalUtils";
+} from "../lib/LocalRunnerUtils";
 
 async function runRepl() {
   const argv = await yargs(hideBin(process.argv))
@@ -31,6 +32,11 @@ async function runRepl() {
     .option("mock", {
       type: "boolean",
       description: "Use mock service provider for service calls",
+      default: false,
+    })
+    .option("playAudio", {
+      type: "boolean",
+      description: "Play audio files true/false",
       default: false,
     })
     .option("cartridgeDir", {
@@ -78,7 +84,7 @@ async function runRepl() {
 
   console.info(chalk.gray(`Starting REPL...`));
 
-  const options: StoryOptions = {
+  const options: RunnerOptions = {
     seed: argv.seed,
     verbose: true,
     ream: 100,
@@ -86,6 +92,7 @@ async function runRepl() {
     doGenerateSpeech: false,
     doGenerateAudio: false,
     models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
+    doPlayMedia: argv.playAudio,
   };
 
   const provider = argv.mock
@@ -99,7 +106,7 @@ async function runRepl() {
         cache: new LocalCache(argv.cacheDir),
       });
 
-  let seam = await renderNext(
+  let resp = await renderNext(
     null,
     session,
     story,
@@ -117,7 +124,7 @@ async function runRepl() {
 
   rl.on("close", () => process.exit(0));
 
-  if (seam === SeamType.FINISH || seam === SeamType.ERROR) {
+  if (resp.seam === SeamType.FINISH || resp.seam === SeamType.ERROR) {
     rl.close();
     return;
   }
@@ -127,7 +134,7 @@ async function runRepl() {
   rl.on("line", async (raw) => {
     const fixed = raw.trim();
     try {
-      seam = await renderNext(
+      resp = await renderNext(
         fixed,
         session,
         story,
@@ -139,9 +146,9 @@ async function runRepl() {
       console.error(chalk.red(err));
     }
 
-    if (seam === SeamType.INPUT) {
+    if (resp.seam === SeamType.INPUT) {
       rl.prompt();
-    } else if (seam === SeamType.GRANT) {
+    } else if (resp.seam === SeamType.GRANT) {
       rl.prompt(); // TODO: Make granting an advance automatic?
     } else {
       rl.close();

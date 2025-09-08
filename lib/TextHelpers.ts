@@ -181,3 +181,95 @@ export async function enhanceText(
 
   return result;
 }
+
+export function mimeTypeFromUrl(url: string): string {
+  const ext = url.split(".").pop()?.split(/\#|\?/)[0]?.toLowerCase();
+  if (!ext) return "application/octet-stream";
+  switch (ext) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "png":
+      return "image/png";
+    case "gif":
+      return "image/gif";
+    case "webp":
+      return "image/webp";
+    case "svg":
+      return "image/svg+xml";
+    case "bmp":
+      return "image/bmp";
+    case "ico":
+      return "image/x-icon";
+    case "tiff":
+    case "tif":
+      return "image/tiff";
+    case "mp3":
+      return "audio/mpeg";
+    case "wav":
+      return "audio/wav";
+    case "ogg":
+      return "audio/ogg";
+    case "m4a":
+      return "audio/mp4";
+    case "aac":
+      return "audio/aac";
+    case "flac":
+      return "audio/flac";
+    case "mp4":
+      return "video/mp4";
+    case "webm":
+      return "video/webm";
+    case "mov":
+      return "video/quicktime";
+    case "avi":
+      return "video/x-msvideo";
+    case "wmv":
+      return "video/x-ms-wmv";
+    case "json":
+      return "application/json";
+    case "xml":
+      return "application/xml";
+    case "pdf":
+      return "application/pdf";
+    case "zip":
+      return "application/zip";
+    case "gz":
+      return "application/gzip";
+    case "tar":
+      return "application/x-tar";
+    case "rar":
+      return "application/vnd.rar";
+    case "7z":
+      return "application/x-7z-compressed";
+    case "csv":
+      return "text/csv";
+    case "txt":
+      return "text/plain";
+    case "html":
+    case "htm":
+      return "text/html";
+    case "css":
+      return "text/css";
+    case "js":
+      return "application/javascript";
+    case "mjs":
+      return "application/javascript";
+    case "woff":
+      return "font/woff";
+    case "woff2":
+      return "font/woff2";
+    case "ttf":
+      return "font/ttf";
+    case "otf":
+      return "font/otf";
+    case "eot":
+      return "application/vnd.ms-fontobject";
+    case "md":
+      return "text/markdown";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+export const AUDIO_MIMES = ["audio/mpeg", "audio/wav", "audio/ogg"];

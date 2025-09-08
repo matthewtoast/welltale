@@ -2,12 +2,16 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
-import { loadSessionFromDisk, runUntilComplete } from "lib/LocalUtils";
+import {
+  loadSessionFromDisk,
+  RunnerOptions,
+  runUntilComplete,
+} from "lib/LocalRunnerUtils";
 import {
   DefaultServiceProvider,
   MockServiceProvider,
 } from "lib/ServiceProvider";
-import { Story, StoryOptions } from "lib/StoryEngine";
+import { Story } from "lib/StoryEngine";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
@@ -31,6 +35,11 @@ async function runAutorun() {
     .option("mock", {
       type: "boolean",
       description: "Use mock service provider for service calls",
+      default: false,
+    })
+    .option("playAudio", {
+      type: "boolean",
+      description: "Play audio files true/false",
       default: false,
     })
     .option("verbose", {
@@ -98,7 +107,7 @@ async function runAutorun() {
   session.turn = argv.sessionTurn;
   session.address = argv.sessionAddress ?? null;
 
-  const options: StoryOptions = {
+  const options: RunnerOptions = {
     seed: argv.seed,
     verbose: argv.verbose,
     ream: 100,
@@ -106,6 +115,7 @@ async function runAutorun() {
     doGenerateSpeech: false,
     doGenerateAudio: false,
     models: ["openai/gpt-4.1", "anthropic/claude-3.5-sonnet"],
+    doPlayMedia: argv.playAudio,
   };
 
   console.info(chalk.gray(`Auto-running game...`, options));
@@ -125,6 +135,7 @@ async function runAutorun() {
     inputs: argv.inputs,
     options,
   });
+
   return await runUntilComplete({
     options,
     provider,

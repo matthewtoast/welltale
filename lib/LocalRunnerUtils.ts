@@ -9,13 +9,20 @@ import {
   advanceStory,
   createDefaultSession,
   FALLBACK_SPEAKER,
+  PlayMediaOptions,
   SeamType,
   Session,
   Story,
   StoryOptions,
 } from "lib/StoryEngine";
-import { isBlank, railsTimestamp } from "lib/TextHelpers";
+import {
+  AUDIO_MIMES,
+  isBlank,
+  mimeTypeFromUrl,
+  railsTimestamp,
+} from "lib/TextHelpers";
 import { dirname } from "path";
+import { play, playWait } from "./LocalAudioUtils";
 
 export const CAROT = "> ";
 
@@ -47,11 +54,39 @@ export function saveSessionToDisk(state: Session, abspath: string) {
   writeFileSync(abspath, JSON.stringify(state, null, 2));
 }
 
+export type RunnerOptions = StoryOptions & {
+  doPlayMedia: boolean;
+};
+
+export async function playMedia({
+  media,
+  background,
+  volume,
+  fadeAtMs,
+  fadeDurationMs,
+}: PlayMediaOptions) {
+  if (isBlank(media)) {
+    return;
+  }
+  if (AUDIO_MIMES.includes(mimeTypeFromUrl(media))) {
+    const options = {
+      volume: volume ?? 1,
+      fadeAt: fadeAtMs ? fadeAtMs / 1000 : 0,
+      fadeDuration: fadeDurationMs ? fadeDurationMs / 1000 : 0,
+    };
+    if (background) {
+      play(media, options);
+    } else {
+      await playWait(media, options);
+    }
+  }
+}
+
 export async function renderNext(
   input: string | null,
   session: Session,
   story: Story,
-  options: StoryOptions,
+  options: RunnerOptions,
   provider: ServiceProvider
 ) {
   if (input !== null) {
@@ -81,15 +116,20 @@ export async function renderNext(
               " " +
               chalk.cyan(`${op.event.body}`)
           );
+          if (options.doPlayMedia) {
+            await playMedia(op);
+          }
           break;
         case "story-end":
-          console.log(chalk.magenta("The end."));
+          console.log(chalk.magenta.italic("[end"));
           return "halt";
         case "play-media":
-          // no-op in REPL mode
+          if (options.doPlayMedia) {
+            await playMedia(op);
+          }
           break;
         case "sleep":
-          console.log(chalk.yellow.italic(`[waiting ${op.duration} ms]`));
+          console.log(chalk.yellow.italic(`[wait ${op.duration} ms]`));
           await sleep(op.duration);
           break;
       }
@@ -103,12 +143,12 @@ export async function renderNext(
         : "Unknown error";
     console.log(chalk.red.bold(`ERROR: ${msg}`));
   }
-  return seam;
+  return { seam, ops };
 }
 
 export async function runUntilComplete(
   info: {
-    options: StoryOptions;
+    options: RunnerOptions;
     provider: ServiceProvider;
     session: Session;
     story: Story;
@@ -118,26 +158,29 @@ export async function runUntilComplete(
   seam: SeamType = SeamType.GRANT
 ) {
   if (seam === SeamType.INPUT) {
-    if (info.inputs.length > 0) {
-      const input = info.inputs.shift()!;
-      seam = await renderNext(
-        input,
-        info.session,
-        info.story,
-        { ...info.options, seed: info.seed },
-        info.provider
-      );
-      return runUntilComplete(info, seam);
-    }
-  } else if (seam === SeamType.GRANT) {
-    seam = await renderNext(
+    const input = info.inputs.shift() ?? "";
+    const resp = await renderNext(
+      input,
+      info.session,
+      info.story,
+      { ...info.options, seed: info.seed },
+      info.provider
+    );
+    seam = resp.seam;
+    return runUntilComplete(info, seam);
+  }
+
+  if (seam === SeamType.GRANT) {
+    const resp = await renderNext(
       null,
       info.session,
       info.story,
       { ...info.options, seed: info.seed },
       info.provider
     );
+    seam = resp.seam;
     return runUntilComplete(info, seam);
   }
+
   return seam;
 }
