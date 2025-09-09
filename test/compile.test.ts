@@ -37,7 +37,7 @@ const cartridge = {
   `,
 };
 
-const c1 = compileStory(cartridge);
+const c1 = compileStory(cartridge, {});
 expect(c1, {
   addr: "0",
   type: "root",

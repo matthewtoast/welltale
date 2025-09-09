@@ -43,6 +43,7 @@ const StoryEventSchema = z.object({
 
 export const VoiceSchema = z.object({
   name: z.string(),
+  ref: z.string(),
   id: z.string(),
   tags: z.array(z.string()),
 });
@@ -89,7 +90,6 @@ export const StoryOptionsSchema = z.object({
   ream: z.number(),
   doGenerateSpeech: z.boolean(),
   doGenerateAudio: z.boolean(),
-  doGenerateVoices: z.boolean(),
   models: z
     .tuple([ModelSchema, ModelSchema])
     .rest(ModelSchema)
@@ -123,10 +123,6 @@ export function createDefaultSession(
   };
 }
 
-export interface RunnableStory {
-  cartridge: Cartridge;
-}
-
 export type PlayMediaOptions = {
   media: string; // URL
   volume: number | null;
@@ -149,6 +145,7 @@ export interface ActionContext {
   options: StoryOptions;
   origin: StoryNode;
   root: StoryNode;
+  voices: VoiceSpec[];
   node: StoryNode;
   session: Session;
   rng: PRNG;
@@ -175,9 +172,14 @@ interface ActionHandler {
 
 let calls = 0;
 
+export type StorySources = {
+  voices: VoiceSpec[];
+  root: StoryNode;
+};
+
 export async function advanceStory(
   provider: ServiceProvider,
-  root: StoryNode,
+  { root, voices }: StorySources,
   session: Session,
   options: StoryOptions
 ): Promise<{
@@ -279,6 +281,7 @@ export async function advanceStory(
       options,
       origin,
       root,
+      voices,
       node,
       session,
       rng,
@@ -478,7 +481,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         time: Date.now(),
       };
       const { url } = ctx.options.doGenerateSpeech
-        ? await ctx.provider.generateSpeech(event)
+        ? await ctx.provider.generateSpeech(
+            {
+              speaker: event.from,
+              voice: atts.voice,
+              tags: event.tags,
+              body: event.body,
+            },
+            ctx.voices
+          )
         : { url: "" };
       ops.push({
         type: "play-event",
@@ -806,18 +817,29 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             switch (ctx.node.type) {
               case "sound":
               case "audio":
-                const audio = await ctx.provider.generateSound(prompt);
+                const audio = await ctx.provider.generateSound(
+                  prompt,
+                  parseNumberOrNull(atts.duration) ?? 5_000
+                );
                 url = audio.url;
                 break;
               case "music":
-                const music = await ctx.provider.generateMusic(prompt);
+                const music = await ctx.provider.generateMusic(
+                  prompt,
+                  parseNumberOrNull(atts.duration) ?? 10_000
+                );
                 url = music.url;
                 break;
               case "speech":
-                const voice = await ctx.provider.generateSpeech({
-                  from: atts.voice ?? atts.from ?? atts.speaker,
-                  body: prompt,
-                });
+                const voice = await ctx.provider.generateSpeech(
+                  {
+                    voice: atts.voice,
+                    speaker: atts.from ?? atts.speaker ?? atts.voice,
+                    body: prompt,
+                    tags: cleanSplit(atts.tags, ","),
+                  },
+                  ctx.voices
+                );
                 url = voice.url;
                 break;
               default:
@@ -845,6 +867,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       };
     },
   },
+  // <make
+  //
   {
     match: (node: StoryNode) => node.type === "make",
     exec: async (ctx) => {
@@ -855,7 +879,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.provider,
         ctx.options.models
       );
-      // Get additional prompt from node content
       const prompt = await renderText(
         collectAllText(ctx.node),
         ctx.scope,
@@ -869,7 +892,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         useWebSearch,
       };
       const result = await ctx.provider.generateJson(
-        prompt,
+        dedent`
+          Generate data per the instruction, conforming to the schema.
+          <instruction>${prompt}</instruction>
+        `,
         atts,
         generateOptions
       );

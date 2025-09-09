@@ -6,66 +6,80 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Adam",
     id: "pNInz6obpgDQGcFmaJgB",
+    // Ref is here just to conform with the type of voices we'll pass in to StoryEngine
+    ref: "pNInz6obpgDQGcFmaJgB",
     tags: ["male", "man", "deep", "american", "narration"],
   },
   {
     name: "Alice",
     id: "Xb7hH8MSUJpSbSDYk0k2",
+    ref: "Xb7hH8MSUJpSbSDYk0k2",
     tags: ["female", "woman", "confident", "british", "news"],
   },
   {
     name: "Antoni",
     id: "ErXwobaYiN019PkySvjV",
+    ref: "ErXwobaYiN019PkySvjV",
     tags: ["male", "man", "boy", "young", "american", "narration"],
   },
   {
     name: "Arnold",
     id: "VR6AewLTigWG4xSOukaG",
+    ref: "VR6AewLTigWG4xSOukaG",
     tags: ["male", "man", "crisp", "american", "narration"],
   },
   {
     name: "Bill",
     id: "pqHfZKP75CvOlQylNhV4",
+    ref: "pqHfZKP75CvOlQylNhV4",
     tags: ["male", "man", "strong", "american", "documentary"],
   },
   {
     name: "Brian",
     id: "nPczCjzI2devNBz1zQrb",
+    ref: "nPczCjzI2devNBz1zQrb",
     tags: ["male", "man", "deep", "american", "narration"],
   },
   {
     name: "Callum",
     id: "N2lVS1w4EtoT3dr4eOWO",
+    ref: "N2lVS1w4EtoT3dr4eOWO",
     tags: ["male", "man", "hoarse", "american", "games"],
   },
   {
     name: "Charlie",
     id: "IKne3meq5aSn9XLyUdCD",
+    ref: "IKne3meq5aSn9XLyUdCD",
     tags: ["male", "man", "casual", "australian", "conversational"],
   },
   {
     name: "Charlotte",
     id: "XB0fDUnXU5powFXDhCwa",
+    ref: "XB0fDUnXU5powFXDhCwa",
     tags: ["female", "woman", "middle aged", "seductive", "games"],
   },
   {
     name: "Chris",
     id: "iP95p4xoKVk53GoZ742B",
+    ref: "iP95p4xoKVk53GoZ742B",
     tags: ["male", "man", "casual", "american", "conversational"],
   },
   {
     name: "Clyde",
     id: "2EiwWnXFnvU5JabPnv8n",
+    ref: "2EiwWnXFnvU5JabPnv8n",
     tags: ["male", "man", "war veteran", "american", "games"],
   },
   {
     name: "Daniel",
     id: "onwK4e9ZLuTAKqWW03F9",
+    ref: "onwK4e9ZLuTAKqWW03F9",
     tags: ["male", "man", "deep", "british", "news"],
   },
   {
     name: "Dave",
     id: "CYw3kZ02Hs0563khs1Fj",
+    ref: "CYw3kZ02Hs0563khs1Fj",
     tags: [
       "male",
       "man",
@@ -79,6 +93,7 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Domi",
     id: "AZnzlk1XvdvUeBnXmlld",
+    ref: "AZnzlk1XvdvUeBnXmlld",
     tags: [
       "female",
       "woman",
@@ -92,16 +107,19 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Dorothy",
     id: "ThT5KcBeYPX3keUQqHPh",
+    ref: "ThT5KcBeYPX3keUQqHPh",
     tags: ["female", "woman", "girl", "young", "pleasant", "british"],
   },
   {
     name: "Drew",
     id: "29vD33N1CtxCmqQRPOHJ",
+    ref: "29vD33N1CtxCmqQRPOHJ",
     tags: ["male", "man", "american", "news"],
   },
   {
     name: "Emily",
     id: "LcfcDJNUP1GQjkzn1xUU",
+    ref: "LcfcDJNUP1GQjkzn1xUU",
     tags: [
       "female",
       "woman",
@@ -115,26 +133,31 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Ethan",
     id: "g5CIjZEefAph4nQFvHAz",
+    ref: "g5CIjZEefAph4nQFvHAz",
     tags: ["male", "man", "boy", "young", "american", "asmr"],
   },
   {
     name: "Fin",
     id: "D38z5RcWu1voky8WS1ja",
+    ref: "D38z5RcWu1voky8WS1ja",
     tags: ["male", "man", "old", "sailor", "irish", "games"],
   },
   {
     name: "Freya",
     id: "jsCqWAovK2LkecY7zXl4",
+    ref: "jsCqWAovK2LkecY7zXl4",
     tags: ["female", "woman", "girl", "young", "american"],
   },
   {
     name: "George",
     id: "JBFqnCBsd6RMkjVDRZzb",
+    ref: "JBFqnCBsd6RMkjVDRZzb",
     tags: ["male", "man", "raspy", "british", "narration"],
   },
   {
     name: "Gigi",
     id: "jBpfuIE2acCO8z3wKNLl",
+    ref: "jBpfuIE2acCO8z3wKNLl",
     tags: [
       "female",
       "woman",
@@ -148,6 +171,7 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Giovanni",
     id: "zcAOhNBS3c14rBihAFp1",
+    ref: "zcAOhNBS3c14rBihAFp1",
     tags: [
       "male",
       "man",
@@ -161,11 +185,13 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Glinda",
     id: "z9fAnlkpzviPz146aGWa",
+    ref: "z9fAnlkpzviPz146aGWa",
     tags: ["female", "woman", "witch", "american", "games"],
   },
   {
     name: "Grace",
     id: "oWAxZDx7w5VEj9dCyTzz",
+    ref: "oWAxZDx7w5VEj9dCyTzz",
     tags: [
       "female",
       "woman",
@@ -178,16 +204,19 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Harry",
     id: "SOYHLrjzK2X1ezoPC6cr",
+    ref: "SOYHLrjzK2X1ezoPC6cr",
     tags: ["male", "man", "boy", "young", "anxious", "american", "games"],
   },
   {
     name: "James",
     id: "ZQe5CZNOzWyzPSCn5a3c",
+    ref: "ZQe5CZNOzWyzPSCn5a3c",
     tags: ["male", "man", "old", "calm", "australian", "news"],
   },
   {
     name: "Jeremy",
     id: "bVMeCyTHy58xNoL34h3p",
+    ref: "bVMeCyTHy58xNoL34h3p",
     tags: [
       "male",
       "man",
@@ -201,41 +230,49 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Jessie",
     id: "t0jbNlBVZ17f02VDIeMI",
+    ref: "t0jbNlBVZ17f02VDIeMI",
     tags: ["male", "man", "old", "raspy", "american", "games"],
   },
   {
     name: "Joseph",
     id: "Zlb1dXrM653N07WRdFW3",
+    ref: "Zlb1dXrM653N07WRdFW3",
     tags: ["male", "man", "british", "news"],
   },
   {
     name: "Josh",
     id: "TxGEqnHWrfWFTfGW9XjX",
+    ref: "TxGEqnHWrfWFTfGW9XjX",
     tags: ["male", "man", "boy", "young", "deep", "american", "narration"],
   },
   {
     name: "Liam",
     id: "TX3LPaxmHKxFdv7VOQHJ",
+    ref: "TX3LPaxmHKxFdv7VOQHJ",
     tags: ["male", "man", "boy", "young", "american", "narration"],
   },
   {
     name: "Lily",
     id: "pFZP5JQG7iQjIQuC4Bku",
+    ref: "pFZP5JQG7iQjIQuC4Bku",
     tags: ["female", "woman", "raspy", "british", "narration"],
   },
   {
     name: "Matilda",
     id: "XrExE9yKIg1WjnnlVkGX",
+    ref: "XrExE9yKIg1WjnnlVkGX",
     tags: ["female", "woman", "girl", "young", "warm", "american", "audiobook"],
   },
   {
     name: "Michael",
     id: "flq6f7yk4E4fJM5XTYuZ",
+    ref: "flq6f7yk4E4fJM5XTYuZ",
     tags: ["male", "man", "old", "american", "audiobook"],
   },
   {
     name: "Mimi",
     id: "zrHiDhphv9ZnVXBqCLjz",
+    ref: "zrHiDhphv9ZnVXBqCLjz",
     tags: [
       "female",
       "woman",
@@ -248,6 +285,7 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Nicole",
     id: "piTKgcLEGmPE4e6mEKli",
+    ref: "piTKgcLEGmPE4e6mEKli",
     tags: [
       "female",
       "woman",
@@ -261,16 +299,19 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Patrick",
     id: "ODq5zmih8GrVes37Dizd",
+    ref: "ODq5zmih8GrVes37Dizd",
     tags: ["male", "man", "shouty", "american", "games"],
   },
   {
     name: "Paul",
     id: "5Q0t7uMcjvnagumLfvZi",
+    ref: "5Q0t7uMcjvnagumLfvZi",
     tags: ["male", "man", "ground reporter", "american", "news"],
   },
   {
     name: "Rachel",
     id: "21m00Tcm4TlvDq8ikWAM",
+    ref: "21m00Tcm4TlvDq8ikWAM",
     tags: [
       "female",
       "young",
@@ -284,21 +325,25 @@ export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {
     name: "Sam",
     id: "yoZ06aMxZJJ28mfd3POQ",
+    ref: "yoZ06aMxZJJ28mfd3POQ",
     tags: ["male", "man", "boy", "young", "raspy", "american", "narration"],
   },
   {
     name: "Sarah",
     id: "EXAVITQu4vr4xnSDxMaL",
+    ref: "EXAVITQu4vr4xnSDxMaL",
     tags: ["female", "woman", "girl", "young", "soft", "american", "news"],
   },
   {
     name: "Serena",
     id: "pMsXgVXv3BLzUgSXRplE",
+    ref: "pMsXgVXv3BLzUgSXRplE",
     tags: ["female", "woman", "pleasant", "american", "interactive"],
   },
   {
     name: "Thomas",
     id: "GBv7mTt0atIp3Br8iCZE",
+    ref: "GBv7mTt0atIp3Br8iCZE",
     tags: ["male", "man", "boy", "young", "calm", "american", "meditation"],
   },
 ];

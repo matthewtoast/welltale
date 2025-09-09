@@ -7,7 +7,6 @@ import {
 } from "@elevenlabs/elevenlabs-js/api";
 import { inferGenderFromName } from "./DialogHelpers";
 import { NEUTRAL_VOICE } from "./ElevenLabsVoices";
-import { SpeechSpec } from "./ServiceProvider";
 import { VoiceSpec } from "./StoryEngine";
 
 const DEFAULT_OUTPUT_FORMAT = "mp3_44100_128" as const;
@@ -40,13 +39,13 @@ async function streamToUint8Array(stream: ReadableStream<Uint8Array>) {
 export const composeTrack = async ({
   client,
   prompt,
-  musicLengthMs = 30000,
+  musicLengthMs,
   outputFormat = DEFAULT_OUTPUT_FORMAT as MusicComposeRequestOutputFormat,
   modelId = "music_v1",
 }: {
   client: ElevenLabsClient;
   prompt: string;
-  musicLengthMs?: number;
+  musicLengthMs: number;
   outputFormat?: MusicComposeRequestOutputFormat;
   modelId?: "music_v1";
 }) => {
@@ -173,11 +172,23 @@ export const generateVoiceFromPrompt = async ({
   };
 };
 
-export function autoFindVoice(spec: SpeechSpec, voices: VoiceSpec[]) {
-  // id match is highest precedence
+export function autoFindVoice(
+  spec: { speaker: string; voice: string; tags: string[] },
+  voices: VoiceSpec[]
+) {
+  // id (or ref) match is highest precedence
+  // ref is provided in case the external system had a different identifier for the same voice
+  // id is always the elevenlabs voice id, ref is some external id
   for (let i = 0; i < voices.length; i++) {
-    if (spec.voice === voices[i].id || spec.tags.includes(voices[i].id)) {
-      return voices[i].id;
+    const id = voices[i].id;
+    const ref = voices[i].ref;
+    if (
+      spec.voice === id ||
+      spec.voice === ref ||
+      spec.tags.includes(id) ||
+      spec.tags.includes(ref)
+    ) {
+      return id;
     }
   }
   // match by voice name
@@ -209,5 +220,5 @@ export function autoFindVoice(spec: SpeechSpec, voices: VoiceSpec[]) {
       bestMatch = voice;
     }
   }
-  return bestMatch ? bestMatch.id : NEUTRAL_VOICE;
+  return bestMatch ? bestMatch.id : voices[0] ? voices[0].id : NEUTRAL_VOICE;
 }

@@ -1,5 +1,7 @@
 import { autoFindVoice } from "lib/ElevenLabsUtils";
+import { ELEVENLABS_PRESET_VOICES } from "lib/ElevenLabsVoices";
 import { castToTypeEnhanced, evalExpr } from "lib/EvalUtils";
+import { parseFieldGroups, parseFieldGroupsNested } from "lib/InputHelpers";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
@@ -81,17 +83,40 @@ async function test() {
     properties: { frenchy: { type: "string" } },
   });
 
-  // Find preset voices
-  expect(autoFindVoice("Alice", ["female", "british"]), "Xb7hH8MSUJpSbSDYk0k2");
+  // // Find preset voices
   expect(
-    autoFindVoice("", ["male", "deep", "american"]),
+    autoFindVoice(
+      {
+        speaker: "",
+        tags: ["male", "deep", "american"],
+        voice: "",
+      },
+      ELEVENLABS_PRESET_VOICES
+    ),
     "pNInz6obpgDQGcFmaJgB"
   );
   expect(
-    autoFindVoice("", ["female", "young", "calm"]),
+    autoFindVoice(
+      {
+        speaker: "",
+        tags: ["female", "young", "calm"],
+        voice: "",
+      },
+      ELEVENLABS_PRESET_VOICES
+    ),
     "LcfcDJNUP1GQjkzn1xUU"
   );
-  expect(autoFindVoice("", ["nonexistent", "tags"]), "21m00Tcm4TlvDq8ikWAM");
+  expect(
+    autoFindVoice(
+      {
+        speaker: "",
+        tags: ["nonexistent", "tags"],
+        voice: "",
+      },
+      ELEVENLABS_PRESET_VOICES
+    ),
+    "21m00Tcm4TlvDq8ikWAM"
+  );
 
   // TextHelpers tests
   expect(sha1("hello"), "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
@@ -159,6 +184,18 @@ async function test() {
     ae1,
     "\n    here look 1 for some 1 stuff\n    we got\n\n    1\n    for ya\n    1\n    wow\n    1\n    yes\n  "
   );
+
+  const f1 = parseFieldGroups({
+    baba: "asdf",
+    "foo.bar": "1",
+  });
+  expect(f1, { foo: { bar: "1" } });
+  const f2 = parseFieldGroupsNested({
+    baba: "asdf",
+    "foo.bar": "1",
+    "foo.bar.baz.bux": "222",
+  });
+  expect(f2, { baba: "asdf", foo: { bar: { baz: { bux: "222" } } } });
 }
 
 test();

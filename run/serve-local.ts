@@ -125,7 +125,7 @@ async function main() {
       const parsed = RequestSchema.parse(req.body);
       const { storyId, session, options } = parsed;
       const cartridge = await serviceProvider.loadCartridge(storyId);
-      const root = compileStory(cartridge);
+      const root = compileStory(cartridge, {});
       const result = await advanceStory(
         serviceProvider,
         root,

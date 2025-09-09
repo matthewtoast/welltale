@@ -4,17 +4,16 @@ import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
 import { safeJsonParse } from "lib/JSONHelpers";
 import { ServiceProvider } from "lib/ServiceProvider";
-import { compileStory } from "lib/StoryCompiler";
 import {
   advanceStory,
   createDefaultSession,
   FALLBACK_SPEAKER,
   OP,
   PlayMediaOptions,
-  RunnableStory,
   SeamType,
   Session,
   StoryOptions,
+  StorySources,
 } from "lib/StoryEngine";
 import {
   AUDIO_MIMES,
@@ -86,7 +85,7 @@ export async function playMedia({
 export async function renderNext(
   input: string | null,
   session: Session,
-  story: RunnableStory,
+  sources: StorySources,
   options: RunnerOptions,
   provider: ServiceProvider
 ) {
@@ -98,10 +97,9 @@ export async function renderNext(
       session.input.body = input;
     }
   }
-  const root = await compileStory(story.cartridge);
   const { ops, seam, info } = await advanceStory(
     provider,
-    root,
+    sources,
     session,
     options
   );
@@ -152,7 +150,7 @@ export async function runUntilComplete(
     options: RunnerOptions;
     provider: ServiceProvider;
     session: Session;
-    story: RunnableStory;
+    sources: StorySources;
     seed: string;
     inputs: string[];
   },
@@ -171,7 +169,7 @@ export async function runUntilComplete(
   const resp = await renderNext(
     seam === SeamType.INPUT ? (info.inputs.shift() ?? "") : null,
     info.session,
-    info.story,
+    info.sources,
     { ...info.options, seed: info.seed },
     info.provider
   );

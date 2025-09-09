@@ -6,7 +6,8 @@ import {
   DefaultServiceProvider,
   MockServiceProvider,
 } from "lib/ServiceProvider";
-import { RunnableStory, SeamType } from "lib/StoryEngine";
+import { compileStory } from "lib/StoryCompiler";
+import { SeamType } from "lib/StoryEngine";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
@@ -79,7 +80,6 @@ async function runRepl() {
   const seed = argv.seed;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
-  const story: RunnableStory = { cartridge };
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
 
   console.info(chalk.gray(`Starting REPL...`));
@@ -91,7 +91,6 @@ async function runRepl() {
     loop: 0,
     doGenerateSpeech: false,
     doGenerateAudio: false,
-    doGenerateVoices: false,
     models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
     doPlayMedia: argv.playAudio,
   };
@@ -107,10 +106,12 @@ async function runRepl() {
         cache: new LocalCache(argv.cacheDir),
       });
 
+  const sources = await compileStory(cartridge, {});
+
   let resp = await renderNext(
     null,
     session,
-    story,
+    sources,
     { ...options, seed },
     provider
   );
@@ -138,7 +139,7 @@ async function runRepl() {
       resp = await renderNext(
         fixed,
         session,
-        story,
+        sources,
         { ...options, seed },
         provider
       );

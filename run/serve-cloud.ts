@@ -167,7 +167,7 @@ export async function handler(
 
     const provider = getServiceProvider();
     const cartridge = await provider.loadCartridge(storyId);
-    const root = compileStory(cartridge);
+    const root = compileStory(cartridge, {});
 
     const result = await advanceStory(provider, root, session, options);
 

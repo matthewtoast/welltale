@@ -11,7 +11,7 @@ import {
   DefaultServiceProvider,
   MockServiceProvider,
 } from "lib/ServiceProvider";
-import { RunnableStory } from "lib/StoryEngine";
+import { compileStory } from "lib/StoryCompiler";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
@@ -101,7 +101,6 @@ async function runAutorun() {
   const seed = argv.seed;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
-  const story: RunnableStory = { cartridge };
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
   session.resume = argv.sessionResume;
   session.turn = argv.sessionTurn;
@@ -114,7 +113,6 @@ async function runAutorun() {
     loop: 0,
     doGenerateSpeech: false,
     doGenerateAudio: false,
-    doGenerateVoices: false,
     models: ["openai/gpt-4.1", "anthropic/claude-3.5-sonnet"],
     doPlayMedia: argv.playAudio,
   };
@@ -137,11 +135,13 @@ async function runAutorun() {
     options,
   });
 
+  const sources = await compileStory(cartridge, {});
+
   return await runUntilComplete({
     options,
     provider,
     session,
-    story,
+    sources,
     seed,
     inputs: argv.inputs!.map((i) => i + ""),
   });

@@ -1,5 +1,5 @@
 import { DOMParser } from "@xmldom/xmldom";
-import { Cartridge } from "./StoryEngine";
+import { Cartridge, StorySources } from "./StoryEngine";
 
 export type BaseNode = {
   type: string; // the tag name, e.g. p, block, #text, whatever
@@ -71,7 +71,12 @@ export function walkMap<T extends BaseNode, S extends BaseNode>(
   return mappedNode;
 }
 
-export function compileStory(cartridge: Cartridge) {
+export type CompileOptions = {};
+
+export function compileStory(
+  cartridge: Cartridge,
+  options: CompileOptions
+): StorySources {
   const root: StoryNode = {
     addr: "0",
     type: "root",
@@ -102,7 +107,7 @@ export function compileStory(cartridge: Cartridge) {
     root.kids.push(...mappedKids);
     currentIndex += section.kids.length;
   }
-  return root;
+  return { root, voices: [] };
 }
 
 export function dumpTree(node: BaseNode | null, indent = ""): string {

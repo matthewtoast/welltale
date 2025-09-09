@@ -8,6 +8,7 @@ import {
   composeTrack,
   generateSoundEffect,
   generateSpeechClip,
+  generateVoiceFromPrompt,
 } from "./ElevenLabsUtils";
 import { safeJsonParse } from "./JSONHelpers";
 import {
@@ -40,12 +41,13 @@ export interface ServiceProvider {
     schema: Record<string, TSerial>,
     options: GenerateOptions
   ): Promise<Record<string, TSerial>>;
-  generateSound(prompt: string): Promise<{ url: string }>;
-  generateMusic(prompt: string): Promise<{ url: string }>;
+  generateSound(prompt: string, durationMs: number): Promise<{ url: string }>;
+  generateMusic(prompt: string, durationMs: number): Promise<{ url: string }>;
   generateSpeech(
     spec: SpeechSpec,
     voices: VoiceSpec[]
   ): Promise<{ url: string }>;
+  generateVoice(prompt: string): Promise<{ id: string }>;
 }
 
 export abstract class BaseServiceProvider implements ServiceProvider {
@@ -125,9 +127,12 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     return result;
   }
 
-  async generateSound(prompt: string): Promise<{ url: string }> {
+  async generateSound(
+    prompt: string,
+    durationMs: number
+  ): Promise<{ url: string }> {
     const useCache = !this.config.disableCache;
-    const key = generatePredictableKey("sfx", prompt, "mp3");
+    const key = generatePredictableKey("sfx", `${prompt}:${durationMs}`, "mp3");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -138,7 +143,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     const audio = await generateSoundEffect({
       client: this.config.eleven,
       text: prompt,
-      durationSeconds: 5,
+      durationSeconds: Math.ceil(durationMs / 1000),
     });
     const url = await this.config.cache.set(
       key,
@@ -148,9 +153,16 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     return { url };
   }
 
-  async generateMusic(prompt: string): Promise<{ url: string }> {
+  async generateMusic(
+    prompt: string,
+    durationMs: number
+  ): Promise<{ url: string }> {
     const useCache = !this.config.disableCache;
-    const key = generatePredictableKey("music", prompt, "mp3");
+    const key = generatePredictableKey(
+      "music",
+      `${prompt}:${durationMs}`,
+      "mp3"
+    );
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -161,6 +173,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     const audio = await composeTrack({
       client: this.config.eleven,
       prompt,
+      musicLengthMs: durationMs,
     });
     const url = await this.config.cache.set(
       key,
@@ -176,7 +189,7 @@ export abstract class BaseServiceProvider implements ServiceProvider {
   ): Promise<{ url: string }> {
     const useCache = !this.config.disableCache;
     const voiceId = autoFindVoice(spec, voices);
-    const promptKey = `${spec.speaker}:${spec.tags.join(",")}:${spec.body}`;
+    const promptKey = `${spec.speaker}:${spec.voice}:${spec.tags.join(",")}:${spec.body}:${voiceId}`;
     const key = generatePredictableKey("vox", promptKey, "mp3");
     if (useCache) {
       const cached = await this.config.cache.get(key);
@@ -196,6 +209,29 @@ export abstract class BaseServiceProvider implements ServiceProvider {
       "audio/mpeg"
     );
     return { url };
+  }
+
+  async generateVoice(prompt: string): Promise<{ id: string }> {
+    const useCache = !this.config.disableCache;
+    const key = generatePredictableKey("voice", prompt, "txt");
+    if (useCache) {
+      const cached = await this.config.cache.get(key);
+      if (cached) {
+        return { id: cached.toString() };
+      }
+    }
+    const base = key.split("/").pop() || "voice";
+    const name = `Voice ${base.replace(/\.[^.]+$/, "")}`;
+    const res = await generateVoiceFromPrompt({
+      client: this.config.eleven,
+      voiceName: name,
+      voiceDescription: prompt,
+    });
+    if (useCache) {
+      const buf = Buffer.from(res.voiceId);
+      await this.config.cache.set(key, buf, "text/plain");
+    }
+    return { id: res.voiceId };
   }
 }
 
@@ -250,5 +286,9 @@ export class MockServiceProvider implements ServiceProvider {
         extractBracketContent(spec.body) ??
         "https://example.com/mock-speech.mp3",
     };
+  }
+
+  async generateVoice(prompt: string): Promise<{ id: string }> {
+    return { id: extractBracketContent(prompt) ?? "mock-voice-id" };
   }
 }
