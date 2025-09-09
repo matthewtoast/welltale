@@ -1,5 +1,5 @@
-import { autoFindPresetVoice } from "lib/ElevenLabsUtils";
-import { evalExpr, castToTypeEnhanced } from "lib/EvalUtils";
+import { autoFindVoice } from "lib/ElevenLabsUtils";
+import { castToTypeEnhanced, evalExpr } from "lib/EvalUtils";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
@@ -82,22 +82,16 @@ async function test() {
   });
 
   // Find preset voices
+  expect(autoFindVoice("Alice", ["female", "british"]), "Xb7hH8MSUJpSbSDYk0k2");
   expect(
-    autoFindPresetVoice("Alice", ["female", "british"]),
-    "Xb7hH8MSUJpSbSDYk0k2"
-  );
-  expect(
-    autoFindPresetVoice("", ["male", "deep", "american"]),
+    autoFindVoice("", ["male", "deep", "american"]),
     "pNInz6obpgDQGcFmaJgB"
   );
   expect(
-    autoFindPresetVoice("", ["female", "young", "calm"]),
+    autoFindVoice("", ["female", "young", "calm"]),
     "LcfcDJNUP1GQjkzn1xUU"
   );
-  expect(
-    autoFindPresetVoice("", ["nonexistent", "tags"]),
-    "21m00Tcm4TlvDq8ikWAM"
-  );
+  expect(autoFindVoice("", ["nonexistent", "tags"]), "21m00Tcm4TlvDq8ikWAM");
 
   // TextHelpers tests
   expect(sha1("hello"), "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");

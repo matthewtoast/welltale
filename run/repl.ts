@@ -91,6 +91,7 @@ async function runRepl() {
     loop: 0,
     doGenerateSpeech: false,
     doGenerateAudio: false,
+    doGenerateVoices: false,
     models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
     doPlayMedia: argv.playAudio,
   };

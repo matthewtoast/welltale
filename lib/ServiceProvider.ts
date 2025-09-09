@@ -4,7 +4,7 @@ import { OpenAI } from "openai";
 import { NonEmpty, TSerial } from "typings";
 import { Cache } from "./Cache";
 import {
-  autoFindPresetVoice,
+  autoFindVoice,
   composeTrack,
   generateSoundEffect,
   generateSpeechClip,
@@ -16,7 +16,7 @@ import {
   generateText,
   MODELS,
 } from "./OpenRouterUtils";
-import { StoryEvent } from "./StoryEngine";
+import { VoiceSpec } from "./StoryEngine";
 import { generatePredictableKey } from "./TextHelpers";
 
 type Model = (typeof MODELS)[number];
@@ -24,6 +24,13 @@ type Model = (typeof MODELS)[number];
 export type GenerateOptions = {
   models: NonEmpty<Model>;
   useWebSearch: boolean;
+};
+
+export type SpeechSpec = {
+  speaker: string;
+  voice: string;
+  body: string;
+  tags: string[];
 };
 
 export interface ServiceProvider {
@@ -35,10 +42,10 @@ export interface ServiceProvider {
   ): Promise<Record<string, TSerial>>;
   generateSound(prompt: string): Promise<{ url: string }>;
   generateMusic(prompt: string): Promise<{ url: string }>;
-  generateSpeech(event: {
-    from: string;
-    body: string;
-  }): Promise<{ url: string }>;
+  generateSpeech(
+    spec: SpeechSpec,
+    voices: VoiceSpec[]
+  ): Promise<{ url: string }>;
 }
 
 export abstract class BaseServiceProvider implements ServiceProvider {
@@ -163,12 +170,14 @@ export abstract class BaseServiceProvider implements ServiceProvider {
     return { url };
   }
 
-  async generateSpeech(line: StoryEvent): Promise<{ url: string }> {
+  async generateSpeech(
+    spec: SpeechSpec,
+    voices: VoiceSpec[]
+  ): Promise<{ url: string }> {
     const useCache = !this.config.disableCache;
-    const voiceId = autoFindPresetVoice(line.from, line.tags);
-    const prompt = `${line.from}:${line.tags.join(",")}:${line.body}`;
-    const key = generatePredictableKey("vox", prompt, "mp3");
-
+    const voiceId = autoFindVoice(spec, voices);
+    const promptKey = `${spec.speaker}:${spec.tags.join(",")}:${spec.body}`;
+    const key = generatePredictableKey("vox", promptKey, "mp3");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -176,13 +185,11 @@ export abstract class BaseServiceProvider implements ServiceProvider {
         return { url };
       }
     }
-
     const audio = await generateSpeechClip({
       client: this.config.eleven,
       voiceId,
-      text: line.body,
+      text: spec.body,
     });
-
     const url = await this.config.cache.set(
       key,
       Buffer.from(audio),
@@ -234,10 +241,13 @@ export class MockServiceProvider implements ServiceProvider {
     };
   }
 
-  async generateSpeech(line: StoryEvent): Promise<{ url: string }> {
+  async generateSpeech(
+    spec: SpeechSpec,
+    voices: VoiceSpec[]
+  ): Promise<{ url: string }> {
     return {
       url:
-        extractBracketContent(line.body) ??
+        extractBracketContent(spec.body) ??
         "https://example.com/mock-speech.mp3",
     };
   }

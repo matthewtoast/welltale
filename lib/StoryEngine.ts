@@ -41,6 +41,12 @@ const StoryEventSchema = z.object({
   tags: z.array(z.string()),
 });
 
+export const VoiceSchema = z.object({
+  name: z.string(),
+  id: z.string(),
+  tags: z.array(z.string()),
+});
+
 export const SessionSchema = z.object({
   id: z.string(),
   time: z.number(),
@@ -68,6 +74,7 @@ export const SessionSchema = z.object({
   ),
   state: z.record(z.any()),
   history: z.array(StoryEventSchema),
+  // voices: z.array(VoiceSchema),
   meta: z.record(z.any()),
   cache: z.record(z.any()),
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
@@ -82,6 +89,7 @@ export const StoryOptionsSchema = z.object({
   ream: z.number(),
   doGenerateSpeech: z.boolean(),
   doGenerateAudio: z.boolean(),
+  doGenerateVoices: z.boolean(),
   models: z
     .tuple([ModelSchema, ModelSchema])
     .rest(ModelSchema)
@@ -91,6 +99,7 @@ export const StoryOptionsSchema = z.object({
 export type StoryEvent = z.infer<typeof StoryEventSchema>;
 export type Session = z.infer<typeof SessionSchema>;
 export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
+export type VoiceSpec = z.infer<typeof VoiceSchema>;
 
 export function createDefaultSession(
   id: string,
@@ -302,11 +311,6 @@ export async function advanceStory(
       );
     }
 
-    const errMsg = castToString(session.meta?.error ?? "");
-    if (errMsg) {
-      return done(SeamType.ERROR, { error: errMsg });
-    }
-
     if (result.next) {
       // Check if we're currently in a yielded block and the next node escapes it
       if (
@@ -467,7 +471,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       );
       const event: StoryEvent = {
         body: ctx.rng.randomElement(cleanSplit(text, "|")),
-        from: atts.from ?? atts.speaker ?? atts.voice ?? "",
+        from: atts.from ?? atts.speaker ?? atts.label ?? "",
         to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
         obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
         tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
@@ -752,12 +756,31 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    match: (node: StoryNode) => node.type === "voice",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+
+      // generateVoiceFromPrompt
+
+      const next = nextNode(ctx.node, ctx.root, false);
+      return {
+        ops: [],
+        next,
+      };
+    },
+  },
+  {
     match: (node: StoryNode) =>
       node.type === "sound" ||
       node.type === "audio" ||
       node.type === "music" ||
-      node.type === "speech" ||
-      node.type === "voice",
+      node.type === "speech",
     exec: async (ctx) => {
       const atts = await renderAtts(
         ctx.node.atts,
@@ -791,7 +814,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                 url = music.url;
                 break;
               case "speech":
-              case "voice":
                 const voice = await ctx.provider.generateSpeech({
                   from: atts.voice ?? atts.from ?? atts.speaker,
                   body: prompt,
