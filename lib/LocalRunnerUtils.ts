@@ -13,7 +13,6 @@ import {
   SeamType,
   Session,
   StoryOptions,
-  StorySources,
 } from "lib/StoryEngine";
 import {
   AUDIO_MIMES,
@@ -23,6 +22,7 @@ import {
 } from "lib/TextHelpers";
 import { dirname } from "path";
 import { play, playWait } from "./LocalAudioUtils";
+import { StorySource } from "./StoryTypes";
 
 export const CAROT = "> ";
 
@@ -85,7 +85,7 @@ export async function playMedia({
 export async function renderNext(
   input: string | null,
   session: Session,
-  sources: StorySources,
+  sources: StorySource,
   options: RunnerOptions,
   provider: ServiceProvider
 ) {
@@ -150,7 +150,7 @@ export async function runUntilComplete(
     options: RunnerOptions;
     provider: ServiceProvider;
     session: Session;
-    sources: StorySources;
+    sources: StorySource;
     seed: string;
     inputs: string[];
   },

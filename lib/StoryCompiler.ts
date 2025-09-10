@@ -1,18 +1,17 @@
 import { DOMParser } from "@xmldom/xmldom";
-import { Cartridge, StorySources } from "./StoryEngine";
+import { collectAllText, findNodes } from "./StoryEngine";
+import {
+  StoryCartridge,
+  StoryNode,
+  StorySource,
+  VoiceSpec,
+} from "./StoryTypes";
+import { isBlank } from "./TextHelpers";
 
 export type BaseNode = {
   type: string; // the tag name, e.g. p, block, #text, whatever
   atts: Record<string, string>; // the element attributes
   kids: BaseNode[]; // its children (can be empty array)
-  text: string; // its text value (can be empty string)
-};
-
-export type StoryNode = {
-  addr: string; // a tree locator string like "0.2.1"
-  type: string; // the tag name, e.g. p, block, #text, whatever
-  atts: Record<string, string>; // the element attributes
-  kids: StoryNode[]; // its children (can be empty array)
   text: string; // its text value (can be empty string)
 };
 
@@ -71,12 +70,14 @@ export function walkMap<T extends BaseNode, S extends BaseNode>(
   return mappedNode;
 }
 
-export type CompileOptions = {};
+export type CompileOptions = {
+  doCompileVoices: boolean;
+};
 
-export function compileStory(
-  cartridge: Cartridge,
+export async function compileStory(
+  cartridge: StoryCartridge,
   options: CompileOptions
-): StorySources {
+): Promise<StorySource> {
   const root: StoryNode = {
     addr: "0",
     type: "root",
@@ -107,7 +108,18 @@ export function compileStory(
     root.kids.push(...mappedKids);
     currentIndex += section.kids.length;
   }
-  return { root, voices: [] };
+  const voices: VoiceSpec[] = [];
+  if (options.doCompileVoices) {
+    const voiceNodes = findNodes(root, (node) => node.type === "voice");
+    for (let i = 0; i < voiceNodes.length; i++) {
+      const node = voiceNodes[i];
+      if (isBlank(node.atts.id)) {
+        continue;
+      }
+      const text = await collectAllText(node);
+    }
+  }
+  return { root, voices };
 }
 
 export function dumpTree(node: BaseNode | null, indent = ""): string {

@@ -135,7 +135,9 @@ async function runAutorun() {
     options,
   });
 
-  const sources = await compileStory(cartridge, {});
+  const sources = await compileStory(cartridge, {
+    doCompileVoices: false,
+  });
 
   return await runUntilComplete({
     options,

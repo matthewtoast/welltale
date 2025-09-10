@@ -1,10 +1,10 @@
-import { StoryNode } from "lib/StoryCompiler";
 import {
   collectAllText,
   findNodes,
   searchForNode,
   walkTree,
 } from "lib/StoryEngine";
+import { StoryNode } from "lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 function createTestTree(): StoryNode {

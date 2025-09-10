@@ -17,7 +17,7 @@ import {
   generateText,
   MODELS,
 } from "./OpenRouterUtils";
-import { VoiceSpec } from "./StoryEngine";
+import { VoiceSpec } from "./StoryTypes";
 import { generatePredictableKey } from "./TextHelpers";
 
 type Model = (typeof MODELS)[number];

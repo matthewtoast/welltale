@@ -7,7 +7,7 @@ import {
 } from "@elevenlabs/elevenlabs-js/api";
 import { inferGenderFromName } from "./DialogHelpers";
 import { NEUTRAL_VOICE } from "./ElevenLabsVoices";
-import { VoiceSpec } from "./StoryEngine";
+import { VoiceSpec } from "./StoryTypes";
 
 const DEFAULT_OUTPUT_FORMAT = "mp3_44100_128" as const;
 

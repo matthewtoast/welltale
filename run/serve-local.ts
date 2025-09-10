@@ -2,6 +2,7 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import express from "express";
 import fs from "fs";
 import { glob } from "glob";
+import { StoryCartridge } from "lib/StoryTypes";
 import { OpenAI } from "openai";
 import os from "os";
 import path from "path";
@@ -16,7 +17,6 @@ import {
   advanceStory,
   SessionSchema,
   StoryOptionsSchema,
-  type Cartridge,
 } from "../lib/StoryEngine";
 
 const RequestSchema = z.object({
@@ -40,11 +40,11 @@ class LocalServiceProvider extends BaseServiceProvider {
     this.cartridgeDirs = cartridgeDirs;
   }
 
-  async loadCartridge(storyId: string): Promise<Cartridge> {
+  async loadCartridge(storyId: string): Promise<StoryCartridge> {
     for (const dir of this.cartridgeDirs) {
       const storyPath = path.join(dir, storyId);
       if (fs.existsSync(storyPath) && fs.statSync(storyPath).isDirectory()) {
-        const cartridge: Cartridge = {};
+        const cartridge: StoryCartridge = {};
         const files = await glob("**/*", {
           cwd: storyPath,
           nodir: true,
@@ -125,10 +125,12 @@ async function main() {
       const parsed = RequestSchema.parse(req.body);
       const { storyId, session, options } = parsed;
       const cartridge = await serviceProvider.loadCartridge(storyId);
-      const root = compileStory(cartridge, {});
+      const sources = await compileStory(cartridge, {
+        doCompileVoices: false,
+      });
       const result = await advanceStory(
         serviceProvider,
-        root,
+        sources,
         session,
         options
       );

@@ -1,5 +1,6 @@
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { StoryCartridge } from "lib/StoryTypes";
 import { OpenAI } from "openai";
 import { Readable } from "stream";
 import * as unzipper from "unzipper";
@@ -12,8 +13,11 @@ import {
   advanceStory,
   SessionSchema,
   StoryOptionsSchema,
-  type Cartridge,
 } from "../lib/StoryEngine";
+
+// TODO: Instead of loadCartridge we need to do loadSources
+// Assume the cartridge has already been compiled into an object, with voices
+// possibly even allow the thing to be passed in
 
 const RequestSchema = z.object({
   storyId: z.string(),
@@ -68,7 +72,7 @@ class CloudServiceProvider extends BaseServiceProvider {
     this.bucket = bucket;
   }
 
-  async loadCartridge(storyId: string): Promise<Cartridge> {
+  async loadCartridge(storyId: string): Promise<StoryCartridge> {
     const key = `cartridges/${storyId}.zip`;
 
     try {
@@ -82,7 +86,7 @@ class CloudServiceProvider extends BaseServiceProvider {
         throw new Error("Empty response from S3");
       }
 
-      const cartridge: Cartridge = {};
+      const cartridge: StoryCartridge = {};
       const bodyStream = response.Body as Readable;
 
       await new Promise<void>((resolve, reject) => {
@@ -167,7 +171,9 @@ export async function handler(
 
     const provider = getServiceProvider();
     const cartridge = await provider.loadCartridge(storyId);
-    const root = compileStory(cartridge, {});
+    const root = await compileStory(cartridge, {
+      doCompileVoices: false,
+    });
 
     const result = await advanceStory(provider, root, session, options);
 

@@ -1,4 +1,4 @@
-import { VoiceSpec } from "./StoryEngine";
+import { VoiceSpec } from "./StoryTypes";
 
 export const NEUTRAL_VOICE = "21m00Tcm4TlvDq8ikWAM";
 

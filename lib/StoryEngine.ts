@@ -10,7 +10,7 @@ import {
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { dumpTree, StoryNode, TEXT_TAG } from "lib/StoryCompiler";
+import { dumpTree, TEXT_TAG } from "lib/StoryCompiler";
 import {
   cleanSplit,
   cleanSplitRegex,
@@ -26,11 +26,10 @@ import { FieldSpec, parseFieldGroups } from "./InputHelpers";
 import { safeJsonParse } from "./JSONHelpers";
 import { MODELS } from "./OpenRouterUtils";
 import { GenerateOptions, ServiceProvider } from "./ServiceProvider";
+import { StoryNode, StorySource, VoiceSpec } from "./StoryTypes";
 
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
-
-export type Cartridge = Record<string, Buffer | string>;
 
 const StoryEventSchema = z.object({
   time: z.number(),
@@ -38,13 +37,6 @@ const StoryEventSchema = z.object({
   to: z.array(z.string()),
   obs: z.array(z.string()),
   body: z.string(),
-  tags: z.array(z.string()),
-});
-
-export const VoiceSchema = z.object({
-  name: z.string(),
-  ref: z.string(),
-  id: z.string(),
   tags: z.array(z.string()),
 });
 
@@ -99,7 +91,6 @@ export const StoryOptionsSchema = z.object({
 export type StoryEvent = z.infer<typeof StoryEventSchema>;
 export type Session = z.infer<typeof SessionSchema>;
 export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
-export type VoiceSpec = z.infer<typeof VoiceSchema>;
 
 export function createDefaultSession(
   id: string,
@@ -172,14 +163,9 @@ interface ActionHandler {
 
 let calls = 0;
 
-export type StorySources = {
-  voices: VoiceSpec[];
-  root: StoryNode;
-};
-
 export async function advanceStory(
   provider: ServiceProvider,
-  { root, voices }: StorySources,
+  { root, voices }: StorySource,
   session: Session,
   options: StoryOptions
 ): Promise<{

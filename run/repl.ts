@@ -106,7 +106,9 @@ async function runRepl() {
         cache: new LocalCache(argv.cacheDir),
       });
 
-  const sources = await compileStory(cartridge, {});
+  const sources = await compileStory(cartridge, {
+    doCompileVoices: false,
+  });
 
   let resp = await renderNext(
     null,
