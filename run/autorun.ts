@@ -7,11 +7,11 @@ import {
   RunnerOptions,
   runUntilComplete,
 } from "lib/LocalRunnerUtils";
-import {
-  DefaultServiceProvider,
-  MockServiceProvider,
-} from "lib/ServiceProvider";
 import { compileStory } from "lib/StoryCompiler";
+import {
+  DefaultStoryServiceProvider,
+  MockStoryServiceProvider,
+} from "lib/StoryServiceProvider";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
@@ -117,11 +117,13 @@ async function runAutorun() {
     doPlayMedia: argv.playAudio,
   };
 
-  console.info(chalk.gray(`Auto-running game...`, options));
+  console.info(
+    chalk.gray(`Auto-running game...`, JSON.stringify(options, null, 2))
+  );
 
   const provider = argv.mock
-    ? new MockServiceProvider()
-    : new DefaultServiceProvider({
+    ? new MockStoryServiceProvider()
+    : new DefaultStoryServiceProvider({
         eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
         openai: new OpenAI({
           apiKey: argv.openRouterApiKey,
@@ -135,7 +137,7 @@ async function runAutorun() {
     options,
   });
 
-  const sources = await compileStory(cartridge, {
+  const sources = await compileStory(provider, cartridge, {
     doCompileVoices: false,
   });
 

@@ -1,9 +1,10 @@
+import {} from "lib/StoryEngine";
 import {
   collectAllText,
   findNodes,
   searchForNode,
   walkTree,
-} from "lib/StoryEngine";
+} from "lib/StoryNodeHelpers";
 import { StoryNode } from "lib/StoryTypes";
 import { expect } from "./TestUtils";
 

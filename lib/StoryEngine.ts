@@ -10,7 +10,6 @@ import {
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { dumpTree, TEXT_TAG } from "lib/StoryCompiler";
 import {
   cleanSplit,
   cleanSplitRegex,
@@ -21,82 +20,35 @@ import {
 } from "lib/TextHelpers";
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
-import { z } from "zod";
 import { FieldSpec, parseFieldGroups } from "./InputHelpers";
 import { safeJsonParse } from "./JSONHelpers";
-import { MODELS } from "./OpenRouterUtils";
-import { GenerateOptions, ServiceProvider } from "./ServiceProvider";
-import { StoryNode, StorySource, VoiceSpec } from "./StoryTypes";
+import {
+  collectAllText,
+  DESCENDABLE_TAGS,
+  dumpTree,
+  findNodes,
+  searchForNode,
+  TEXT_CONTENT_TAGS,
+} from "./StoryNodeHelpers";
+import { GenerateOptions, StoryServiceProvider } from "./StoryServiceProvider";
+import {
+  LLM_SLUGS,
+  StoryEvent,
+  StoryNode,
+  StoryOptions,
+  StorySession,
+  StorySource,
+  VoiceSpec,
+} from "./StoryTypes";
 
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
-
-const StoryEventSchema = z.object({
-  time: z.number(),
-  from: z.string(),
-  to: z.array(z.string()),
-  obs: z.array(z.string()),
-  body: z.string(),
-  tags: z.array(z.string()),
-});
-
-export const SessionSchema = z.object({
-  id: z.string(),
-  time: z.number(),
-  turn: z.number(),
-  cycle: z.number(),
-  loops: z.number(),
-  resume: z.boolean(),
-  address: z.string().nullable(),
-  input: z.union([
-    z.object({
-      body: z.string().nullable(),
-      atts: z.record(z.any()),
-      addr: z.string().optional(),
-      retries: z.number().optional(),
-      returnTo: z.string().optional(),
-    }),
-    z.null(),
-  ]),
-  stack: z.array(
-    z.object({
-      returnAddress: z.string(),
-      scope: z.record(z.any()),
-      blockType: z.enum(["scope", "yield", "intro", "resume"]).optional(),
-    })
-  ),
-  state: z.record(z.any()),
-  history: z.array(StoryEventSchema),
-  // voices: z.array(VoiceSchema),
-  meta: z.record(z.any()),
-  cache: z.record(z.any()),
-  genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
-});
-
-const ModelSchema = z.enum(MODELS);
-
-export const StoryOptionsSchema = z.object({
-  verbose: z.boolean(),
-  seed: z.string(),
-  loop: z.number(),
-  ream: z.number(),
-  doGenerateSpeech: z.boolean(),
-  doGenerateAudio: z.boolean(),
-  models: z
-    .tuple([ModelSchema, ModelSchema])
-    .rest(ModelSchema)
-    .transform((val) => val as NonEmpty<(typeof MODELS)[number]>),
-});
-
-export type StoryEvent = z.infer<typeof StoryEventSchema>;
-export type Session = z.infer<typeof SessionSchema>;
-export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
 
 export function createDefaultSession(
   id: string,
   state: Record<string, TSerial> = {},
   meta: Record<string, TSerial> = {}
-): Session {
+): StorySession {
   return {
     id,
     time: Date.now(),
@@ -138,9 +90,9 @@ export interface ActionContext {
   root: StoryNode;
   voices: VoiceSpec[];
   node: StoryNode;
-  session: Session;
+  session: StorySession;
   rng: PRNG;
-  provider: ServiceProvider;
+  provider: StoryServiceProvider;
   scope: { [key: string]: TSerial };
 }
 
@@ -164,13 +116,13 @@ interface ActionHandler {
 let calls = 0;
 
 export async function advanceStory(
-  provider: ServiceProvider,
+  provider: StoryServiceProvider,
   { root, voices }: StorySource,
-  session: Session,
+  session: StorySession,
   options: StoryOptions
 ): Promise<{
   ops: OP[];
-  session: Session;
+  session: StorySession;
   seam: SeamType;
   info: Record<string, string>;
 }> {
@@ -188,16 +140,6 @@ export async function advanceStory(
 
   // The origin (if present) is the node the author wants to treat as the de-facto beginning of playback
   const origin = findNodes(root, (node) => node.type === "origin")[0] ?? root;
-
-  // Extract metadata on first turn
-  if (session.turn === 1) {
-    findNodes(root, (node) => node.type === "meta").forEach((meta) => {
-      if (!isBlank(meta.atts.description)) {
-        session.meta[meta.atts.name ?? meta.atts.property] =
-          meta.atts.description;
-      }
-    });
-  }
 
   // Check for resume first (takes precedence over intro)
   if (session.resume) {
@@ -337,44 +279,6 @@ export async function advanceStory(
     }
   }
 }
-
-const TEXT_CONTENT_TAGS = [
-  TEXT_TAG,
-  "text",
-  "p",
-  "span",
-  "b",
-  "strong",
-  "em",
-  "i",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-];
-
-export const DESCENDABLE_TAGS = [
-  "root",
-  "html",
-  "body",
-  "div",
-  "ul",
-  "ol",
-  "li",
-  "section",
-  "sec",
-  "pre",
-  "scope",
-  "origin",
-  // Common HTML tags we'll treat as playable content
-  "main",
-  "aside",
-  "article",
-  "details",
-  "summary",
-];
 
 export const LOOP_TAGS = ["while"];
 
@@ -1108,73 +1012,6 @@ function setState(
   set(state, key, value);
 }
 
-export function walkTree<T>(
-  node: StoryNode,
-  visitor: (node: StoryNode, parent: StoryNode | null) => T | null,
-  parent: StoryNode | null = null
-): T | null {
-  const result = visitor(node, parent);
-  if (result !== null && result !== undefined) return result;
-  for (let i = 0; i < node.kids.length; i++) {
-    const childResult = walkTree(node.kids[i], visitor, node);
-    if (childResult !== null && childResult !== undefined) return childResult;
-  }
-  return null;
-}
-
-export function searchForNode(
-  root: StoryNode,
-  term: string | null | undefined
-): { node: StoryNode } | null {
-  if (!term || isBlank(term)) {
-    return null;
-  }
-  const found = walkTree(root, (node) => (node.atts.id === term ? node : null));
-  return found ? { node: found } : null;
-}
-
-export function findNodes(
-  root: StoryNode,
-  predicate: (node: StoryNode, parent: StoryNode | null) => boolean
-): StoryNode[] {
-  const results: StoryNode[] = [];
-  walkTree(
-    root,
-    (node, parent) => {
-      if (predicate(node, parent)) {
-        results.push(node);
-      }
-      return null;
-    },
-    null
-  );
-  return results;
-}
-
-export function collectAllText(node: StoryNode, join: string = "\n"): string {
-  const texts: string[] = [];
-  walkTree(node, (n) => {
-    if (TEXT_CONTENT_TAGS.includes(n.type)) {
-      const trimmed = n.text.trim();
-      if (trimmed) {
-        texts.push(trimmed);
-      }
-    }
-    return null;
-  });
-  return texts.join(join);
-}
-
-export function cloneNode(node: StoryNode): StoryNode {
-  return {
-    addr: node.addr,
-    type: node.type,
-    atts: { ...node.atts },
-    text: node.text,
-    kids: node.kids.map((kid) => cloneNode(kid)),
-  };
-}
-
 async function processInputValue(
   raw: string,
   atts: Record<string, string>,
@@ -1236,7 +1073,7 @@ async function processInputValue(
   return value;
 }
 
-export function createScope(session: Session): { [key: string]: TSerial } {
+export function createScope(session: StorySession): { [key: string]: TSerial } {
   const globalState = session.state;
 
   const currentScope =
@@ -1291,8 +1128,8 @@ export async function renderText(
   text: string,
   scope: Record<string, TSerial>,
   rng: PRNG | null,
-  provider: ServiceProvider | null,
-  models: NonEmpty<(typeof MODELS)[number]>
+  provider: StoryServiceProvider | null,
+  models: NonEmpty<(typeof LLM_SLUGS)[number]>
 ): Promise<string> {
   if (isBlank(text) || text.length < 3) {
     return text;
@@ -1326,8 +1163,8 @@ export async function renderAtts(
   atts: Record<string, string>,
   scope: Record<string, TSerial>,
   rng: PRNG | null,
-  provider: ServiceProvider | null,
-  models: NonEmpty<(typeof MODELS)[number]>
+  provider: StoryServiceProvider | null,
+  models: NonEmpty<(typeof LLM_SLUGS)[number]>
 ) {
   const out: Record<string, string> = {};
   for (const key in atts) {

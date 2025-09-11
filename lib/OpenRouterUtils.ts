@@ -1,23 +1,9 @@
 import dedent from "dedent";
 import OpenAI from "openai";
 import { NonEmpty, TSerial } from "typings";
+import { LLM_SLUGS } from "./StoryTypes";
 
-export const MODELS = [
-  "openai/gpt-5",
-  "openai/gpt-5-mini",
-  "openai/gpt-5-nano",
-  "openai/gpt-4.1",
-  "openai/gpt-4.1-mini",
-  "openai/gpt-4.1-nano",
-  "openai/gpt-4o",
-  "anthropic/claude-3.5-sonnet",
-  "deepseek/deepseek-r1",
-  "deepseek/deepseek-v3.1",
-  "mistralai/mistral-large",
-  "meta-llama/llama-3.1-70b-instruct",
-] as const;
-
-type Model = (typeof MODELS)[number];
+type Model = (typeof LLM_SLUGS)[number];
 
 type Msg = {
   role: "user" | "assistant" | "system" | "developer";

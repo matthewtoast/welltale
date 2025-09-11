@@ -2,12 +2,12 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
-import {
-  DefaultServiceProvider,
-  MockServiceProvider,
-} from "lib/ServiceProvider";
 import { compileStory } from "lib/StoryCompiler";
 import { SeamType } from "lib/StoryEngine";
+import {
+  DefaultStoryServiceProvider,
+  MockStoryServiceProvider,
+} from "lib/StoryServiceProvider";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
@@ -82,8 +82,6 @@ async function runRepl() {
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
 
-  console.info(chalk.gray(`Starting REPL...`));
-
   const options: RunnerOptions = {
     seed: argv.seed,
     verbose: true,
@@ -95,9 +93,13 @@ async function runRepl() {
     doPlayMedia: argv.playAudio,
   };
 
+  console.info(
+    chalk.gray(`Starting REPL...`, JSON.stringify(options, null, 2))
+  );
+
   const provider = argv.mock
-    ? new MockServiceProvider()
-    : new DefaultServiceProvider({
+    ? new MockStoryServiceProvider()
+    : new DefaultStoryServiceProvider({
         eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
         openai: new OpenAI({
           apiKey: argv.openRouterApiKey,
@@ -106,7 +108,7 @@ async function runRepl() {
         cache: new LocalCache(argv.cacheDir),
       });
 
-  const sources = await compileStory(cartridge, {
+  const sources = await compileStory(provider, cartridge, {
     doCompileVoices: false,
   });
 

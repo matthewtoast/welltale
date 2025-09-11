@@ -59,7 +59,7 @@ export function removeLeading(t: string, c: string): string {
   return t;
 }
 
-export function cleanSplit(s: string, sep: string = "\n") {
+export function cleanSplit(s: string | null | undefined, sep: string = "\n") {
   if (!s) {
     return [];
   }

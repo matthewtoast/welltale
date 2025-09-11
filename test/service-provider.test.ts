@@ -3,9 +3,9 @@ import dedent from "dedent";
 import { loadEnv } from "lib/DotEnv";
 import { LocalCache } from "lib/LocalCache";
 import {
-  DefaultServiceProvider,
-  MockServiceProvider,
-} from "lib/ServiceProvider";
+  DefaultStoryServiceProvider,
+  MockStoryServiceProvider,
+} from "lib/StoryServiceProvider";
 import OpenAI from "openai";
 import { homedir } from "os";
 import { join } from "path";
@@ -49,8 +49,8 @@ async function go() {
     .parse();
 
   const provider = argv.mock
-    ? new MockServiceProvider()
-    : new DefaultServiceProvider({
+    ? new MockStoryServiceProvider()
+    : new DefaultStoryServiceProvider({
         disableCache: false,
         eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
         openai: new OpenAI({

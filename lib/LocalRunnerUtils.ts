@@ -3,7 +3,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
 import { safeJsonParse } from "lib/JSONHelpers";
-import { ServiceProvider } from "lib/ServiceProvider";
 import {
   advanceStory,
   createDefaultSession,
@@ -11,9 +10,8 @@ import {
   OP,
   PlayMediaOptions,
   SeamType,
-  Session,
-  StoryOptions,
 } from "lib/StoryEngine";
+import { StoryServiceProvider } from "lib/StoryServiceProvider";
 import {
   AUDIO_MIMES,
   isBlank,
@@ -22,13 +20,16 @@ import {
 } from "lib/TextHelpers";
 import { dirname } from "path";
 import { play, playWait } from "./LocalAudioUtils";
-import { StorySource } from "./StoryTypes";
+import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
 
 export const CAROT = "> ";
 
 loadEnv();
 
-export function loadSessionFromDisk(abspath: string, id?: string): Session {
+export function loadSessionFromDisk(
+  abspath: string,
+  id?: string
+): StorySession {
   if (isBlank(id)) {
     id = railsTimestamp();
   }
@@ -50,7 +51,7 @@ export function loadSessionFromDisk(abspath: string, id?: string): Session {
   };
 }
 
-export function saveSessionToDisk(state: Session, abspath: string) {
+export function saveSessionToDisk(state: StorySession, abspath: string) {
   writeFileSync(abspath, JSON.stringify(state, null, 2));
 }
 
@@ -84,10 +85,10 @@ export async function playMedia({
 
 export async function renderNext(
   input: string | null,
-  session: Session,
+  session: StorySession,
   sources: StorySource,
   options: RunnerOptions,
-  provider: ServiceProvider
+  provider: StoryServiceProvider
 ) {
   if (input !== null) {
     console.log(chalk.greenBright(`${CAROT}${input}`));
@@ -148,8 +149,8 @@ export async function renderNext(
 export async function runUntilComplete(
   info: {
     options: RunnerOptions;
-    provider: ServiceProvider;
-    session: Session;
+    provider: StoryServiceProvider;
+    session: StorySession;
     sources: StorySource;
     seed: string;
     inputs: string[];
@@ -160,7 +161,7 @@ export async function runUntilComplete(
   thunk?: (resp: {
     ops: OP[];
     seam: SeamType;
-    session: Session;
+    session: StorySession;
   }) => Promise<void>
 ) {
   if (seam === SeamType.ERROR || seam === SeamType.FINISH) {

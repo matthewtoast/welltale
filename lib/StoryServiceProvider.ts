@@ -15,12 +15,11 @@ import {
   generateJson,
   generateJsonWithWeb,
   generateText,
-  MODELS,
 } from "./OpenRouterUtils";
-import { VoiceSpec } from "./StoryTypes";
+import { LLM_SLUGS, VoiceSpec } from "./StoryTypes";
 import { generatePredictableKey } from "./TextHelpers";
 
-type Model = (typeof MODELS)[number];
+type Model = (typeof LLM_SLUGS)[number];
 
 export type GenerateOptions = {
   models: NonEmpty<Model>;
@@ -34,7 +33,7 @@ export type SpeechSpec = {
   tags: string[];
 };
 
-export interface ServiceProvider {
+export interface StoryServiceProvider {
   generateText(prompt: string, options: GenerateOptions): Promise<string>;
   generateJson(
     prompt: string,
@@ -50,7 +49,7 @@ export interface ServiceProvider {
   generateVoice(prompt: string): Promise<{ id: string }>;
 }
 
-export abstract class BaseServiceProvider implements ServiceProvider {
+export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   constructor(
     public config: {
       openai: OpenAI;
@@ -235,14 +234,14 @@ export abstract class BaseServiceProvider implements ServiceProvider {
   }
 }
 
-export class DefaultServiceProvider extends BaseServiceProvider {}
+export class DefaultStoryServiceProvider extends BaseStoryServiceProvider {}
 
 function extractBracketContent(prompt: string): string | null {
   const match = prompt.match(/\[\[\s*(.*?)\s*\]\]/);
   return match ? match[1] : null;
 }
 
-export class MockServiceProvider implements ServiceProvider {
+export class MockStoryServiceProvider implements StoryServiceProvider {
   async generateText(
     prompt: string,
     options: GenerateOptions

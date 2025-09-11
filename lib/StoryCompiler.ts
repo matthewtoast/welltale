@@ -1,19 +1,13 @@
 import { DOMParser } from "@xmldom/xmldom";
-import { collectAllText, findNodes } from "./StoryEngine";
+import { BaseNode, collectAllText, findNodes } from "./StoryNodeHelpers";
+import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   StoryCartridge,
   StoryNode,
   StorySource,
   VoiceSpec,
 } from "./StoryTypes";
-import { isBlank } from "./TextHelpers";
-
-export type BaseNode = {
-  type: string; // the tag name, e.g. p, block, #text, whatever
-  atts: Record<string, string>; // the element attributes
-  kids: BaseNode[]; // its children (can be empty array)
-  text: string; // its text value (can be empty string)
-};
+import { cleanSplit, isBlank } from "./TextHelpers";
 
 const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
@@ -53,9 +47,6 @@ export const parseXmlFragment = (frag: string): BaseNode => {
   return fromDom(root);
 };
 
-export const TEXT_TAG = "#text";
-export const FRAG_TAG = "#fragment";
-
 export function walkMap<T extends BaseNode, S extends BaseNode>(
   node: T,
   mapper: (node: T, parent: S | null, index: number) => S,
@@ -72,9 +63,11 @@ export function walkMap<T extends BaseNode, S extends BaseNode>(
 
 export type CompileOptions = {
   doCompileVoices: boolean;
+  verbose?: boolean;
 };
 
 export async function compileStory(
+  provider: StoryServiceProvider,
   cartridge: StoryCartridge,
   options: CompileOptions
 ): Promise<StorySource> {
@@ -85,12 +78,17 @@ export async function compileStory(
     kids: [],
     text: "",
   };
+
   const keys = Object.keys(cartridge);
   let currentIndex = 0;
   for (let i = 0; i < keys.length; i++) {
     const path = keys[i];
     const content = cartridge[path].toString("utf-8");
+    if (options.verbose) {
+      console.info("Parsing", path);
+    }
     const section = parseXmlFragment(content);
+
     // Move each child of the section's top node to root, remapping addresses
     const mappedKids = section.kids.map((child, idx) => {
       const childIndex = currentIndex + idx;
@@ -105,75 +103,46 @@ export async function compileStory(
         childIndex
       );
     });
+
     root.kids.push(...mappedKids);
     currentIndex += section.kids.length;
   }
+
+  const meta: Record<string, string> = {};
+  findNodes(root, (node) => node.type === "meta").forEach((node) => {
+    if (!isBlank(node.atts.description)) {
+      meta[node.atts.name ?? node.atts.property] = node.atts.description;
+      if (options.verbose) {
+        console.info("Found meta tag", meta);
+      }
+    }
+  });
+
   const voices: VoiceSpec[] = [];
   if (options.doCompileVoices) {
-    const voiceNodes = findNodes(root, (node) => node.type === "voice");
+    const voiceNodes = findNodes(root, (node) => node.type === "compile:voice");
     for (let i = 0; i < voiceNodes.length; i++) {
       const node = voiceNodes[i];
       if (isBlank(node.atts.id)) {
         continue;
       }
-      const text = await collectAllText(node);
+      if (options.verbose) {
+        console.info(`Generating voice ${node.atts.id}...`);
+      }
+      const text =
+        node.atts.prompt ?? node.atts.description ?? collectAllText(node);
+      const { id } = await provider.generateVoice(text);
+      voices.push({
+        id,
+        ref: node.atts.id.trim(),
+        name: node.atts.name ?? id,
+        tags: cleanSplit(node.atts.tags, ","),
+      });
+      if (options.verbose) {
+        console.info(`Generated voice ${node.atts.id} ~> ${id}`);
+      }
     }
   }
-  return { root, voices };
-}
 
-export function dumpTree(node: BaseNode | null, indent = ""): string {
-  if (!node) {
-    return "";
-  }
-
-  const lines: string[] = [];
-
-  // Build attributes string
-  const attrPairs = Object.entries(node.atts)
-    .map(([key, value]) => `${key}="${value}"`)
-    .join(" ");
-  const attrString = attrPairs ? ` ${attrPairs}` : "";
-
-  // For text nodes, show their content inline
-  if (node.type === TEXT_TAG) {
-    const textContent = node.text?.trim();
-    if (textContent) {
-      lines.push(`${indent}<${node.type}>${textContent}</${node.type}>`);
-    } else {
-      lines.push(`${indent}<${node.type} />`);
-    }
-    return lines.join("\n");
-  }
-
-  // Get direct text content (from text children only)
-  const directTextContent = node.kids
-    .filter((k) => k.type === TEXT_TAG)
-    .map((k) => k.text?.trim())
-    .filter(Boolean)
-    .join("");
-
-  const hasNonTextChildren = node.kids.some((k) => k.type !== TEXT_TAG);
-
-  if (!hasNonTextChildren && directTextContent) {
-    // Leaf node with text content
-    lines.push(
-      `${indent}<${node.type}${attrString}>${directTextContent}</${node.type}>`
-    );
-  } else if (node.kids.length === 0) {
-    // Self-closing tag
-    lines.push(`${indent}<${node.type}${attrString} />`);
-  } else {
-    // Tag with children
-    lines.push(`${indent}<${node.type}${attrString}>`);
-
-    // Add children
-    for (const child of node.kids) {
-      lines.push(dumpTree(child, indent + "  "));
-    }
-
-    lines.push(`${indent}</${node.type}>`);
-  }
-
-  return lines.join("\n");
+  return { root, voices, meta };
 }
