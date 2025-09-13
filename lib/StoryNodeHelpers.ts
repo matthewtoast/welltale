@@ -98,6 +98,17 @@ export function collectAllText(node: StoryNode, join: string = "\n"): string {
   return texts.join(join);
 }
 
+export function collectInnerText(node: StoryNode): string {
+  const parts: string[] = [];
+  walkTree(node, (n) => {
+    if (n.type === TEXT_TAG) {
+      parts.push(n.text);
+    }
+    return null;
+  });
+  return parts.join("");
+}
+
 export function cloneNode(node: StoryNode): StoryNode {
   return {
     addr: node.addr,

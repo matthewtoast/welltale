@@ -1,3 +1,5 @@
+import JSON5 from "json5";
+
 export function quo(a: any) {
   return JSON.stringify(a);
 }
@@ -7,7 +9,17 @@ export function safeJsonParse(s: string | null): any | null {
     return null;
   }
   try {
-    return JSON.parse(s);
+    return JSON5.parse(s);
+  } catch (e) {
+    return null;
+  }
+}
+
+export function safeYamlParse(s: string | null): any | null {
+  if (!s) return null;
+  try {
+    const { load } = require("js-yaml");
+    return load(s);
   } catch (e) {
     return null;
   }

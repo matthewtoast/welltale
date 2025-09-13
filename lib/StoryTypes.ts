@@ -65,6 +65,7 @@ export const StorySessionSchema = z.object({
   // voices: z.array(VoiceSchema),
   meta: z.record(z.any()),
   cache: z.record(z.any()),
+  flowTarget: z.string().nullable().optional(),
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
 });
 

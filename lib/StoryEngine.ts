@@ -21,9 +21,10 @@ import {
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
 import { FieldSpec, parseFieldGroups } from "./InputHelpers";
-import { safeJsonParse } from "./JSONHelpers";
+import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import {
   collectAllText,
+  collectInnerText,
   DESCENDABLE_TAGS,
   dumpTree,
   findNodes,
@@ -62,6 +63,7 @@ export function createDefaultSession(
     state,
     meta,
     cache: {},
+    flowTarget: null,
     history: [],
   };
 }
@@ -243,6 +245,11 @@ export async function advanceStory(
     }
 
     if (result.next) {
+      if (session.flowTarget) {
+        session.address = session.flowTarget;
+        session.flowTarget = null;
+        continue;
+      }
       // Check if we're currently in a yielded block and the next node escapes it
       if (
         session.stack.length > 0 &&
@@ -303,6 +310,31 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [],
         next,
       };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "data",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const raw = collectInnerText(ctx.node);
+      const fmt = (atts.format ?? "json").toLowerCase();
+      const key = atts.key ?? "data";
+      let val = null as TSerial | null;
+      if (fmt === "yaml" || fmt === "yml") {
+        const parsed = safeYamlParse(raw);
+        val = (parsed ?? null) as unknown as TSerial | null;
+      } else {
+        const parsed = safeJsonParse(raw);
+        val = (parsed ?? null) as unknown as TSerial | null;
+      }
+      setState(ctx.scope, key, val);
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
     },
   },
   {
@@ -453,6 +485,41 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [],
         next,
       };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "continue",
+    exec: async (ctx) => {
+      const w = nearestAncestorOfType(ctx.node, ctx.root, "while");
+      if (!w) {
+        console.warn("continue used outside of while");
+        return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
+      }
+      const count = countStackContainersBetween(ctx.node, w, ctx.root);
+      const toPop = Math.min(count, ctx.session.stack.length);
+      for (let i = 0; i < toPop; i++) ctx.session.stack.pop();
+      ctx.session.flowTarget = w.addr;
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "break",
+    exec: async (ctx) => {
+      const w = nearestAncestorOfType(ctx.node, ctx.root, "while");
+      if (!w) {
+        console.warn("break used outside of while");
+        return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
+      }
+      const after = nextNode(w, ctx.root, false);
+      if (!after) {
+        console.warn("break has no next node after while");
+        return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
+      }
+      const count = countStackContainersBetween(ctx.node, w, ctx.root);
+      const toPop = Math.min(count, ctx.session.stack.length);
+      for (let i = 0; i < toPop; i++) ctx.session.stack.pop();
+      ctx.session.flowTarget = after.node.addr;
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
     },
   },
   {
@@ -657,26 +724,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "voice",
-    exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-
-      // generateVoiceFromPrompt
-
-      const next = nextNode(ctx.node, ctx.root, false);
-      return {
-        ops: [],
-        next,
-      };
-    },
-  },
-  {
     match: (node: StoryNode) =>
       node.type === "sound" ||
       node.type === "audio" ||
@@ -757,8 +804,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       };
     },
   },
-  // <make
-  //
   {
     match: (node: StoryNode) => node.type === "make",
     exec: async (ctx) => {
@@ -823,6 +868,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
 
       if (ctx.session.input && ctx.session.input.body !== null) {
         const raw = ctx.session.input.body;
+        // Make original input available in state
+        ctx.scope["input"] = raw;
+
         const groups: Record<string, FieldSpec> = parseFieldGroups(atts);
         const keys = Object.keys(groups);
 
@@ -846,6 +894,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         }
 
         ctx.session.input = null;
+        // We received input and processed, so proceed to next node now
         return { ops: [], next: nextAfter ?? null };
       }
 
@@ -856,6 +905,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             timeLimit: parseNumberOrNull(atts.timeLimit ?? atts.for),
           },
         ],
+        // We remain at this node while we get input
         next: { node: ctx.node },
       };
     },
@@ -969,6 +1019,39 @@ export function parentNodeOf(
   );
 }
 
+function nearestAncestorOfType(
+  node: StoryNode,
+  root: StoryNode,
+  type: string
+): StoryNode | null {
+  let p = parentNodeOf(node, root);
+  while (p) {
+    if (p.type === type) return p;
+    p = parentNodeOf(p, root);
+  }
+  return null;
+}
+
+function isStackContainerType(t: string): boolean {
+  return (
+    t === "block" || t === "scope" || t === "intro" || t === "resume" || t === "error"
+  );
+}
+
+function countStackContainersBetween(
+  node: StoryNode,
+  ancestor: StoryNode,
+  root: StoryNode
+): number {
+  let count = 0;
+  let p = parentNodeOf(node, root);
+  while (p && p.addr !== ancestor.addr) {
+    if (isStackContainerType(p.type)) count += 1;
+    p = parentNodeOf(p, root);
+  }
+  return count;
+}
+
 export function wouldEscapeCurrentBlock(
   currentNode: StoryNode,
   nextNode: StoryNode,
@@ -1004,6 +1087,7 @@ export function wouldEscapeCurrentBlock(
 function getState(state: Record<string, TSerial>, key: string): TSerial {
   return get(state, key);
 }
+
 function setState(
   state: Record<string, TSerial>,
   key: string,

@@ -1,0 +1,31 @@
+<p>
+  Start
+</p>
+
+<data format="json">
+  // JSON5 with comments and trailing commas
+  {
+    a: 1,
+    b: 2,
+    c: 'hi',
+  }
+</data>
+
+<p>
+  JSON5: a={{data.a}} b={{data.b}} c={{data.c}}
+</p>
+
+<data format="yaml" key="y">
+  name: Alice
+  nums: four-five
+  nested:
+    k: v
+</data>
+
+<p>
+  YAML: name={{y.name}} nums={{y.nums}} nk={{y.nested.k}}
+</p>
+
+<p>
+  Done
+</p>

@@ -114,6 +114,13 @@
   <while cond='empty(xx) or not startsWith(lower(xx), "x")'>
     <p from="Bob">... Say a word beginning with the letter "x".</p>
     <input xx.type="string" xx.default="" />
+    <if cond='lower(xx) == "invalid1"'>
+      <continue />
+    </if>
+    <while cond='true'>
+      <break />
+      <p>[NOT SHOWN]</p>
+    </while>
   </while>
   <log />
   <p>
