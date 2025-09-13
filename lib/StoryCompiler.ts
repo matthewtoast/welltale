@@ -79,7 +79,13 @@ export async function compileStory(
     text: "",
   };
 
-  const keys = Object.keys(cartridge);
+  function isMain(p: string) {
+    return p === "main.xml" || p.endsWith("/main.xml") || p.endsWith("\\main.xml");
+  }
+  const all = Object.keys(cartridge);
+  const mains = all.filter(isMain);
+  const rest = all.filter((k) => !isMain(k));
+  const keys = [...mains, ...rest];
   let currentIndex = 0;
   for (let i = 0; i < keys.length; i++) {
     const path = keys[i];
