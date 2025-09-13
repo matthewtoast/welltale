@@ -35,6 +35,24 @@ const StoryEventSchema = z.object({
   tags: z.array(z.string()),
 });
 
+export const StoryCheckpointSchema = z.object({
+  createdAt: z.number(),
+  addr: z.string().nullable(),
+  turn: z.number(),
+  cycle: z.number(),
+  time: z.number(),
+  state: z.record(z.any()),
+  meta: z.record(z.any()),
+  stack: z.array(
+    z.object({
+      returnAddress: z.string(),
+      scope: z.record(z.any()),
+      blockType: z.enum(["scope", "yield", "intro", "resume"]).optional(),
+    })
+  ),
+  events: z.array(StoryEventSchema),
+});
+
 export const StorySessionSchema = z.object({
   id: z.string(),
   time: z.number(),
@@ -61,8 +79,7 @@ export const StorySessionSchema = z.object({
     })
   ),
   state: z.record(z.any()),
-  history: z.array(StoryEventSchema),
-  // voices: z.array(VoiceSchema),
+  checkpoints: z.array(StoryCheckpointSchema),
   meta: z.record(z.any()),
   cache: z.record(z.any()),
   flowTarget: z.string().nullable().optional(),
@@ -93,6 +110,7 @@ export const StoryOptionsSchema = z.object({
   ream: z.number(),
   doGenerateSpeech: z.boolean(),
   doGenerateAudio: z.boolean(),
+  maxCheckpoints: z.number().default(20),
   models: z
     .tuple([LLMSlugSchema, LLMSlugSchema])
     .rest(LLMSlugSchema)
@@ -100,5 +118,6 @@ export const StoryOptionsSchema = z.object({
 });
 
 export type StoryEvent = z.infer<typeof StoryEventSchema>;
+export type StoryCheckpoint = z.infer<typeof StoryCheckpointSchema>;
 export type StorySession = z.infer<typeof StorySessionSchema>;
 export type StoryOptions = z.infer<typeof StoryOptionsSchema>;

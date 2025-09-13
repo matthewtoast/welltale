@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import dedent from "dedent";
-import { renderTemplate } from "./Template";
 import {
   castToBoolean,
   castToString,
@@ -10,6 +9,7 @@ import {
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
+import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
 import {
   cleanSplit,
   cleanSplitRegex,
@@ -45,6 +45,7 @@ import {
   StorySource,
   VoiceSpec,
 } from "./StoryTypes";
+import { renderTemplate } from "./Template";
 
 export const PLAYER_ID = "USER";
 export const FALLBACK_SPEAKER = "HOST";
@@ -68,7 +69,7 @@ export function createDefaultSession(
     meta,
     cache: {},
     flowTarget: null,
-    history: [],
+    checkpoints: [],
   };
 }
 
@@ -100,6 +101,7 @@ export interface ActionContext {
   rng: PRNG;
   provider: StoryServiceProvider;
   scope: { [key: string]: TSerial };
+  events: StoryEvent[];
 }
 
 export enum SeamType {
@@ -133,6 +135,7 @@ export async function advanceStory(
   info: Record<string, string>;
 }> {
   const out: OP[] = [];
+  const evs: StoryEvent[] = [];
 
   const rng = new PRNG(options.seed, session.cycle % 10_000);
   session.time = Date.now();
@@ -179,6 +182,10 @@ export async function advanceStory(
   }
 
   function done(seam: SeamType, info: Record<string, string>) {
+    if (evs.length > 0) {
+      makeCheckpoint(session, options, evs);
+      evs.length = 0;
+    }
     session.cycle = rng.cycle;
     return { ops: out, session, seam, info };
   }
@@ -222,11 +229,12 @@ export async function advanceStory(
       provider,
       // We need to get a new scope on every node since it may have introduced new scope
       scope: createScope(session),
+      events: evs,
     };
 
     if (session.input) {
       const { body, atts } = session.input;
-      session.history.push({
+      recordEvent(evs, {
         from: PLAYER_ID,
         body: castToString(body),
         to: cleanSplit(atts.to, ","),
@@ -545,6 +553,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node) =>
       DESCENDABLE_TAGS.includes(node.type) && node.type !== "scope",
     exec: async (ctx) => {
+      // Auto-checkpoint on entering a section
+      if (ctx.node.type === "sec") {
+        makeCheckpoint(ctx.session, ctx.options, ctx.events);
+        ctx.events.length = 0;
+      }
       const next = nextNode(ctx.node, ctx.root, true);
       return {
         ops: [],
@@ -611,11 +624,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         volume: parseNumberOrNull(atts.fadeDuration),
         background: castToBoolean(atts.background),
       });
-      ctx.session.history.push(event);
+      recordEvent(ctx.events, event);
       return {
         ops,
         next,
       };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "checkpoint",
+    exec: async (ctx) => {
+      makeCheckpoint(ctx.session, ctx.options, ctx.events);
+      ctx.events.length = 0;
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
     },
   },
   {
@@ -681,7 +702,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const w = nearestAncestorOfType(ctx.node, ctx.root, "while");
       if (!w) {
-        console.warn("continue used outside of while");
         return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
       }
       const count = countStackContainersBetween(ctx.node, w, ctx.root);
@@ -696,12 +716,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const w = nearestAncestorOfType(ctx.node, ctx.root, "while");
       if (!w) {
-        console.warn("break used outside of while");
         return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
       }
       const after = nextNode(w, ctx.root, false);
       if (!after) {
-        console.warn("break has no next node after while");
         return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
       }
       const count = countStackContainersBetween(ctx.node, w, ctx.root);
@@ -1014,6 +1032,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           addr: ctx.node.addr,
           retries: r,
         };
+        // Auto-checkpoint before yielding for input
+        makeCheckpoint(ctx.session, ctx.options, ctx.events);
+        ctx.events.length = 0;
       }
 
       if (ctx.session.input && ctx.session.input.body !== null) {
@@ -1088,7 +1109,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         console.dir(
           {
             atts,
-            session: omit(ctx.session, "history"),
+            session: omit(ctx.session, ["checkpoints"]),
             options: ctx.options,
             scope: ctx.scope,
           },

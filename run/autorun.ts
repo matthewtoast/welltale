@@ -113,6 +113,7 @@ async function runAutorun() {
     loop: 0,
     doGenerateSpeech: false,
     doGenerateAudio: false,
+    maxCheckpoints: 20,
     models: ["openai/gpt-4.1", "anthropic/claude-3.5-sonnet"],
     doPlayMedia: argv.playAudio,
   };

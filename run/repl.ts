@@ -13,6 +13,7 @@ import OpenAI from "openai";
 import { homedir } from "os";
 import { join } from "path";
 import readline from "readline";
+import { handleCommand } from "lib/ReplCommands";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import {
@@ -89,6 +90,7 @@ async function runRepl() {
     loop: 0,
     doGenerateSpeech: false,
     doGenerateAudio: false,
+    maxCheckpoints: 20,
     models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
     doPlayMedia: argv.playAudio,
   };
@@ -139,17 +141,36 @@ async function runRepl() {
 
   rl.on("line", async (raw) => {
     const fixed = raw.trim();
-    try {
-      resp = await renderNext(
-        fixed,
+    if (fixed.startsWith("/")) {
+      const r = await handleCommand(fixed, {
         session,
         sources,
-        { ...options, seed },
-        provider
-      );
-      saveSessionToDisk(session, argv.sessionPath);
-    } catch (err) {
-      console.error(chalk.red(err));
+        options,
+        provider,
+        seed,
+        save: () => saveSessionToDisk(session, argv.sessionPath),
+      });
+      if (!r.handled) {
+        console.warn("Unknown command");
+        rl.prompt();
+        return;
+      }
+      if (r.seam) {
+        resp = { seam: r.seam, ops: r.ops ?? [] } as any;
+      }
+    } else {
+      try {
+        resp = await renderNext(
+          fixed,
+          session,
+          sources,
+          { ...options, seed },
+          provider
+        );
+        saveSessionToDisk(session, argv.sessionPath);
+      } catch (err) {
+        console.error(chalk.red(err));
+      }
     }
 
     if (resp.seam === SeamType.INPUT) {
