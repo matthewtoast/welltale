@@ -121,7 +121,7 @@ export async function renderNext(
           }
           break;
         case "story-end":
-          console.log(chalk.magenta.italic("[end"));
+          console.log(chalk.magenta.italic("[end]"));
           return "halt";
         case "play-media":
           if (options.doPlayMedia) {

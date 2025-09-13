@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import dedent from "dedent";
-import Handlebars from "handlebars";
+import { renderTemplate } from "./Template";
 import {
   castToBoolean,
   castToString,
@@ -20,7 +20,11 @@ import {
 } from "lib/TextHelpers";
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
-import { FieldSpec, parseFieldGroups } from "./InputHelpers";
+import {
+  FieldSpec,
+  parseFieldGroups,
+  parseFieldGroupsNested,
+} from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import {
   collectAllText,
@@ -31,7 +35,7 @@ import {
   searchForNode,
   TEXT_CONTENT_TAGS,
 } from "./StoryNodeHelpers";
-import { GenerateOptions, StoryServiceProvider } from "./StoryServiceProvider";
+import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   LLM_SLUGS,
   StoryEvent,
@@ -310,6 +314,191 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [],
         next,
       };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "llm:parse",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const prompt = await renderText(
+        collectAllText(ctx.node),
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const schemaAll = parseFieldGroupsNested(publicAtts(atts));
+      const schema: Record<string, TSerial> = {};
+      for (const k in schemaAll) {
+        if (k === "key" || k === "web") continue;
+        schema[k] = schemaAll[k];
+      }
+      const useWebSearch = isTruthy(atts.web) ? true : false;
+      let models = ctx.options.models;
+      if (atts.$models) {
+        const want = cleanSplit(atts.$models, ",");
+        const val = want.filter((m) =>
+          (LLM_SLUGS as readonly string[]).includes(m)
+        );
+        if (val.length > 0)
+          models = val as NonEmpty<(typeof LLM_SLUGS)[number]>;
+      }
+      const result = await ctx.provider.generateJson(
+        dedent`
+          Extract structured data from the input per the schema.
+          <input>${prompt}</input>
+        `,
+        schema,
+        { models, useWebSearch }
+      );
+      const key = atts.key ?? "parse";
+      setState(ctx.scope, key, result as unknown as TSerial);
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "llm:classify",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const prompt = await renderText(
+        collectAllText(ctx.node),
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const cleaned = publicAtts(atts);
+      const cats: string[] = [];
+      for (const k in cleaned) {
+        if (k === "key" || k === "web") continue;
+        if (!k.includes(".")) cats.push(k);
+      }
+      const useWebSearch = isTruthy(atts.web) ? true : false;
+      let models = ctx.options.models;
+      if (atts.$models) {
+        const want = cleanSplit(atts.$models, ",");
+        const val = want.filter((m) =>
+          (LLM_SLUGS as readonly string[]).includes(m)
+        );
+        if (val.length > 0)
+          models = val as NonEmpty<(typeof LLM_SLUGS)[number]>;
+      }
+      const out = await ctx.provider.generateText(
+        dedent`
+          Classify the input into one of these labels: ${cats.join(", ")}.
+          Return only the winning label.
+          <input>${prompt}</input>
+        `,
+        { models, useWebSearch }
+      );
+      const key = atts.key ?? "classify";
+      setState(ctx.scope, key, out);
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "llm:score",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const prompt = await renderText(
+        collectAllText(ctx.node),
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const cleaned = publicAtts(atts);
+      const schema: Record<string, TSerial> = {};
+      for (const k in cleaned) {
+        if (k === "key" || k === "web") continue;
+        if (!k.includes(".")) schema[k] = "number";
+      }
+      const useWebSearch = isTruthy(atts.web) ? true : false;
+      let models = ctx.options.models;
+      if (atts.$models) {
+        const want = cleanSplit(atts.$models, ",");
+        const val = want.filter((m) =>
+          (LLM_SLUGS as readonly string[]).includes(m)
+        );
+        if (val.length > 0)
+          models = val as NonEmpty<(typeof LLM_SLUGS)[number]>;
+      }
+      const result = await ctx.provider.generateJson(
+        dedent`
+          Score the input for each key between 0.0 and 1.0.
+          Return only numeric scores.
+          <input>${prompt}</input>
+        `,
+        schema,
+        { models, useWebSearch }
+      );
+      const key = atts.key ?? "score";
+      setState(ctx.scope, key, result as unknown as TSerial);
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "llm:generate",
+    exec: async (ctx) => {
+      const atts = await renderAtts(
+        ctx.node.atts,
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const prompt = await renderText(
+        collectAllText(ctx.node),
+        ctx.scope,
+        ctx.rng,
+        ctx.provider,
+        ctx.options.models
+      );
+      const schemaAll = parseFieldGroupsNested(publicAtts(atts));
+      const schema: Record<string, TSerial> = {};
+      for (const k in schemaAll) {
+        if (k === "key" || k === "web") continue;
+        schema[k] = schemaAll[k];
+      }
+      const useWebSearch = isTruthy(atts.web) ? true : false;
+      let models = ctx.options.models;
+      if (atts.$models) {
+        const want = cleanSplit(atts.$models, ",");
+        const val = want.filter((m) =>
+          (LLM_SLUGS as readonly string[]).includes(m)
+        );
+        if (val.length > 0)
+          models = val as NonEmpty<(typeof LLM_SLUGS)[number]>;
+      }
+      const result = await ctx.provider.generateJson(
+        dedent`
+          Generate data per the instruction, conforming to the schema.
+          <instruction>${prompt}</instruction>
+        `,
+        schema,
+        { models, useWebSearch }
+      );
+      const key = atts.key ?? "generate";
+      setState(ctx.scope, key, result as unknown as TSerial);
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
     },
   },
   {
@@ -805,45 +994,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "make",
-    exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-      const prompt = await renderText(
-        collectAllText(ctx.node),
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-      const useWebSearch = isTruthy(atts.web) ? true : false;
-      const generateOptions: GenerateOptions = {
-        models: ctx.options.models,
-        useWebSearch,
-      };
-      const result = await ctx.provider.generateJson(
-        dedent`
-          Generate data per the instruction, conforming to the schema.
-          <instruction>${prompt}</instruction>
-        `,
-        atts,
-        generateOptions
-      );
-      for (const [key, value] of Object.entries(result)) {
-        setState(ctx.scope, key, value);
-      }
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.root, false),
-      };
-    },
-  },
-  {
     match: (node: StoryNode) =>
       node.type === "input" || node.type === "textarea",
     exec: async (ctx) => {
@@ -870,6 +1020,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const raw = ctx.session.input.body;
         // Make original input available in state
         ctx.scope["input"] = raw;
+        if (!isBlank(atts.key)) {
+          ctx.scope[atts.key] = raw;
+        }
 
         const groups: Record<string, FieldSpec> = parseFieldGroups(atts);
         const keys = Object.keys(groups);
@@ -1034,7 +1187,11 @@ function nearestAncestorOfType(
 
 function isStackContainerType(t: string): boolean {
   return (
-    t === "block" || t === "scope" || t === "intro" || t === "resume" || t === "error"
+    t === "block" ||
+    t === "scope" ||
+    t === "intro" ||
+    t === "resume" ||
+    t === "error"
   );
 }
 
@@ -1218,7 +1375,7 @@ export async function renderText(
   if (isBlank(text) || text.length < 3) {
     return text;
   }
-  let result = Handlebars.compile(text)(scope);
+  let result = renderTemplate(text, scope);
   if (rng) {
     result = await enhanceText(
       result,

@@ -5,6 +5,7 @@ import { parseFieldGroups, parseFieldGroupsNested } from "lib/InputHelpers";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
+import { renderText } from "lib/StoryEngine";
 import {
   enhanceText,
   generatePredictableKey,
@@ -115,7 +116,7 @@ async function test() {
       },
       ELEVENLABS_PRESET_VOICES
     ),
-    "21m00Tcm4TlvDq8ikWAM"
+    "pNInz6obpgDQGcFmaJgB"
   );
 
   // TextHelpers tests
@@ -156,6 +157,36 @@ async function test() {
   expect(camelCase("foo-bar"), "fooBar");
   expect(camelCase("foo_bar"), "fooBar");
   expect(camelCase("FOO_BAR"), "fooBar");
+
+  // Template rendering (no escaping, dotted and bracket access)
+  expect(
+    await renderText("Hello {{name}}", { name: "World" }, null, null, [
+      "openai/gpt-4.1",
+      "anthropic/claude-3.5-sonnet",
+    ]),
+    "Hello World"
+  );
+  expect(
+    await renderText("Num {{x.y}}", { x: { y: 3 } }, null, null, [
+      "openai/gpt-4.1",
+      "anthropic/claude-3.5-sonnet",
+    ]),
+    "Num 3"
+  );
+  expect(
+    await renderText("Arr {{a.0.name}}", { a: [{ name: "Z" }] }, null, null, [
+      "openai/gpt-4.1",
+      "anthropic/claude-3.5-sonnet",
+    ]),
+    "Arr Z"
+  );
+  expect(
+    await renderText("Obj {{o}}", { o: { z: 1 } }, null, null, [
+      "openai/gpt-4.1",
+      "anthropic/claude-3.5-sonnet",
+    ]),
+    'Obj {"z":1}'
+  );
 
   // Enhancer
   const be1 = `
