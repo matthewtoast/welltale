@@ -1,12 +1,6 @@
 import chalk from "chalk";
 import dedent from "dedent";
-import {
-  castToBoolean,
-  castToString,
-  castToTypeEnhanced,
-  evalExpr,
-  isTruthy,
-} from "lib/EvalUtils";
+
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
 import {
@@ -20,6 +14,13 @@ import {
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
 import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
+import {
+  castToBoolean,
+  castToString,
+  castToTypeEnhanced,
+  isTruthy,
+} from "./EvalCasting";
+import { evalExpr } from "./EvalUtils";
 import { fetch, isValidUrl, toHttpMethod } from "./HTTPHelpers";
 import {
   FieldSpec,

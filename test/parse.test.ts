@@ -1,6 +1,7 @@
 import { autoFindVoice } from "lib/ElevenLabsUtils";
 import { ELEVENLABS_PRESET_VOICES } from "lib/ElevenLabsVoices";
-import { castToTypeEnhanced, evalExpr } from "lib/EvalUtils";
+import { castToTypeEnhanced } from "lib/EvalCasting";
+import { evalExpr } from "lib/EvalUtils";
 import { parseFieldGroups, parseFieldGroupsNested } from "lib/InputHelpers";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
@@ -163,10 +164,7 @@ async function test() {
     await renderText("Hello {{name}}", { scope: { name: "World" } }),
     "Hello World"
   );
-  expect(
-    await renderText("Num {{x.y}}", { scope: { x: { y: 3 } } }),
-    "Num 3"
-  );
+  expect(await renderText("Num {{x.y}}", { scope: { x: { y: 3 } } }), "Num 3");
   expect(
     await renderText("Arr {{a.0.name}}", { scope: { a: [{ name: "Z" }] } }),
     "Arr Z"
