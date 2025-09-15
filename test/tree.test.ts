@@ -175,7 +175,7 @@ async function test() {
     text: "   \n  \t  ",
     kids: [],
   };
-  expect(await marshallText(whitespaceNode, {}), "");
+  expect(await marshallText(whitespaceNode, {}), "   \n  \t  ");
 
   const mixedTree: StoryNode = {
     addr: "0",
@@ -206,7 +206,7 @@ async function test() {
       },
     ],
   };
-  expect(await marshallText(mixedTree, {}), "Should appear");
+  expect(await marshallText(mixedTree, {}), "\nShould appear\n");
 }
 
 test();
