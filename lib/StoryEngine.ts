@@ -9,7 +9,6 @@ import {
 } from "lib/EvalUtils";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
 import {
   cleanSplit,
   cleanSplitRegex,
@@ -20,6 +19,7 @@ import {
 } from "lib/TextHelpers";
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
+import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
 import {
   FieldSpec,
   parseFieldGroups,
@@ -27,16 +27,18 @@ import {
 } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import {
-  collectAllText,
-  collectInnerText,
+  cloneNode,
   DESCENDABLE_TAGS,
   dumpTree,
   findNodes,
+  marshallText,
   searchForNode,
   TEXT_CONTENT_TAGS,
+  walkTree,
 } from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
+  DEFAULT_LLM_SLUGS,
   LLM_SLUGS,
   StoryEvent,
   StoryNode,
@@ -91,16 +93,19 @@ export type OP =
     } & PlayMediaOptions)
   | { type: "story-end" };
 
-export interface ActionContext {
+export interface BaseActionContext {
+  rng: PRNG;
+  provider: StoryServiceProvider;
+  scope: { [key: string]: TSerial };
   options: StoryOptions;
+}
+
+export interface ActionContext extends BaseActionContext {
   origin: StoryNode;
   root: StoryNode;
   voices: VoiceSpec[];
   node: StoryNode;
   session: StorySession;
-  rng: PRNG;
-  provider: StoryServiceProvider;
-  scope: { [key: string]: TSerial };
   events: StoryEvent[];
 }
 
@@ -125,7 +130,7 @@ let calls = 0;
 
 export async function advanceStory(
   provider: StoryServiceProvider,
-  { root, voices }: StorySource,
+  source: StorySource,
   session: StorySession,
   options: StoryOptions
 ): Promise<{
@@ -140,6 +145,21 @@ export async function advanceStory(
   const rng = new PRNG(options.seed, session.cycle % 10_000);
   session.time = Date.now();
   session.turn += 1;
+
+  const root = source.root;
+  const modules = findNodes(root, (node) => node.type === "module").filter(
+    (mod) => !isBlank(mod.atts.id)
+  );
+  if (modules.length > 0) {
+    walkTree(root, (node, parent, idx) => {
+      if (parent && node.type === "include" && !isBlank(node.atts.id)) {
+        const found = modules.find((mod) => mod.atts.id === node.atts.id);
+        parent.kids.splice(idx, 1, ...(found?.kids.map(cloneNode) ?? []));
+      }
+    });
+  }
+
+  const voices = source.voices;
 
   if (calls++ < 1) {
     if (options.verbose) {
@@ -327,20 +347,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "llm:parse",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-      const prompt = await renderText(
-        collectAllText(ctx.node),
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       const schemaAll = parseFieldGroupsNested(publicAtts(atts));
       const schema: Record<string, TSerial> = {};
       for (const k in schemaAll) {
@@ -373,20 +381,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "llm:classify",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-      const prompt = await renderText(
-        collectAllText(ctx.node),
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       const cleaned = publicAtts(atts);
       const cats: string[] = [];
       for (const k in cleaned) {
@@ -419,20 +415,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "llm:score",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-      const prompt = await renderText(
-        collectAllText(ctx.node),
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       const cleaned = publicAtts(atts);
       const schema: Record<string, TSerial> = {};
       for (const k in cleaned) {
@@ -466,20 +450,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "llm:generate",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-      const prompt = await renderText(
-        collectAllText(ctx.node),
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       const schemaAll = parseFieldGroupsNested(publicAtts(atts));
       const schema: Record<string, TSerial> = {};
       for (const k in schemaAll) {
@@ -512,14 +484,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "data",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-      const raw = collectInnerText(ctx.node);
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const raw = await marshallText(ctx.node, ctx, "");
       const fmt = (atts.format ?? "json").toLowerCase();
       const key = atts.key ?? "data";
       let val = null as TSerial | null;
@@ -570,17 +536,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const next = nextNode(ctx.node, ctx.root, false);
       const ops: OP[] = [];
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       let text = "";
       if (isBlank(text)) {
         // Assume text nodes never contain actionable children, only text
-        text = collectAllText(ctx.node);
+        text = await marshallText(ctx.node, ctx);
       }
       // Early exit spurious empty nodes
       if (isBlank(text)) {
@@ -589,13 +549,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           next,
         };
       }
-      text = await renderText(
-        text,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      text = await renderText(text, ctx);
       const event: StoryEvent = {
         body: ctx.rng.randomElement(cleanSplit(text, "|")),
         from: atts.from ?? atts.speaker ?? atts.label ?? "",
@@ -642,13 +596,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "if",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       let next;
       const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
       if (conditionTrue && ctx.node.kids.length > 0) {
@@ -677,13 +625,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "while",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       let next;
       const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
       if (conditionTrue && ctx.node.kids.length > 0) {
@@ -732,13 +674,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "jump",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       let next;
       if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
         next = searchForNode(
@@ -757,23 +693,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "var",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
-      let rollup = collectAllText(ctx.node);
+      let rollup = await marshallText(ctx.node, ctx);
       if (!isBlank(atts.stash)) {
-        rollup = await renderText(
-          rollup,
-          ctx.scope,
-          ctx.rng,
-          ctx.provider,
-          ctx.options.models
-        );
+        rollup = await renderText(rollup, ctx);
       }
       const value = !isBlank(rollup) ? rollup : atts.value;
       setState(ctx.scope, key, value);
@@ -784,15 +708,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "code",
+    match: (node: StoryNode) => node.type === "code" || node.type === "script",
     exec: async (ctx) => {
-      const text = await renderText(
-        collectAllText(ctx.node),
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const text = await renderText(await marshallText(ctx.node, ctx), ctx);
       const lines = cleanSplitRegex(text, /[;\n]/);
       lines.forEach((line) => {
         evalExpr(line, ctx.scope, {}, ctx.rng);
@@ -806,13 +724,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "sleep",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       return {
         ops: [
           {
@@ -866,13 +778,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "yield",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       const targetBlockId = atts.target;
       const returnToNodeId = atts.returnTo ?? atts.return;
       if (!targetBlockId) {
@@ -937,24 +843,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       node.type === "music" ||
       node.type === "speech",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       let url = atts.href ?? atts.url ?? atts.src;
       const next = nextNode(ctx.node, ctx.root, false);
       const ops: OP[] = [];
       if (!url) {
-        const rollup = await renderText(
-          collectAllText(ctx.node),
-          ctx.scope,
-          ctx.rng,
-          ctx.provider,
-          ctx.options.models
-        );
+        const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
         const prompt = !isBlank(rollup) ? rollup : atts.make;
         if (!isBlank(prompt)) {
           if (ctx.options.doGenerateAudio) {
@@ -1016,13 +910,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       node.type === "input" || node.type === "textarea",
     exec: async (ctx) => {
       const nextAfter = nextNode(ctx.node, ctx.root, false);
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
       const inp = ctx.session.input;
       if (!inp || inp.addr !== ctx.node.addr) {
         const r = atts.retries ? Number(atts.retries) || 0 : undefined;
@@ -1087,20 +975,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node) => node.type === "log",
     exec: async (ctx) => {
-      const atts = await renderAtts(
-        ctx.node.atts,
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
-      const rollup = await renderText(
-        collectAllText(ctx.node),
-        ctx.scope,
-        ctx.rng,
-        ctx.provider,
-        ctx.options.models
-      );
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
       const message = !isBlank(rollup) ? rollup : atts.message;
       if (message) {
         console.info(atts.message);
@@ -1294,7 +1170,7 @@ async function processInputValue(
       `,
       { value: type },
       {
-        models: ["openai/gpt-5-mini", "openai/gpt-5-nano"],
+        models: DEFAULT_LLM_SLUGS,
         useWebSearch: false,
       }
     );
@@ -1388,30 +1264,27 @@ export function createScope(session: StorySession): { [key: string]: TSerial } {
 
 export async function renderText(
   text: string,
-  scope: Record<string, TSerial>,
-  rng: PRNG | null,
-  provider: StoryServiceProvider | null,
-  models: NonEmpty<(typeof LLM_SLUGS)[number]>
+  ctx: Partial<BaseActionContext>
 ): Promise<string> {
   if (isBlank(text) || text.length < 3) {
     return text;
   }
-  let result = renderTemplate(text, scope);
-  if (rng) {
+  let result = renderTemplate(text, ctx.scope ?? {});
+  if (ctx.rng) {
     result = await enhanceText(
       result,
       async (chunk: string) => {
-        return castToString(evalExpr(chunk, scope, {}, rng));
+        return castToString(evalExpr(chunk, ctx.scope ?? {}, {}, ctx.rng!));
       },
       DOLLAR
     );
   }
-  if (provider) {
+  if (ctx.provider) {
     result = await enhanceText(
       result,
       async (chunk: string) => {
-        return await provider.generateText(chunk, {
-          models,
+        return await ctx.provider!.generateText(chunk, {
+          models: ctx.options?.models ?? DEFAULT_LLM_SLUGS,
           useWebSearch: false,
         });
       },
@@ -1423,15 +1296,12 @@ export async function renderText(
 
 export async function renderAtts(
   atts: Record<string, string>,
-  scope: Record<string, TSerial>,
-  rng: PRNG | null,
-  provider: StoryServiceProvider | null,
-  models: NonEmpty<(typeof LLM_SLUGS)[number]>
+  ctx: Partial<BaseActionContext>
 ) {
   const out: Record<string, string> = {};
   for (const key in atts) {
     if (typeof atts[key] === "string") {
-      out[key] = await renderText(atts[key], scope, rng, provider, models);
+      out[key] = await renderText(atts[key], ctx);
     }
   }
   return out;

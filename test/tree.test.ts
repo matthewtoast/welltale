@@ -1,7 +1,7 @@
 import {} from "lib/StoryEngine";
 import {
-  collectAllText,
   findNodes,
+  marshallText,
   searchForNode,
   walkTree,
 } from "lib/StoryNodeHelpers";
@@ -85,7 +85,7 @@ function createTestTree(): StoryNode {
   };
 }
 
-function test() {
+async function test() {
   const tree = createTestTree();
 
   const foundNode = walkTree(tree, (node) =>
@@ -143,20 +143,20 @@ function test() {
 
   expect(searchForNode(tree, "does-not-exist"), null);
 
-  const allText = collectAllText(tree);
+  const allText = await marshallText(tree);
   expect(
     allText,
     "Welcome\nThis is an introduction.\nMain Section\nNested text\nBold text\nFooter content"
   );
 
-  const allTextPipe = collectAllText(tree, " | ");
+  const allTextPipe = await marshallText(tree, " | ");
   expect(
     allTextPipe,
     "Welcome | This is an introduction. | Main Section | Nested text | Bold text | Footer content"
   );
 
   const mainSectionNode = sections[1];
-  const mainSectionText = collectAllText(mainSectionNode);
+  const mainSectionText = await marshallText(mainSectionNode);
   expect(mainSectionText, "Main Section\nNested text\nBold text");
 
   const emptyDiv = {
@@ -166,7 +166,7 @@ function test() {
     text: "",
     kids: [],
   };
-  expect(collectAllText(emptyDiv), "");
+  expect(await marshallText(emptyDiv), "");
 
   const whitespaceNode = {
     addr: "2",
@@ -175,7 +175,7 @@ function test() {
     text: "   \n  \t  ",
     kids: [],
   };
-  expect(collectAllText(whitespaceNode), "");
+  expect(await marshallText(whitespaceNode), "");
 
   const mixedTree: StoryNode = {
     addr: "0",
@@ -206,7 +206,7 @@ function test() {
       },
     ],
   };
-  expect(collectAllText(mixedTree), "Should appear");
+  expect(marshallText(mixedTree), "Should appear");
 }
 
 test();

@@ -2,18 +2,19 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
+import { handleCommand } from "lib/ReplCommands";
 import { compileStory } from "lib/StoryCompiler";
 import { SeamType } from "lib/StoryEngine";
 import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
 } from "lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
 import { join } from "path";
 import readline from "readline";
-import { handleCommand } from "lib/ReplCommands";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import {
@@ -91,7 +92,7 @@ async function runRepl() {
     doGenerateSpeech: false,
     doGenerateAudio: false,
     maxCheckpoints: 20,
-    models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"],
+    models: DEFAULT_LLM_SLUGS,
     doPlayMedia: argv.playAudio,
   };
 
@@ -156,7 +157,7 @@ async function runRepl() {
         return;
       }
       if (r.seam) {
-        resp = { seam: r.seam, ops: r.ops ?? [] } as any;
+        resp = { seam: r.seam, ops: r.ops ?? [] };
       }
     } else {
       try {

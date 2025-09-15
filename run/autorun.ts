@@ -12,6 +12,7 @@ import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
 } from "lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
@@ -114,7 +115,7 @@ async function runAutorun() {
     doGenerateSpeech: false,
     doGenerateAudio: false,
     maxCheckpoints: 20,
-    models: ["openai/gpt-4.1", "anthropic/claude-3.5-sonnet"],
+    models: DEFAULT_LLM_SLUGS,
     doPlayMedia: argv.playAudio,
   };
 

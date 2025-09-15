@@ -101,6 +101,13 @@ export const LLM_SLUGS = [
   "meta-llama/llama-3.1-70b-instruct",
 ] as const;
 
+export const DEFAULT_LLM_SLUGS: NonEmpty<(typeof LLM_SLUGS)[number]> = [
+  "openai/gpt-5-mini",
+  "openai/gpt-5-nano",
+  "openai/gpt-4.1-mini",
+  "openai/gpt-4.1-nano",
+];
+
 export const LLMSlugSchema = z.enum(LLM_SLUGS);
 
 export const StoryOptionsSchema = z.object({

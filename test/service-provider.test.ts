@@ -6,6 +6,7 @@ import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
 } from "lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 import OpenAI from "openai";
 import { homedir } from "os";
 import { join } from "path";
@@ -69,7 +70,7 @@ async function go() {
     `,
     { value: "string" },
     {
-      models: ["openai/gpt-5-mini", "openai/gpt-5-nano"],
+      models: DEFAULT_LLM_SLUGS,
       useWebSearch: false,
     }
   );
@@ -85,7 +86,7 @@ async function go() {
       charName: "The full name, with honorific",
     },
     {
-      models: ["openai/gpt-5-mini", "openai/gpt-5-nano"],
+      models: DEFAULT_LLM_SLUGS,
       useWebSearch: false,
     }
   );

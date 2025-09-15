@@ -1,3 +1,6 @@
+import { evalExpr } from "./EvalUtils";
+import { PRNG } from "./RandHelpers";
+import { BaseActionContext, renderAtts } from "./StoryEngine";
 import { StoryNode } from "./StoryTypes";
 import { isBlank } from "./TextHelpers";
 
@@ -43,13 +46,18 @@ export const DESCENDABLE_TAGS = [
 
 export function walkTree<T>(
   node: StoryNode,
-  visitor: (node: StoryNode, parent: StoryNode | null) => T | null,
-  parent: StoryNode | null = null
+  visitor: (
+    node: StoryNode,
+    parent: StoryNode | null,
+    index: number
+  ) => T | null,
+  parent: StoryNode | null = null,
+  index: number = 0
 ): T | null {
-  const result = visitor(node, parent);
+  const result = visitor(node, parent, index);
   if (result !== null && result !== undefined) return result;
   for (let i = 0; i < node.kids.length; i++) {
-    const childResult = walkTree(node.kids[i], visitor, node);
+    const childResult = walkTree(node.kids[i], visitor, node, i);
     if (childResult !== null && childResult !== undefined) return childResult;
   }
   return null;
@@ -84,29 +92,29 @@ export function findNodes(
   return results;
 }
 
-export function collectAllText(node: StoryNode, join: string = "\n"): string {
-  const texts: string[] = [];
-  walkTree(node, (n) => {
-    if (TEXT_CONTENT_TAGS.includes(n.type)) {
-      const trimmed = n.text.trim();
-      if (trimmed) {
-        texts.push(trimmed);
+export async function marshallText(
+  node: StoryNode,
+  ctx: Partial<BaseActionContext>,
+  join: string = "\n",
+  texts: string[] = []
+): Promise<string> {
+  if (node.type === "when") {
+    const atts = await renderAtts(node.atts, ctx);
+    const cond = evalExpr(
+      atts.cond,
+      ctx.scope ?? {},
+      {},
+      ctx.rng ?? new PRNG("")
+    );
+    if (cond) {
+      for (let i = 0; i < node.kids.length; i++) {
+        texts.push(await marshallText(node.kids[i], ctx, join));
       }
     }
-    return null;
-  });
+  } else if (TEXT_CONTENT_TAGS.includes(node.type)) {
+    texts.push(node.text);
+  }
   return texts.join(join);
-}
-
-export function collectInnerText(node: StoryNode): string {
-  const parts: string[] = [];
-  walkTree(node, (n) => {
-    if (n.type === TEXT_TAG) {
-      parts.push(n.text);
-    }
-    return null;
-  });
-  return parts.join("");
 }
 
 export function cloneNode(node: StoryNode): StoryNode {

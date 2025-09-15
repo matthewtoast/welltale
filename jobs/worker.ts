@@ -3,6 +3,7 @@ import type { SQSEvent } from "aws-lambda";
 import { toBuffer, unzip } from "lib/BufferUtils";
 import { safeJsonParseTyped } from "lib/JSONHelpers";
 import { compileStory } from "lib/StoryCompiler";
+import { BaseActionContext } from "lib/StoryEngine";
 import { getMeta, putCompiled, putMeta, uploadKey } from "lib/StoryRepo";
 import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
 import { StoryCartridge } from "lib/StoryTypes";
@@ -32,7 +33,8 @@ export async function handler(e: SQSEvent) {
       const cart: StoryCartridge = {};
       for (const k of Object.keys(files)) cart[k] = files[k];
       const provider = new MockStoryServiceProvider();
-      const compiled = await compileStory(provider, cart, {
+      const ctx: Partial<BaseActionContext> = { provider };
+      const compiled = await compileStory(ctx, cart, {
         doCompileVoices: false,
       });
       await putCompiled(m.id, compiled);

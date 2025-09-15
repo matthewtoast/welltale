@@ -1,6 +1,6 @@
 import { DOMParser } from "@xmldom/xmldom";
-import { BaseNode, collectAllText, findNodes } from "./StoryNodeHelpers";
-import { StoryServiceProvider } from "./StoryServiceProvider";
+import { BaseActionContext } from "./StoryEngine";
+import { BaseNode, findNodes, marshallText } from "./StoryNodeHelpers";
 import {
   StoryCartridge,
   StoryNode,
@@ -67,7 +67,7 @@ export type CompileOptions = {
 };
 
 export async function compileStory(
-  provider: StoryServiceProvider,
+  ctx: BaseActionContext,
   cartridge: StoryCartridge,
   options: CompileOptions
 ): Promise<StorySource> {
@@ -80,7 +80,9 @@ export async function compileStory(
   };
 
   function isMain(p: string) {
-    return p === "main.xml" || p.endsWith("/main.xml") || p.endsWith("\\main.xml");
+    return (
+      p === "main.xml" || p.endsWith("/main.xml") || p.endsWith("\\main.xml")
+    );
   }
   const all = Object.keys(cartridge);
   const mains = all.filter(isMain);
@@ -125,7 +127,7 @@ export async function compileStory(
   });
 
   const voices: VoiceSpec[] = [];
-  if (options.doCompileVoices) {
+  if (options.doCompileVoices && ctx.provider) {
     const voiceNodes = findNodes(root, (node) => node.type === "compile:voice");
     for (let i = 0; i < voiceNodes.length; i++) {
       const node = voiceNodes[i];
@@ -136,8 +138,10 @@ export async function compileStory(
         console.info(`Generating voice ${node.atts.id}...`);
       }
       const text =
-        node.atts.prompt ?? node.atts.description ?? collectAllText(node);
-      const { id } = await provider.generateVoice(text);
+        node.atts.prompt ??
+        node.atts.description ??
+        (await marshallText(node, ctx));
+      const { id } = await ctx.provider.generateVoice(text);
       voices.push({
         id,
         ref: node.atts.id.trim(),
