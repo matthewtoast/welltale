@@ -355,15 +355,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema[k] = schemaAll[k];
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
-      let models = ctx.options.models;
-      if (atts.$models) {
-        const want = cleanSplit(atts.$models, ",");
-        const val = want.filter((m) =>
-          (LLM_SLUGS as readonly string[]).includes(m)
-        );
-        if (val.length > 0)
-          models = val as NonEmpty<(typeof LLM_SLUGS)[number]>;
-      }
+      const models = attsToModels(ctx.options, atts.models);
       const result = await ctx.provider.generateJson(
         dedent`
           Extract structured data from the input per the schema.
@@ -389,15 +381,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         if (!k.includes(".")) cats.push(k);
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
-      let models = ctx.options.models;
-      if (atts.$models) {
-        const want = cleanSplit(atts.$models, ",");
-        const val = want.filter((m) =>
-          (LLM_SLUGS as readonly string[]).includes(m)
-        );
-        if (val.length > 0)
-          models = val as NonEmpty<(typeof LLM_SLUGS)[number]>;
-      }
+      const models = attsToModels(ctx.options, atts.models);
       const out = await ctx.provider.generateText(
         dedent`
           Classify the input into one of these labels: ${cats.join(", ")}.
@@ -423,15 +407,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         if (!k.includes(".")) schema[k] = "number";
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
-      let models = ctx.options.models;
-      if (atts.$models) {
-        const want = cleanSplit(atts.$models, ",");
-        const val = want.filter((m) =>
-          (LLM_SLUGS as readonly string[]).includes(m)
-        );
-        if (val.length > 0)
-          models = val as NonEmpty<(typeof LLM_SLUGS)[number]>;
-      }
+      const models = attsToModels(ctx.options, atts.models);
       const result = await ctx.provider.generateJson(
         dedent`
           Score the input for each key between 0.0 and 1.0.
@@ -458,15 +434,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema[k] = schemaAll[k];
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
-      let models = ctx.options.models;
-      if (atts.$models) {
-        const want = cleanSplit(atts.$models, ",");
-        const val = want.filter((m) =>
-          (LLM_SLUGS as readonly string[]).includes(m)
-        );
-        if (val.length > 0)
-          models = val as NonEmpty<(typeof LLM_SLUGS)[number]>;
-      }
+      const models = attsToModels(ctx.options, atts.models);
       const result = await ctx.provider.generateJson(
         dedent`
           Generate data per the instruction, conforming to the schema.
@@ -1038,6 +1006,21 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
 ];
+
+export function attsToModels(
+  options: StoryOptions,
+  attms: string | undefined
+): NonEmpty<(typeof LLM_SLUGS)[number]> {
+  const models: ((typeof LLM_SLUGS)[number])[] = [...options.models];
+  const want = cleanSplit(attms, ",")
+    .filter((m) => (LLM_SLUGS as readonly string[]).includes(m))
+    .reverse();
+  for (const w of want) models.unshift(w as (typeof LLM_SLUGS)[number]);
+  const out = (models.length > 0 ? models : [...DEFAULT_LLM_SLUGS]) as NonEmpty<
+    (typeof LLM_SLUGS)[number]
+  >;
+  return out;
+}
 
 export function publicAtts<T extends Record<string, any>>(atts: T): T {
   const out: Record<string, any> = {};
