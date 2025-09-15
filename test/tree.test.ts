@@ -1,4 +1,4 @@
-import {} from "lib/StoryEngine";
+import { BaseActionContext } from "lib/StoryEngine";
 import {
   findNodes,
   marshallText,
@@ -7,6 +7,8 @@ import {
 } from "lib/StoryNodeHelpers";
 import { StoryNode } from "lib/StoryTypes";
 import { expect } from "./TestUtils";
+import { makeBaseCtx, makeOptions } from "lib/ContextUtils";
+import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
 
 function createTestTree(): StoryNode {
   return {
@@ -87,6 +89,11 @@ function createTestTree(): StoryNode {
 
 async function test() {
   const tree = createTestTree();
+  
+  // Create a test context object
+  const provider = new MockStoryServiceProvider();
+  const options = makeOptions("test-seed");
+  const ctx: BaseActionContext = makeBaseCtx(provider, options);
 
   const foundNode = walkTree(tree, (node) =>
     node.atts.id === "intro-para" ? node : null
@@ -143,20 +150,20 @@ async function test() {
 
   expect(searchForNode(tree, "does-not-exist"), null);
 
-  const allText = await marshallText(tree, {});
+  const allText = await marshallText(tree, ctx);
   expect(
     allText,
     "Welcome\nThis is an introduction.\nMain Section\nNested text\nBold text\nFooter content"
   );
 
-  const allTextPipe = await marshallText(tree, {}, " | ");
+  const allTextPipe = await marshallText(tree, ctx, " | ");
   expect(
     allTextPipe,
     "Welcome | This is an introduction. | Main Section | Nested text | Bold text | Footer content"
   );
 
   const mainSectionNode = sections[1];
-  const mainSectionText = await marshallText(mainSectionNode, {});
+  const mainSectionText = await marshallText(mainSectionNode, ctx);
   expect(mainSectionText, "Main Section\nNested text\nBold text");
 
   const emptyDiv = {
@@ -166,7 +173,7 @@ async function test() {
     text: "",
     kids: [],
   };
-  expect(await marshallText(emptyDiv, {}), "");
+  expect(await marshallText(emptyDiv, ctx), "");
 
   const whitespaceNode = {
     addr: "2",
@@ -175,7 +182,7 @@ async function test() {
     text: "   \n  \t  ",
     kids: [],
   };
-  expect(await marshallText(whitespaceNode, {}), "   \n  \t  ");
+  expect(await marshallText(whitespaceNode, ctx), "   \n  \t  ");
 
   const mixedTree: StoryNode = {
     addr: "0",
@@ -206,7 +213,7 @@ async function test() {
       },
     ],
   };
-  expect(await marshallText(mixedTree, {}), "\nShould appear\n");
+  expect(await marshallText(mixedTree, ctx), "\nShould appear\n");
 }
 
 test();

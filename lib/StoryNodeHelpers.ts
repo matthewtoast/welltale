@@ -1,5 +1,4 @@
 import { evalExpr } from "./EvalUtils";
-import { PRNG } from "./RandHelpers";
 import { BaseActionContext, renderAtts } from "./StoryEngine";
 import { StoryNode } from "./StoryTypes";
 import { isBlank } from "./TextHelpers";
@@ -94,18 +93,13 @@ export function findNodes(
 
 export async function marshallText(
   node: StoryNode,
-  ctx: Partial<BaseActionContext>,
+  ctx: BaseActionContext,
   join: string = "\n",
   texts: string[] = []
 ): Promise<string> {
   if (node.type === "when") {
     const atts = await renderAtts(node.atts, ctx);
-    const cond = evalExpr(
-      atts.cond,
-      ctx.scope ?? {},
-      {},
-      ctx.rng ?? new PRNG("")
-    );
+    const cond = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
     if (cond) {
       for (let i = 0; i < node.kids.length; i++) {
         texts.push(await marshallText(node.kids[i], ctx, join));
