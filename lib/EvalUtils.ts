@@ -566,34 +566,41 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const delta = mathHelpers.deltaAngle(a, b) as number;
     return a + delta * nt;
   },
-  smoothDamp: (current: P, target: P, velocity: P, smoothTime: P, deltaTime: P, maxSpeed?: P) => {
+  smoothDamp: (
+    current: P,
+    target: P,
+    velocity: P,
+    smoothTime: P,
+    deltaTime: P,
+    maxSpeed?: P
+  ) => {
     const c = num(current);
     const t = num(target);
     let v = num(velocity);
     const st = Math.max(0.0001, num(smoothTime));
     const dt = num(deltaTime);
     const ms = maxSpeed == null ? Infinity : num(maxSpeed);
-    
+
     const omega = 2 / st;
     const x = omega * dt;
     const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
-    
+
     let change = c - t;
     const originalTo = t;
-    
+
     const maxChange = ms * st;
     change = Math.max(-maxChange, Math.min(change, maxChange));
     const newTarget = c - change;
-    
+
     const temp = (v + omega * change) * dt;
     v = (v - omega * temp) * exp;
     let output = newTarget + (change + temp) * exp;
-    
-    if ((originalTo - c > 0) === (output > originalTo)) {
+
+    if (originalTo - c > 0 === output > originalTo) {
       output = originalTo;
       v = (output - originalTo) / dt;
     }
-    
+
     return output;
   },
   remap: (v: P, fromMin: P, fromMax: P, toMin: P, toMax: P) => {
@@ -636,7 +643,7 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const t2 = (time + ph) % period;
     const halfPeriod = period / 2;
     if (t2 < halfPeriod) {
-      return (t2 / halfPeriod * 2 - 1) * amp;
+      return ((t2 / halfPeriod) * 2 - 1) * amp;
     } else {
       return ((1 - (t2 - halfPeriod) / halfPeriod) * 2 - 1) * amp;
     }
@@ -657,7 +664,7 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const ph = num(phase ?? 0);
     const period = 1 / freq;
     const t2 = (time + ph) % period;
-    return (t2 / period * 2 - 1) * amp;
+    return ((t2 / period) * 2 - 1) * amp;
   },
   easeInQuad: (t: P) => {
     const nt = num(t);
@@ -682,7 +689,9 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
   },
   easeInOutCubic: (t: P) => {
     const nt = num(t);
-    return nt < 0.5 ? 4 * nt * nt * nt : (nt - 1) * (2 * nt - 2) * (2 * nt - 2) + 1;
+    return nt < 0.5
+      ? 4 * nt * nt * nt
+      : (nt - 1) * (2 * nt - 2) * (2 * nt - 2) + 1;
   },
   easeInElastic: (t: P) => {
     const nt = num(t);
@@ -701,9 +710,18 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     if (nt === 0) return 0;
     if (nt === 1) return 1;
     if (nt < 0.5) {
-      return -0.5 * Math.pow(2, 20 * nt - 10) * Math.sin((20 * nt - 11.125) * ((2 * Math.PI) / 4.5));
+      return (
+        -0.5 *
+        Math.pow(2, 20 * nt - 10) *
+        Math.sin((20 * nt - 11.125) * ((2 * Math.PI) / 4.5))
+      );
     }
-    return Math.pow(2, -20 * nt + 10) * Math.sin((20 * nt - 11.125) * ((2 * Math.PI) / 4.5)) * 0.5 + 1;
+    return (
+      Math.pow(2, -20 * nt + 10) *
+        Math.sin((20 * nt - 11.125) * ((2 * Math.PI) / 4.5)) *
+        0.5 +
+      1
+    );
   },
   easeInBounce: (t: P) => {
     return 1 - (mathHelpers.easeOutBounce(1 - num(t)) as number);
@@ -758,7 +776,9 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
   },
   statLevel: (value: P, thresholds: P[]) => {
     const v = num(value);
-    const levels = toArr(thresholds).map(num).sort((a, b) => a - b);
+    const levels = toArr(thresholds)
+      .map(num)
+      .sort((a, b) => a - b);
     for (let i = levels.length - 1; i >= 0; i--) {
       if (v >= levels[i]) return i + 1;
     }
@@ -786,7 +806,7 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const mods = toArr(modifiers).map(num);
     const w = weights ? toArr(weights).map(num) : mods.map(() => 1);
     if (!mods.length) return b;
-    
+
     let totalWeight = 0;
     let weightedSum = 0;
     for (let i = 0; i < mods.length; i++) {
@@ -794,7 +814,7 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
       totalWeight += weight;
       weightedSum += mods[i] * weight;
     }
-    
+
     return totalWeight > 0 ? weightedSum / totalWeight : b;
   },
   diminishingReturns: (value: P, scale?: P, curve?: P) => {
@@ -828,10 +848,10 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const last = num(lastReset);
     const curr = num(currentTime);
     const hour = num(resetHour ?? 0);
-    
+
     const lastDay = Math.floor(last / 86400);
     const currDay = Math.floor(curr / 86400);
-    
+
     if (currDay > lastDay) {
       const currHour = (curr % 86400) / 3600;
       return currHour >= hour;
@@ -846,13 +866,13 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
   weightedChance: (weights: P[], roll?: P) => {
     const w = toArr(weights).map(num);
     const r = roll == null ? Math.random() : num(roll);
-    
+
     const total = w.reduce((sum, weight) => sum + weight, 0);
     if (total <= 0) return -1;
-    
+
     const normalized = r * total;
     let cumulative = 0;
-    
+
     for (let i = 0; i < w.length; i++) {
       cumulative += w[i];
       if (normalized < cumulative) return i;
@@ -863,7 +883,7 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const base = num(baseChance);
     const l = num(luck ?? 0);
     const r = roll == null ? Math.random() : num(roll);
-    
+
     const adjustedChance = base * (1 + l / 100);
     return r < adjustedChance;
   },
@@ -872,30 +892,35 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const lvl = num(level);
     const rate = num(growthRate ?? 1.1);
     const c = num(curve ?? 1);
-    
+
     return b * Math.pow(rate, Math.pow(lvl - 1, c));
   },
   expRequired: (level: P, baseExp?: P, exponent?: P) => {
     const lvl = num(level);
     const base = num(baseExp ?? 100);
     const exp = num(exponent ?? 1.5);
-    
+
     return Math.floor(base * Math.pow(lvl, exp));
   },
   levelFromExp: (totalExp: P, baseExp?: P, exponent?: P) => {
     const exp = num(totalExp);
     const base = num(baseExp ?? 100);
     const e = num(exponent ?? 1.5);
-    
+
     if (exp < base) return 1;
     return Math.floor(Math.pow(exp / base, 1 / e));
   },
-  socialDecay: (relationship: P, lastInteraction: P, currentTime: P, decayRate?: P) => {
+  socialDecay: (
+    relationship: P,
+    lastInteraction: P,
+    currentTime: P,
+    decayRate?: P
+  ) => {
     const rel = num(relationship);
     const last = num(lastInteraction);
     const curr = num(currentTime);
     const rate = num(decayRate ?? 0.01);
-    
+
     const timePassed = curr - last;
     return Math.max(0, rel - timePassed * rate);
   },
@@ -903,7 +928,7 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const m = num(mood);
     const base = num(baseValue);
     const impact = num(moodImpact ?? 0.2);
-    
+
     const moodMultiplier = 1 + (m - 0.5) * impact * 2;
     return base * moodMultiplier;
   },
@@ -911,7 +936,7 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const c = num(current);
     const m = num(max);
     const crv = num(curve ?? 2);
-    
+
     if (m <= 0) return 1;
     const ratio = c / m;
     return 1 - Math.pow(ratio, crv);
@@ -920,27 +945,27 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const v = num(value);
     const opt = num(optimal);
     const tol = num(tolerance ?? 0.5);
-    
+
     const distance = Math.abs(v - opt);
     const normalizedDistance = distance / (opt * tol);
-    
+
     return Math.max(0, 1 - normalizedDistance);
   },
   activityEnergy: (baseEnergy: P, fitness?: P, fatigue?: P) => {
     const base = num(baseEnergy);
     const fit = num(fitness ?? 0.5);
     const fat = num(fatigue ?? 0);
-    
+
     const fitnessMultiplier = 0.5 + fit;
     const fatigueMultiplier = 1 - fat * 0.5;
-    
+
     return base * fitnessMultiplier * fatigueMultiplier;
   },
   habitStrength: (repetitions: P, maxStrength?: P, growthRate?: P) => {
     const reps = num(repetitions);
     const max = num(maxStrength ?? 100);
     const rate = num(growthRate ?? 0.1);
-    
+
     return max * (1 - Math.exp(-rate * reps));
   },
   skillProgress: (current: P, target: P, difficulty?: P, aptitude?: P) => {
@@ -948,10 +973,10 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const t = num(target);
     const diff = num(difficulty ?? 1);
     const apt = num(aptitude ?? 1);
-    
+
     const gap = t - c;
     if (gap <= 0) return 0;
-    
+
     const progressRate = apt / diff;
     return Math.min(gap, progressRate);
   },
@@ -959,14 +984,14 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const strength = num(initialStrength);
     const time = num(timePassed);
     const rate = num(fadeRate ?? 0.1);
-    
+
     return strength * Math.exp(-rate * time);
   },
   crowdPressure: (crowdSize: P, maxPressure?: P, threshold?: P) => {
     const size = num(crowdSize);
     const max = num(maxPressure ?? 1);
     const thresh = num(threshold ?? 10);
-    
+
     if (size <= 0) return 0;
     return max * (1 - Math.exp(-size / thresh));
   },
@@ -975,13 +1000,460 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const i = num(ideal);
     const min = num(minComfort);
     const max = num(maxComfort);
-    
+
     if (v < min || v > max) return 0;
-    
+
     const distance = Math.abs(v - i);
     const range = Math.max(i - min, max - i);
-    
-    return 1 - (distance / range);
+
+    return 1 - distance / range;
+  },
+};
+
+const EPOCH_1970 = 0;
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
+
+
+const getDaysInMonth = (year: number, month: number): number => {
+  if (month === 2) {
+    return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28;
+  }
+  return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] || 30;
+};
+
+const getYearFromTimestamp = (ts: number): number => {
+  const days = Math.floor(ts / MS_PER_DAY);
+  let year = 1970;
+  let daysLeft = days;
+
+  while (daysLeft >= 365) {
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const yearDays = isLeap ? 366 : 365;
+    if (daysLeft >= yearDays) {
+      daysLeft -= yearDays;
+      year++;
+    } else {
+      break;
+    }
+  }
+  return year;
+};
+
+const getMonthDayFromTimestamp = (
+  ts: number
+): { month: number; day: number } => {
+  const year = getYearFromTimestamp(ts);
+  const yearStart = getTimestampForYear(year);
+  const daysSinceYearStart = Math.floor((ts - yearStart) / MS_PER_DAY);
+
+  let month = 1;
+  let daysLeft = daysSinceYearStart;
+
+  while (month <= 12) {
+    const daysInMonth = getDaysInMonth(year, month);
+    if (daysLeft >= daysInMonth) {
+      daysLeft -= daysInMonth;
+      month++;
+    } else {
+      break;
+    }
+  }
+
+  return { month, day: daysLeft + 1 };
+};
+
+const getTimestampForYear = (year: number): number => {
+  let days = 0;
+  for (let y = 1970; y < year; y++) {
+    days += (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365;
+  }
+  return days * MS_PER_DAY;
+};
+
+const createTimestamp = (
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number
+): number => {
+  const yearStart = getTimestampForYear(year);
+  let dayOfYear = 0;
+
+  for (let m = 1; m < month; m++) {
+    dayOfYear += getDaysInMonth(year, m);
+  }
+  dayOfYear += day - 1;
+
+  return (
+    yearStart +
+    dayOfYear * MS_PER_DAY +
+    hour * MS_PER_HOUR +
+    minute * MS_PER_MINUTE +
+    second * MS_PER_SECOND
+  );
+};
+
+export const dateHelpers: Record<string, (...args: any[]) => P> = {
+  now: () => Date.now(),
+  today: () => Math.floor(Date.now() / MS_PER_DAY),
+
+  timestamp: (
+    year?: P,
+    month?: P,
+    day?: P,
+    hour?: P,
+    minute?: P,
+    second?: P
+  ) => {
+    if (year == null) return Date.now();
+    const y = num(year);
+    const m = month == null ? 1 : num(month);
+    const d = day == null ? 1 : num(day);
+    const h = hour == null ? 0 : num(hour);
+    const min = minute == null ? 0 : num(minute);
+    const s = second == null ? 0 : num(second);
+    return createTimestamp(y, m, d, h, min, s);
+  },
+
+  year: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    return getYearFromTimestamp(ts);
+  },
+
+  month: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    return getMonthDayFromTimestamp(ts).month;
+  },
+
+  day: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    return getMonthDayFromTimestamp(ts).day;
+  },
+
+  hour: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    return Math.floor((ts % MS_PER_DAY) / MS_PER_HOUR);
+  },
+
+  minute: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    return Math.floor((ts % MS_PER_HOUR) / MS_PER_MINUTE);
+  },
+
+  second: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    return Math.floor((ts % MS_PER_MINUTE) / MS_PER_SECOND);
+  },
+
+  weekday: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const days = Math.floor(ts / MS_PER_DAY);
+    return (days + 4) % 7;
+  },
+
+  weekdayName: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const weekday = (Math.floor(ts / MS_PER_DAY) + 4) % 7;
+    return days[weekday];
+  },
+
+  monthName: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    const month = getMonthDayFromTimestamp(ts).month;
+    return months[month - 1] || "January";
+  },
+
+  daysUntil: (targetTimestamp: P, fromTimestamp?: P) => {
+    const target = num(targetTimestamp);
+    const from = fromTimestamp == null ? Date.now() : num(fromTimestamp);
+    return Math.ceil((target - from) / MS_PER_DAY);
+  },
+
+  daysSince: (pastTimestamp: P, fromTimestamp?: P) => {
+    const past = num(pastTimestamp);
+    const from = fromTimestamp == null ? Date.now() : num(fromTimestamp);
+    return Math.floor((from - past) / MS_PER_DAY);
+  },
+
+  hoursUntil: (targetTimestamp: P, fromTimestamp?: P) => {
+    const target = num(targetTimestamp);
+    const from = fromTimestamp == null ? Date.now() : num(fromTimestamp);
+    return Math.ceil((target - from) / MS_PER_HOUR);
+  },
+
+  hoursSince: (pastTimestamp: P, fromTimestamp?: P) => {
+    const past = num(pastTimestamp);
+    const from = fromTimestamp == null ? Date.now() : num(fromTimestamp);
+    return Math.floor((from - past) / MS_PER_HOUR);
+  },
+
+  minutesUntil: (targetTimestamp: P, fromTimestamp?: P) => {
+    const target = num(targetTimestamp);
+    const from = fromTimestamp == null ? Date.now() : num(fromTimestamp);
+    return Math.ceil((target - from) / MS_PER_MINUTE);
+  },
+
+  minutesSince: (pastTimestamp: P, fromTimestamp?: P) => {
+    const past = num(pastTimestamp);
+    const from = fromTimestamp == null ? Date.now() : num(fromTimestamp);
+    return Math.floor((from - past) / MS_PER_MINUTE);
+  },
+
+  addDays: (timestamp: P, days: P) => {
+    const ts = num(timestamp);
+    const d = num(days);
+    return ts + d * MS_PER_DAY;
+  },
+
+  addHours: (timestamp: P, hours: P) => {
+    const ts = num(timestamp);
+    const h = num(hours);
+    return ts + h * MS_PER_HOUR;
+  },
+
+  addMinutes: (timestamp: P, minutes: P) => {
+    const ts = num(timestamp);
+    const m = num(minutes);
+    return ts + m * MS_PER_MINUTE;
+  },
+
+  startOfDay: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const dayStart = Math.floor(ts / MS_PER_DAY) * MS_PER_DAY;
+    return dayStart;
+  },
+
+  endOfDay: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const dayStart = Math.floor(ts / MS_PER_DAY) * MS_PER_DAY;
+    return dayStart + MS_PER_DAY - 1;
+  },
+
+  startOfWeek: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const days = Math.floor(ts / MS_PER_DAY);
+    const weekday = (days + 4) % 7;
+    const startDay = days - weekday;
+    return startDay * MS_PER_DAY;
+  },
+
+  endOfWeek: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const days = Math.floor(ts / MS_PER_DAY);
+    const weekday = (days + 4) % 7;
+    const endDay = days + (6 - weekday);
+    return endDay * MS_PER_DAY + MS_PER_DAY - 1;
+  },
+
+  startOfMonth: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const year = getYearFromTimestamp(ts);
+    const month = getMonthDayFromTimestamp(ts).month;
+    return createTimestamp(year, month, 1, 0, 0, 0);
+  },
+
+  endOfMonth: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const year = getYearFromTimestamp(ts);
+    const month = getMonthDayFromTimestamp(ts).month;
+    const daysInMonth = getDaysInMonth(year, month);
+    return createTimestamp(year, month, daysInMonth, 23, 59, 59) + 999;
+  },
+
+  isWeekend: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const weekday = (Math.floor(ts / MS_PER_DAY) + 4) % 7;
+    return weekday === 0 || weekday === 6;
+  },
+
+  isWeekday: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const weekday = (Math.floor(ts / MS_PER_DAY) + 4) % 7;
+    return weekday >= 1 && weekday <= 5;
+  },
+
+  isSameDay: (timestamp1: P, timestamp2: P) => {
+    const ts1 = num(timestamp1);
+    const ts2 = num(timestamp2);
+    const day1 = Math.floor(ts1 / MS_PER_DAY);
+    const day2 = Math.floor(ts2 / MS_PER_DAY);
+    return day1 === day2;
+  },
+
+  isSameWeek: (timestamp1: P, timestamp2: P) => {
+    const ts1 = num(timestamp1);
+    const ts2 = num(timestamp2);
+    const start1 = dateHelpers.startOfWeek(ts1) as number;
+    const start2 = dateHelpers.startOfWeek(ts2) as number;
+    return start1 === start2;
+  },
+
+  isSameMonth: (timestamp1: P, timestamp2: P) => {
+    const ts1 = num(timestamp1);
+    const ts2 = num(timestamp2);
+    const year1 = getYearFromTimestamp(ts1);
+    const year2 = getYearFromTimestamp(ts2);
+    const month1 = getMonthDayFromTimestamp(ts1).month;
+    const month2 = getMonthDayFromTimestamp(ts2).month;
+    return year1 === year2 && month1 === month2;
+  },
+
+  isBefore: (timestamp1: P, timestamp2: P) => {
+    return num(timestamp1) < num(timestamp2);
+  },
+
+  isAfter: (timestamp1: P, timestamp2: P) => {
+    return num(timestamp1) > num(timestamp2);
+  },
+
+  isBetween: (timestamp: P, start: P, end: P) => {
+    const ts = num(timestamp);
+    const s = num(start);
+    const e = num(end);
+    return ts >= s && ts <= e;
+  },
+
+  dayOfYear: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const year = getYearFromTimestamp(ts);
+    const yearStart = getTimestampForYear(year);
+    return Math.floor((ts - yearStart) / MS_PER_DAY) + 1;
+  },
+
+  weekOfYear: (timestamp?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const year = getYearFromTimestamp(ts);
+    const yearStart = getTimestampForYear(year);
+    const days = Math.floor((ts - yearStart) / MS_PER_DAY);
+    const jan1Weekday = (Math.floor(yearStart / MS_PER_DAY) + 4) % 7;
+    return Math.ceil((days + jan1Weekday + 1) / 7);
+  },
+
+  isLeapYear: (year?: P) => {
+    const y = year == null ? getYearFromTimestamp(Date.now()) : num(year);
+    return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  },
+
+  daysInMonth: (year?: P, month?: P) => {
+    const currentTs = Date.now();
+    const y = year == null ? getYearFromTimestamp(currentTs) : num(year);
+    const m =
+      month == null ? getMonthDayFromTimestamp(currentTs).month : num(month);
+    return getDaysInMonth(y, m);
+  },
+
+  formatDate: (timestamp?: P, format?: P) => {
+    const ts = timestamp == null ? Date.now() : num(timestamp);
+    const fmt = format == null ? "YYYY-MM-DD" : toStr(format);
+
+    const year = getYearFromTimestamp(ts);
+    const { month, day } = getMonthDayFromTimestamp(ts);
+    const hour = Math.floor((ts % MS_PER_DAY) / MS_PER_HOUR);
+    const minute = Math.floor((ts % MS_PER_HOUR) / MS_PER_MINUTE);
+    const second = Math.floor((ts % MS_PER_MINUTE) / MS_PER_SECOND);
+
+    const replacements: Record<string, string> = {
+      YYYY: year.toString(),
+      MM: month.toString().padStart(2, "0"),
+      DD: day.toString().padStart(2, "0"),
+      HH: hour.toString().padStart(2, "0"),
+      mm: minute.toString().padStart(2, "0"),
+      ss: second.toString().padStart(2, "0"),
+    };
+
+    let result = fmt;
+    for (const [pattern, replacement] of Object.entries(replacements)) {
+      result = result.replace(new RegExp(pattern, "g"), replacement);
+    }
+    return result;
+  },
+
+  parseDate: (dateString: P) => {
+    const str = toStr(dateString);
+    if (str.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = str.split("-").map(Number);
+      return createTimestamp(year, month, day, 0, 0, 0);
+    }
+    if (str.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+      const [datePart, timePart] = str.split(" ");
+      const [year, month, day] = datePart.split("-").map(Number);
+      const [hour, minute, second] = timePart.split(":").map(Number);
+      return createTimestamp(year, month, day, hour, minute, second);
+    }
+    return null;
+  },
+
+  timeSince: (pastTimestamp: P, fromTimestamp?: P) => {
+    const past = num(pastTimestamp);
+    const from = fromTimestamp == null ? Date.now() : num(fromTimestamp);
+    const diff = from - past;
+
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days} day${days === 1 ? "" : "s"} ago`;
+    if (hours > 0) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+    if (minutes > 0) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+    return `${seconds} second${seconds === 1 ? "" : "s"} ago`;
+  },
+
+  timeUntil: (futureTimestamp: P, fromTimestamp?: P) => {
+    const future = num(futureTimestamp);
+    const from = fromTimestamp == null ? Date.now() : num(fromTimestamp);
+    const diff = future - from;
+
+    if (diff <= 0) return "now";
+
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `in ${days} day${days === 1 ? "" : "s"}`;
+    if (hours > 0) return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+    if (minutes > 0) return `in ${minutes} minute${minutes === 1 ? "" : "s"}`;
+    return `in ${seconds} second${seconds === 1 ? "" : "s"}`;
+  },
+  
+  msToDecimalHours: (ms: P) => {
+    const milliseconds = num(ms);
+    return milliseconds / 3600000;
+  },
+  
+  decimalHoursToClock: (hours: P) => {
+    const h = Math.trunc(num(hours));
+    const m = Math.round((Math.abs(num(hours)) % 1) * 60);
+    return `${h}:${String(m).padStart(2, "0")}`;
   },
 };
 
@@ -1060,6 +1532,7 @@ export function getParser(
     stringHelpers,
     unifiedHelpers,
     mathHelpers,
+    dateHelpers,
     randomHelpers,
     funcs
   );

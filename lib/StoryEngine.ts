@@ -129,6 +129,20 @@ interface ActionHandler {
 
 let calls = 0;
 
+export function processModuleIncludes(root: StoryNode): void {
+  const modules = findNodes(root, (node) => node.type === "module").filter(
+    (mod) => !isBlank(mod.atts.id)
+  );
+  if (modules.length > 0) {
+    walkTree(root, (node, parent, idx) => {
+      if (parent && node.type === "include" && !isBlank(node.atts.id)) {
+        const found = modules.find((mod) => mod.atts.id === node.atts.id);
+        parent.kids.splice(idx, 1, ...(found?.kids.map(cloneNode) ?? []));
+      }
+    });
+  }
+}
+
 export async function advanceStory(
   provider: StoryServiceProvider,
   source: StorySource,
@@ -148,17 +162,7 @@ export async function advanceStory(
   session.turn += 1;
 
   const root = source.root;
-  const modules = findNodes(root, (node) => node.type === "module").filter(
-    (mod) => !isBlank(mod.atts.id)
-  );
-  if (modules.length > 0) {
-    walkTree(root, (node, parent, idx) => {
-      if (parent && node.type === "include" && !isBlank(node.atts.id)) {
-        const found = modules.find((mod) => mod.atts.id === node.atts.id);
-        parent.kids.splice(idx, 1, ...(found?.kids.map(cloneNode) ?? []));
-      }
-    });
-  }
+  processModuleIncludes(root);
 
   const voices = source.voices;
 
@@ -208,6 +212,8 @@ export async function advanceStory(
     session.cycle = rng.cycle;
     return { ops: out, session, seam, info };
   }
+
+  const eventHandlers = findNodes(root, (node) => node.type === "event");
 
   const visits: Record<string, number> = {};
   let iterations = 0;
@@ -261,6 +267,14 @@ export async function advanceStory(
         tags: cleanSplit(atts.tags, ","),
         time: Date.now(),
       });
+
+      // const inputHandlers = eventHandlers.filter(
+      //   (e) => e.atts.type === "input"
+      // );
+      // for (let i = 0; i < inputHandlers.length; i++) {
+      //   const atts = await renderAtts(inputHandlers[i].atts, ctx);
+      //   // TODO: run inner content if event matches.
+      // }
     }
 
     const handler = ACTION_HANDLERS.find((h) => h.match(node))!;

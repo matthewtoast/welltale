@@ -126,4 +126,42 @@
   <p>
     X - input finally started with x = "{{xx}}"
   </p>
+  <jump to="when-test" />
+</sec>
+
+<sec id="when-test">
+  <p>Y</p>
+  
+  <var name="testNum" value="5" />
+  <var name="testBool" value="true" />
+  <var name="testStr" value="hello" />
+  <p>
+    Z - Basic when tests:
+    <when cond="testNum > 3">Number is greater than 3!</when>
+    <when cond="testNum < 3">Number is less than 3!</when>
+    <when cond="testNum == 5">Number equals 5!</when>
+  </p>
+  
+  <p>
+    AA
+    <when cond="testBool">
+      Outer when is true<when cond="testNum == 5">, and inner when is also true!</when>
+    </when>
+  </p>
+  
+  <p>
+    BB
+    <when cond="true">The value is {{testNum}} and string is {{testStr}}.</when>
+  </p>
+  
+  <var name="testEmpty" value="" />
+  <p>
+    CC
+    <when cond="empty(testEmpty)">Variable is empty!</when>
+    <when cond="not empty(testStr)">String is not empty!</when>
+  </p>
+  
+  <p>
+    DD
+  </p>
 </sec>

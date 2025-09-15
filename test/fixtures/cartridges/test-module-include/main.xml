@@ -1,0 +1,44 @@
+<module id="greeting-module">
+  <p>Hello from module!</p>
+  <p>This is reusable content.</p>
+</module>
+
+<module id="farewell-module">
+  <p>Goodbye from module!</p>
+  <p>See you later!</p>
+</module>
+
+<module id="nested-module">
+  <sec>
+    <p>This is a nested section</p>
+    <var name="moduleVar" value="42" />
+    <p>Module variable: {{moduleVar}}</p>
+  </sec>
+</module>
+
+<p>Start of story</p>
+
+<sec>
+  <p>Before first include</p>
+  <include id="greeting-module" />
+  <p>After first include</p>
+</sec>
+
+<sec>
+  <p>Using the same module again</p>
+  <include id="greeting-module" />
+  <p>And now the farewell</p>
+  <include id="farewell-module" />
+</sec>
+
+<sec>
+  <p>Testing nested content</p>
+  <include id="nested-module" />
+  <p>After nested include</p>
+</sec>
+
+<sec>
+  <p>Include with non-existent module</p>
+  <include id="non-existent" />
+  <p>Should continue normally</p>
+</sec>
