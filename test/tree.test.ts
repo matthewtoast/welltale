@@ -143,20 +143,20 @@ async function test() {
 
   expect(searchForNode(tree, "does-not-exist"), null);
 
-  const allText = await marshallText(tree);
+  const allText = await marshallText(tree, {});
   expect(
     allText,
     "Welcome\nThis is an introduction.\nMain Section\nNested text\nBold text\nFooter content"
   );
 
-  const allTextPipe = await marshallText(tree, " | ");
+  const allTextPipe = await marshallText(tree, {}, " | ");
   expect(
     allTextPipe,
     "Welcome | This is an introduction. | Main Section | Nested text | Bold text | Footer content"
   );
 
   const mainSectionNode = sections[1];
-  const mainSectionText = await marshallText(mainSectionNode);
+  const mainSectionText = await marshallText(mainSectionNode, {});
   expect(mainSectionText, "Main Section\nNested text\nBold text");
 
   const emptyDiv = {
@@ -166,7 +166,7 @@ async function test() {
     text: "",
     kids: [],
   };
-  expect(await marshallText(emptyDiv), "");
+  expect(await marshallText(emptyDiv, {}), "");
 
   const whitespaceNode = {
     addr: "2",
@@ -175,7 +175,7 @@ async function test() {
     text: "   \n  \t  ",
     kids: [],
   };
-  expect(await marshallText(whitespaceNode), "");
+  expect(await marshallText(whitespaceNode, {}), "");
 
   const mixedTree: StoryNode = {
     addr: "0",
@@ -206,7 +206,7 @@ async function test() {
       },
     ],
   };
-  expect(marshallText(mixedTree), "Should appear");
+  expect(marshallText(mixedTree, {}), "Should appear");
 }
 
 test();

@@ -160,31 +160,19 @@ async function test() {
 
   // Template rendering (no escaping, dotted and bracket access)
   expect(
-    await renderText("Hello {{name}}", { name: "World" }, null, null, [
-      "openai/gpt-4.1",
-      "anthropic/claude-3.5-sonnet",
-    ]),
+    await renderText("Hello {{name}}", { scope: { name: "World" } }),
     "Hello World"
   );
   expect(
-    await renderText("Num {{x.y}}", { x: { y: 3 } }, null, null, [
-      "openai/gpt-4.1",
-      "anthropic/claude-3.5-sonnet",
-    ]),
+    await renderText("Num {{x.y}}", { scope: { x: { y: 3 } } }),
     "Num 3"
   );
   expect(
-    await renderText("Arr {{a.0.name}}", { a: [{ name: "Z" }] }, null, null, [
-      "openai/gpt-4.1",
-      "anthropic/claude-3.5-sonnet",
-    ]),
+    await renderText("Arr {{a.0.name}}", { scope: { a: [{ name: "Z" }] } }),
     "Arr Z"
   );
   expect(
-    await renderText("Obj {{o}}", { o: { z: 1 } }, null, null, [
-      "openai/gpt-4.1",
-      "anthropic/claude-3.5-sonnet",
-    ]),
+    await renderText("Obj {{o}}", { scope: { o: { z: 1 } } }),
     'Obj {"z":1}'
   );
 

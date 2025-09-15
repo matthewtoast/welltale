@@ -21,10 +21,7 @@ async function go() {
   const scope = createScope(session);
   const text = await renderText(
     `hello {{f}} or {{a.b.c}} or {$ 1 + g.h.i $}`,
-    scope,
-    new PRNG("test"),
-    null,
-    ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"]
+    { scope, rng: new PRNG("test") }
   );
   expect(text, "hello foo or coco or 4");
 }

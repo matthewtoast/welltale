@@ -8,6 +8,7 @@ import {
   runUntilComplete,
 } from "lib/LocalRunnerUtils";
 import { compileStory } from "lib/StoryCompiler";
+import { makeBaseCtx } from "lib/ContextUtils";
 import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
@@ -139,7 +140,8 @@ async function runAutorun() {
     options,
   });
 
-  const sources = await compileStory(provider, cartridge, {
+  const ctx = makeBaseCtx(provider, options);
+  const sources = await compileStory(ctx, cartridge, {
     doCompileVoices: false,
   });
 

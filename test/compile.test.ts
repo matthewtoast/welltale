@@ -1,6 +1,7 @@
 import { compileStory, parseXmlFragment } from "lib/StoryCompiler";
 import { dumpTree } from "lib/StoryNodeHelpers";
 import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
+import { makeBaseCtx, makeOptions } from "lib/ContextUtils";
 import { expect } from "./TestUtils";
 
 async function go() {
@@ -52,8 +53,10 @@ async function go() {
   };
 
   const p = new MockStoryServiceProvider();
+  const opts = makeOptions("seed");
+  const ctx = makeBaseCtx(p, opts, {});
 
-  const c1 = await compileStory(p, cartridge, {
+  const c1 = await compileStory(ctx, cartridge, {
     doCompileVoices: false,
   });
   expect(c1.root, {
