@@ -694,7 +694,24 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         rollup = await renderText(rollup, ctx);
       }
       const value = !isBlank(rollup) ? rollup : atts.value;
-      setState(ctx.scope, key, value);
+      setState(ctx.scope, key, castToTypeEnhanced(value, atts.type));
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.root, false),
+      };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type.startsWith("var."),
+    exec: async (ctx) => {
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
+      const [v, ...ops] = ctx.node.type.split(".");
+      const last = ops.pop();
+      if (last && key) {
+        const script = `${last}(${key})`;
+        setState(ctx.scope, key, evalExpr(script, ctx.scope, {}, ctx.rng));
+      }
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.root, false),
@@ -1011,7 +1028,7 @@ export function attsToModels(
   options: StoryOptions,
   attms: string | undefined
 ): NonEmpty<(typeof LLM_SLUGS)[number]> {
-  const models: ((typeof LLM_SLUGS)[number])[] = [...options.models];
+  const models: (typeof LLM_SLUGS)[number][] = [...options.models];
   const want = cleanSplit(attms, ",")
     .filter((m) => (LLM_SLUGS as readonly string[]).includes(m))
     .reverse();

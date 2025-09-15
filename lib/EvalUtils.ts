@@ -510,6 +510,479 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
   ln10: () => Math.LN10,
   log2e: () => Math.LOG2E,
   log10e: () => Math.LOG10E,
+  incr: (v: P, by?: P) => num(v) + num(by ?? 1),
+  decr: (v: P, by?: P) => num(v) - num(by ?? 1),
+  wrap: (v: P, min: P, max: P) => {
+    const nv = num(v);
+    const nmin = num(min);
+    const nmax = num(max);
+    const range = nmax - nmin;
+    if (range <= 0) return nmin;
+    let result = nv - nmin;
+    result = ((result % range) + range) % range;
+    return result + nmin;
+  },
+  approach: (current: P, target: P, step: P) => {
+    const c = num(current);
+    const t = num(target);
+    const s = Math.abs(num(step));
+    if (c < t) return Math.min(c + s, t);
+    if (c > t) return Math.max(c - s, t);
+    return c;
+  },
+  moveToward: (current: P, target: P, maxDelta: P) => {
+    const c = num(current);
+    const t = num(target);
+    const d = num(maxDelta);
+    if (Math.abs(t - c) <= d) return t;
+    return c + Math.sign(t - c) * d;
+  },
+  pingPong: (t: P, length: P) => {
+    const time = num(t);
+    const len = num(length);
+    if (len <= 0) return 0;
+    const cycles = Math.floor(time / len);
+    const phase = time % len;
+    return cycles % 2 === 0 ? phase : len - phase;
+  },
+  repeat: (t: P, length: P) => {
+    const time = num(t);
+    const len = num(length);
+    if (len <= 0) return 0;
+    return time - Math.floor(time / len) * len;
+  },
+  deltaAngle: (from: P, to: P) => {
+    const a = num(from);
+    const b = num(to);
+    let delta = (b - a) % 360;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    return delta;
+  },
+  lerpAngle: (from: P, to: P, t: P) => {
+    const a = num(from);
+    const b = num(to);
+    const nt = num(t);
+    const delta = mathHelpers.deltaAngle(a, b) as number;
+    return a + delta * nt;
+  },
+  smoothDamp: (current: P, target: P, velocity: P, smoothTime: P, deltaTime: P, maxSpeed?: P) => {
+    const c = num(current);
+    const t = num(target);
+    let v = num(velocity);
+    const st = Math.max(0.0001, num(smoothTime));
+    const dt = num(deltaTime);
+    const ms = maxSpeed == null ? Infinity : num(maxSpeed);
+    
+    const omega = 2 / st;
+    const x = omega * dt;
+    const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+    
+    let change = c - t;
+    const originalTo = t;
+    
+    const maxChange = ms * st;
+    change = Math.max(-maxChange, Math.min(change, maxChange));
+    const newTarget = c - change;
+    
+    const temp = (v + omega * change) * dt;
+    v = (v - omega * temp) * exp;
+    let output = newTarget + (change + temp) * exp;
+    
+    if ((originalTo - c > 0) === (output > originalTo)) {
+      output = originalTo;
+      v = (output - originalTo) / dt;
+    }
+    
+    return output;
+  },
+  remap: (v: P, fromMin: P, fromMax: P, toMin: P, toMax: P) => {
+    const value = num(v);
+    const fMin = num(fromMin);
+    const fMax = num(fromMax);
+    const tMin = num(toMin);
+    const tMax = num(toMax);
+    const fromRange = fMax - fMin;
+    if (Math.abs(fromRange) < 0.000001) return tMin;
+    const normalized = (value - fMin) / fromRange;
+    return tMin + normalized * (tMax - tMin);
+  },
+  quantize: (v: P, step: P) => {
+    const value = num(v);
+    const s = num(step);
+    if (s <= 0) return value;
+    return Math.round(value / s) * s;
+  },
+  oscSine: (t: P, frequency?: P, amplitude?: P, phase?: P) => {
+    const time = num(t);
+    const freq = num(frequency ?? 1);
+    const amp = num(amplitude ?? 1);
+    const ph = num(phase ?? 0);
+    return Math.sin((time * freq + ph) * 2 * Math.PI) * amp;
+  },
+  oscCos: (t: P, frequency?: P, amplitude?: P, phase?: P) => {
+    const time = num(t);
+    const freq = num(frequency ?? 1);
+    const amp = num(amplitude ?? 1);
+    const ph = num(phase ?? 0);
+    return Math.cos((time * freq + ph) * 2 * Math.PI) * amp;
+  },
+  oscTriangle: (t: P, frequency?: P, amplitude?: P, phase?: P) => {
+    const time = num(t);
+    const freq = num(frequency ?? 1);
+    const amp = num(amplitude ?? 1);
+    const ph = num(phase ?? 0);
+    const period = 1 / freq;
+    const t2 = (time + ph) % period;
+    const halfPeriod = period / 2;
+    if (t2 < halfPeriod) {
+      return (t2 / halfPeriod * 2 - 1) * amp;
+    } else {
+      return ((1 - (t2 - halfPeriod) / halfPeriod) * 2 - 1) * amp;
+    }
+  },
+  oscSquare: (t: P, frequency?: P, amplitude?: P, phase?: P) => {
+    const time = num(t);
+    const freq = num(frequency ?? 1);
+    const amp = num(amplitude ?? 1);
+    const ph = num(phase ?? 0);
+    const period = 1 / freq;
+    const t2 = (time + ph) % period;
+    return t2 < period / 2 ? amp : -amp;
+  },
+  oscSawtooth: (t: P, frequency?: P, amplitude?: P, phase?: P) => {
+    const time = num(t);
+    const freq = num(frequency ?? 1);
+    const amp = num(amplitude ?? 1);
+    const ph = num(phase ?? 0);
+    const period = 1 / freq;
+    const t2 = (time + ph) % period;
+    return (t2 / period * 2 - 1) * amp;
+  },
+  easeInQuad: (t: P) => {
+    const nt = num(t);
+    return nt * nt;
+  },
+  easeOutQuad: (t: P) => {
+    const nt = num(t);
+    return nt * (2 - nt);
+  },
+  easeInOutQuad: (t: P) => {
+    const nt = num(t);
+    return nt < 0.5 ? 2 * nt * nt : -1 + (4 - 2 * nt) * nt;
+  },
+  easeInCubic: (t: P) => {
+    const nt = num(t);
+    return nt * nt * nt;
+  },
+  easeOutCubic: (t: P) => {
+    const nt = num(t);
+    const t1 = nt - 1;
+    return t1 * t1 * t1 + 1;
+  },
+  easeInOutCubic: (t: P) => {
+    const nt = num(t);
+    return nt < 0.5 ? 4 * nt * nt * nt : (nt - 1) * (2 * nt - 2) * (2 * nt - 2) + 1;
+  },
+  easeInElastic: (t: P) => {
+    const nt = num(t);
+    if (nt === 0) return 0;
+    if (nt === 1) return 1;
+    return -Math.pow(2, 10 * (nt - 1)) * Math.sin((nt - 1.1) * 5 * Math.PI);
+  },
+  easeOutElastic: (t: P) => {
+    const nt = num(t);
+    if (nt === 0) return 0;
+    if (nt === 1) return 1;
+    return Math.pow(2, -10 * nt) * Math.sin((nt - 0.1) * 5 * Math.PI) + 1;
+  },
+  easeInOutElastic: (t: P) => {
+    const nt = num(t);
+    if (nt === 0) return 0;
+    if (nt === 1) return 1;
+    if (nt < 0.5) {
+      return -0.5 * Math.pow(2, 20 * nt - 10) * Math.sin((20 * nt - 11.125) * ((2 * Math.PI) / 4.5));
+    }
+    return Math.pow(2, -20 * nt + 10) * Math.sin((20 * nt - 11.125) * ((2 * Math.PI) / 4.5)) * 0.5 + 1;
+  },
+  easeInBounce: (t: P) => {
+    return 1 - (mathHelpers.easeOutBounce(1 - num(t)) as number);
+  },
+  easeOutBounce: (t: P) => {
+    const nt = num(t);
+    if (nt < 1 / 2.75) {
+      return 7.5625 * nt * nt;
+    } else if (nt < 2 / 2.75) {
+      const t2 = nt - 1.5 / 2.75;
+      return 7.5625 * t2 * t2 + 0.75;
+    } else if (nt < 2.5 / 2.75) {
+      const t2 = nt - 2.25 / 2.75;
+      return 7.5625 * t2 * t2 + 0.9375;
+    } else {
+      const t2 = nt - 2.625 / 2.75;
+      return 7.5625 * t2 * t2 + 0.984375;
+    }
+  },
+  easeInOutBounce: (t: P) => {
+    const nt = num(t);
+    if (nt < 0.5) {
+      return (mathHelpers.easeInBounce(nt * 2) as number) * 0.5;
+    } else {
+      return (mathHelpers.easeOutBounce(nt * 2 - 1) as number) * 0.5 + 0.5;
+    }
+  },
+  decay: (current: P, rate: P, deltaTime: P) => {
+    const c = num(current);
+    const r = num(rate);
+    const dt = num(deltaTime);
+    return c * Math.pow(1 - r, dt);
+  },
+  decayToward: (current: P, target: P, rate: P, deltaTime: P) => {
+    const c = num(current);
+    const t = num(target);
+    const r = num(rate);
+    const dt = num(deltaTime);
+    return t + (c - t) * Math.pow(1 - r, dt);
+  },
+  needsUpdate: (lastUpdate: P, interval: P, currentTime: P) => {
+    const last = num(lastUpdate);
+    const int = num(interval);
+    const curr = num(currentTime);
+    return curr - last >= int;
+  },
+  statInRange: (value: P, min: P, max: P) => {
+    const v = num(value);
+    const nmin = num(min);
+    const nmax = num(max);
+    return v >= nmin && v <= nmax;
+  },
+  statLevel: (value: P, thresholds: P[]) => {
+    const v = num(value);
+    const levels = toArr(thresholds).map(num).sort((a, b) => a - b);
+    for (let i = levels.length - 1; i >= 0; i--) {
+      if (v >= levels[i]) return i + 1;
+    }
+    return 0;
+  },
+  statPercent: (current: P, max: P) => {
+    const c = num(current);
+    const m = num(max);
+    if (m <= 0) return 0;
+    return Math.max(0, Math.min(1, c / m));
+  },
+  statCritical: (current: P, max: P, threshold?: P) => {
+    const percent = mathHelpers.statPercent(current, max) as number;
+    const thresh = num(threshold ?? 0.2);
+    return percent <= thresh;
+  },
+  influence: (base: P, modifier: P, strength?: P) => {
+    const b = num(base);
+    const m = num(modifier);
+    const s = num(strength ?? 1);
+    return b + (m - b) * s;
+  },
+  multiInfluence: (base: P, modifiers: P[], weights?: P[]) => {
+    const b = num(base);
+    const mods = toArr(modifiers).map(num);
+    const w = weights ? toArr(weights).map(num) : mods.map(() => 1);
+    if (!mods.length) return b;
+    
+    let totalWeight = 0;
+    let weightedSum = 0;
+    for (let i = 0; i < mods.length; i++) {
+      const weight = w[i] ?? 1;
+      totalWeight += weight;
+      weightedSum += mods[i] * weight;
+    }
+    
+    return totalWeight > 0 ? weightedSum / totalWeight : b;
+  },
+  diminishingReturns: (value: P, scale?: P, curve?: P) => {
+    const v = num(value);
+    const s = num(scale ?? 100);
+    const c = num(curve ?? 2);
+    return s * (1 - Math.pow(1 / (1 + v / s), c));
+  },
+  timeOfDay: (hours: P, minutes?: P) => {
+    const h = num(hours) % 24;
+    const m = num(minutes ?? 0) % 60;
+    return h + m / 60;
+  },
+  isDayTime: (timeOfDay: P, sunrise?: P, sunset?: P) => {
+    const tod = num(timeOfDay);
+    const rise = num(sunrise ?? 6);
+    const set = num(sunset ?? 18);
+    return tod >= rise && tod < set;
+  },
+  seasonProgress: (dayOfYear: P, seasonLength?: P) => {
+    const day = num(dayOfYear) % 365;
+    const len = num(seasonLength ?? 91.25);
+    return (day % len) / len;
+  },
+  getCurrentSeason: (dayOfYear: P) => {
+    const day = num(dayOfYear) % 365;
+    const seasonLength = 365 / 4;
+    return Math.floor(day / seasonLength);
+  },
+  dailyReset: (lastReset: P, currentTime: P, resetHour?: P) => {
+    const last = num(lastReset);
+    const curr = num(currentTime);
+    const hour = num(resetHour ?? 0);
+    
+    const lastDay = Math.floor(last / 86400);
+    const currDay = Math.floor(curr / 86400);
+    
+    if (currDay > lastDay) {
+      const currHour = (curr % 86400) / 3600;
+      return currHour >= hour;
+    }
+    return false;
+  },
+  chance: (probability: P, roll?: P) => {
+    const prob = num(probability);
+    const r = roll == null ? Math.random() : num(roll);
+    return r < prob;
+  },
+  weightedChance: (weights: P[], roll?: P) => {
+    const w = toArr(weights).map(num);
+    const r = roll == null ? Math.random() : num(roll);
+    
+    const total = w.reduce((sum, weight) => sum + weight, 0);
+    if (total <= 0) return -1;
+    
+    const normalized = r * total;
+    let cumulative = 0;
+    
+    for (let i = 0; i < w.length; i++) {
+      cumulative += w[i];
+      if (normalized < cumulative) return i;
+    }
+    return w.length - 1;
+  },
+  rarityRoll: (baseChance: P, luck?: P, roll?: P) => {
+    const base = num(baseChance);
+    const l = num(luck ?? 0);
+    const r = roll == null ? Math.random() : num(roll);
+    
+    const adjustedChance = base * (1 + l / 100);
+    return r < adjustedChance;
+  },
+  statGrowth: (base: P, level: P, growthRate?: P, curve?: P) => {
+    const b = num(base);
+    const lvl = num(level);
+    const rate = num(growthRate ?? 1.1);
+    const c = num(curve ?? 1);
+    
+    return b * Math.pow(rate, Math.pow(lvl - 1, c));
+  },
+  expRequired: (level: P, baseExp?: P, exponent?: P) => {
+    const lvl = num(level);
+    const base = num(baseExp ?? 100);
+    const exp = num(exponent ?? 1.5);
+    
+    return Math.floor(base * Math.pow(lvl, exp));
+  },
+  levelFromExp: (totalExp: P, baseExp?: P, exponent?: P) => {
+    const exp = num(totalExp);
+    const base = num(baseExp ?? 100);
+    const e = num(exponent ?? 1.5);
+    
+    if (exp < base) return 1;
+    return Math.floor(Math.pow(exp / base, 1 / e));
+  },
+  socialDecay: (relationship: P, lastInteraction: P, currentTime: P, decayRate?: P) => {
+    const rel = num(relationship);
+    const last = num(lastInteraction);
+    const curr = num(currentTime);
+    const rate = num(decayRate ?? 0.01);
+    
+    const timePassed = curr - last;
+    return Math.max(0, rel - timePassed * rate);
+  },
+  moodModifier: (mood: P, baseValue: P, moodImpact?: P) => {
+    const m = num(mood);
+    const base = num(baseValue);
+    const impact = num(moodImpact ?? 0.2);
+    
+    const moodMultiplier = 1 + (m - 0.5) * impact * 2;
+    return base * moodMultiplier;
+  },
+  needUrgency: (current: P, max: P, curve?: P) => {
+    const c = num(current);
+    const m = num(max);
+    const crv = num(curve ?? 2);
+    
+    if (m <= 0) return 1;
+    const ratio = c / m;
+    return 1 - Math.pow(ratio, crv);
+  },
+  satisfactionCurve: (value: P, optimal: P, tolerance?: P) => {
+    const v = num(value);
+    const opt = num(optimal);
+    const tol = num(tolerance ?? 0.5);
+    
+    const distance = Math.abs(v - opt);
+    const normalizedDistance = distance / (opt * tol);
+    
+    return Math.max(0, 1 - normalizedDistance);
+  },
+  activityEnergy: (baseEnergy: P, fitness?: P, fatigue?: P) => {
+    const base = num(baseEnergy);
+    const fit = num(fitness ?? 0.5);
+    const fat = num(fatigue ?? 0);
+    
+    const fitnessMultiplier = 0.5 + fit;
+    const fatigueMultiplier = 1 - fat * 0.5;
+    
+    return base * fitnessMultiplier * fatigueMultiplier;
+  },
+  habitStrength: (repetitions: P, maxStrength?: P, growthRate?: P) => {
+    const reps = num(repetitions);
+    const max = num(maxStrength ?? 100);
+    const rate = num(growthRate ?? 0.1);
+    
+    return max * (1 - Math.exp(-rate * reps));
+  },
+  skillProgress: (current: P, target: P, difficulty?: P, aptitude?: P) => {
+    const c = num(current);
+    const t = num(target);
+    const diff = num(difficulty ?? 1);
+    const apt = num(aptitude ?? 1);
+    
+    const gap = t - c;
+    if (gap <= 0) return 0;
+    
+    const progressRate = apt / diff;
+    return Math.min(gap, progressRate);
+  },
+  memoryFade: (initialStrength: P, timePassed: P, fadeRate?: P) => {
+    const strength = num(initialStrength);
+    const time = num(timePassed);
+    const rate = num(fadeRate ?? 0.1);
+    
+    return strength * Math.exp(-rate * time);
+  },
+  crowdPressure: (crowdSize: P, maxPressure?: P, threshold?: P) => {
+    const size = num(crowdSize);
+    const max = num(maxPressure ?? 1);
+    const thresh = num(threshold ?? 10);
+    
+    if (size <= 0) return 0;
+    return max * (1 - Math.exp(-size / thresh));
+  },
+  comfortZone: (value: P, ideal: P, minComfort: P, maxComfort: P) => {
+    const v = num(value);
+    const i = num(ideal);
+    const min = num(minComfort);
+    const max = num(maxComfort);
+    
+    if (v < min || v > max) return 0;
+    
+    const distance = Math.abs(v - i);
+    const range = Math.max(i - min, max - i);
+    
+    return 1 - (distance / range);
+  },
 };
 
 export const createRandomHelpers = (
