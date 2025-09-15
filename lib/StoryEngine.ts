@@ -20,6 +20,7 @@ import {
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
 import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
+import { fetch, isValidUrl, toHttpMethod } from "./HTTPHelpers";
 import {
   FieldSpec,
   parseFieldGroups,
@@ -162,9 +163,7 @@ export async function advanceStory(
   const voices = source.voices;
 
   if (calls++ < 1) {
-    if (options.verbose) {
-      console.info(chalk.gray(dumpTree(root)));
-    }
+    console.info(chalk.gray(dumpTree(root)));
   }
 
   // The origin (if present) is the node the author wants to treat as the de-facto beginning of playback
@@ -485,17 +484,44 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) => node.type === "data",
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
-      const raw = await marshallText(ctx.node, ctx, "");
-      const fmt = (atts.format ?? "json").toLowerCase();
-      const key = atts.key ?? "data";
+      const url = atts.src ?? atts.href ?? atts.url;
+      let raw = "";
+      let fmt = (atts.format ?? "json").toLowerCase();
+      if (!isBlank(url) && isValidUrl(url)) {
+        const { data, statusCode, contentType } = await fetch({
+          url,
+          method: toHttpMethod(atts.method ?? "GET"),
+        });
+        if (statusCode >= 200 && statusCode <= 299) {
+          raw = data;
+        }
+        if (contentType.includes("json")) {
+          fmt = "json";
+        } else if (
+          contentType.includes("yaml") ||
+          contentType.includes("yml")
+        ) {
+          fmt = "yaml";
+        }
+      }
+
+      // Treated as the data in the normal case, or fallback if we have a URL
+      if (isBlank(raw)) {
+        raw = await marshallText(ctx.node, ctx, "");
+      }
+
       let val = null as TSerial | null;
       if (fmt === "yaml" || fmt === "yml") {
         const parsed = safeYamlParse(raw);
         val = (parsed ?? null) as unknown as TSerial | null;
-      } else {
+      } else if (fmt === "json") {
         const parsed = safeJsonParse(raw);
         val = (parsed ?? null) as unknown as TSerial | null;
+      } else {
+        val = raw;
       }
+
+      const key = atts.key ?? "data";
       setState(ctx.scope, key, val);
       return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
     },

@@ -1,5 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
+import { makeBaseCtx } from "lib/ContextUtils";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
 import {
@@ -8,7 +9,6 @@ import {
   runUntilComplete,
 } from "lib/LocalRunnerUtils";
 import { compileStory } from "lib/StoryCompiler";
-import { makeBaseCtx } from "lib/ContextUtils";
 import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
@@ -121,7 +121,10 @@ async function runAutorun() {
   };
 
   console.info(
-    chalk.gray(`Auto-running game...`, JSON.stringify(options, null, 2))
+    chalk.gray(
+      `Auto-running game...`,
+      JSON.stringify({ options, inputs: argv.inputs }, null, 2)
+    )
   );
 
   const provider = argv.mock
@@ -134,11 +137,6 @@ async function runAutorun() {
         }),
         cache: new LocalCache(argv.cacheDir),
       });
-
-  console.info({
-    inputs: argv.inputs,
-    options,
-  });
 
   const ctx = makeBaseCtx(provider, options);
   const sources = await compileStory(ctx, cartridge, {

@@ -206,7 +206,7 @@ async function test() {
       },
     ],
   };
-  expect(marshallText(mixedTree, {}), "Should appear");
+  expect(await marshallText(mixedTree, {}), "Should appear");
 }
 
 test();

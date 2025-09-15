@@ -111,8 +111,13 @@ export async function marshallText(
         texts.push(await marshallText(node.kids[i], ctx, join));
       }
     }
-  } else if (TEXT_CONTENT_TAGS.includes(node.type)) {
-    texts.push(node.text);
+  } else {
+    if (TEXT_CONTENT_TAGS.includes(node.type)) {
+      texts.push(node.text);
+    }
+    for (let i = 0; i < node.kids.length; i++) {
+      texts.push(await marshallText(node.kids[i], ctx, join));
+    }
   }
   return texts.join(join);
 }

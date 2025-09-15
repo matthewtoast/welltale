@@ -1,21 +1,10 @@
+import { makeBaseCtx, makeOptions } from "lib/ContextUtils";
 import { compileStory, parseXmlFragment } from "lib/StoryCompiler";
 import { dumpTree } from "lib/StoryNodeHelpers";
 import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { makeBaseCtx, makeOptions } from "lib/ContextUtils";
 import { expect } from "./TestUtils";
 
 async function go() {
-  console.log(
-    parseXmlFragment(`
-    <div>
-      <compile:voice id="232">
-
-      </compile:voice>
-    </div>
-  
-    `).kids[0]
-  );
-
   const t2 = parseXmlFragment(`
   <p>yay</p>
   <sec id="foo">
@@ -42,11 +31,11 @@ async function go() {
   );
 
   const cartridge = {
-    abc: `
+    "abc.xml": `
     <p>hi</p>
     <p>bye</p>
   `,
-    def: `
+    "foo.xml": `
     <p>meow</p>
     <p>ruff</p>
   `,
@@ -59,6 +48,7 @@ async function go() {
   const c1 = await compileStory(ctx, cartridge, {
     doCompileVoices: false,
   });
+
   expect(c1.root, {
     addr: "0",
     type: "root",

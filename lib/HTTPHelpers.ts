@@ -1,5 +1,4 @@
 import axios, { AxiosRequestConfig, Method } from "axios";
-import xml2js from "xml2js";
 
 export interface FetchOptions {
   url: string;
@@ -9,11 +8,10 @@ export interface FetchOptions {
   timeout?: number;
 }
 
-export async function fetchWithParse<T = any>(
+export async function fetch(
   options: FetchOptions
-): Promise<T> {
+): Promise<{ statusCode: number; data: string; contentType: string }> {
   const { url, method = "GET", body, headers = {}, timeout = 10000 } = options;
-
   const config: AxiosRequestConfig = {
     url,
     method,
@@ -23,23 +21,31 @@ export async function fetchWithParse<T = any>(
     responseType: "text",
     validateStatus: () => true,
   };
-
   const response = await axios(config);
-
   const contentType = response.headers["content-type"] || "";
+  return {
+    statusCode: response.status,
+    data: response.data,
+    contentType,
+  };
+}
 
-  if (contentType.includes("application/json")) {
-    return JSON.parse(response.data);
+export function isValidUrl(s: string): boolean {
+  try {
+    // Accepts http, https, and protocol-relative URLs
+    const urlPattern = /^(https?:\/\/|\/\/)[^\s/$.?#].[^\s]*$/i;
+    if (urlPattern.test(s)) {
+      new URL(s.startsWith("//") ? "http:" + s : s);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
   }
+}
 
-  if (
-    contentType.includes("application/xml") ||
-    contentType.includes("text/xml")
-  ) {
-    const parser = new xml2js.Parser({ explicitArray: false });
-    return parser.parseStringPromise(response.data);
-  }
-
-  // Return raw response for other types
-  return response.data;
+export function toHttpMethod(method: string): Method {
+  const upper = method.trim().toUpperCase();
+  const allowed: Method[] = ["GET", "POST", "PUT", "DELETE"];
+  return allowed.includes(upper as any) ? (upper as Method) : "GET";
 }

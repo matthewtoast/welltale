@@ -84,7 +84,7 @@ export async function compileStory(
       p === "main.xml" || p.endsWith("/main.xml") || p.endsWith("\\main.xml")
     );
   }
-  const all = Object.keys(cartridge);
+  const all = Object.keys(cartridge).filter((k) => k.endsWith(".xml"));
   const mains = all.filter(isMain);
   const rest = all.filter((k) => !isMain(k));
   const keys = [...mains, ...rest];

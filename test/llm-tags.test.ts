@@ -9,9 +9,9 @@ const cwd = join(__dirname, "..");
 const API_KEYS = `--openRouterBaseUrl ${process.env.OPENROUTER_BASE_URL} --openRouterApiKey ${process.env.OPENROUTER_API_KEY} --elevenlabsKey ${process.env.ELEVENLABS_API_KEY}`;
 execSync(
   `yarn ts ./run/autorun.ts ${API_KEYS} \
-    --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test-block-order"))} \
-    --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test-block-order-session.json"))} \
-    -i "input1" -i "invalid1" -i "invalid2" -i "Xylophone"
+    --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test-llm-tags"))} \
+    --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test-intro-resume-session.json"))} \
+    -i "hello there"
     `,
   { stdio: "inherit", cwd }
 );
