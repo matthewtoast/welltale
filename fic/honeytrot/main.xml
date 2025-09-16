@@ -33,7 +33,7 @@
 </origin>
 
 <sec id="jacobson-phone-call" />
-  <sound prompt="an early 1990s digital telephone ringing twice, then being quickly picked up and the 'answer' button pressed" duration="4000">
+  <sound prompt="an early 1990s digital telephone ringing twice, then being quickly picked up and the 'answer' button pressed" duration="4000" />
 
   <p from="Clyde">
     {{playerName}}. It's great to hear your voice.
@@ -42,7 +42,7 @@
   <p from="Clyde" id="jacobson-begs">
     I know you said you were walking away for good, but... I wouldn't ask if it weren't urgent and important.
     Will you meet me?
-  <p>
+  </p>
 
   <input willMeetClyde.type="boolean" willMeetClyde.default="true" />
 
