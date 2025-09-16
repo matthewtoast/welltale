@@ -64,7 +64,7 @@ async function runAutorun() {
     .option("verbose", {
       type: "boolean",
       description: "Verbose logging on (true/false)",
-      default: false,
+      default: true,
     })
     .option("cartridgeDir", {
       type: "string",
