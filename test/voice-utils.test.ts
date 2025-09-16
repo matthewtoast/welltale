@@ -6,10 +6,34 @@ expect(
   autoFindVoice(
     {
       speaker: "Clyde",
+      voice: "Clyde",
+      tags: [],
+    },
+    ELEVENLABS_PRESET_VOICES
+  ),
+  "2EiwWnXFnvU5JabPnv8n"
+);
+
+expect(
+  autoFindVoice(
+    {
+      speaker: "Clyde",
+      voice: "Clyde",
+      tags: [],
+    },
+    ELEVENLABS_PRESET_VOICES
+  ),
+  "2EiwWnXFnvU5JabPnv8n"
+);
+
+expect(
+  autoFindVoice(
+    {
+      speaker: "HOST",
       voice: "",
       tags: [],
     },
     ELEVENLABS_PRESET_VOICES
   ),
-  ""
+  "pNInz6obpgDQGcFmaJgB"
 );

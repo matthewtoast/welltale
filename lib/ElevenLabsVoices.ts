@@ -1,6 +1,6 @@
 import { VoiceSpec } from "./StoryTypes";
 
-export const NEUTRAL_VOICE = "21m00Tcm4TlvDq8ikWAM";
+export const NEUTRAL_VOICE = "21m00Tcm4TlvDq8ikWAM"; // Rachel
 
 export const ELEVENLABS_PRESET_VOICES: VoiceSpec[] = [
   {

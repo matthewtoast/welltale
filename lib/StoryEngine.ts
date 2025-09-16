@@ -15,6 +15,7 @@ import {
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
 import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
+import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
 import {
   castToBoolean,
   castToString,
@@ -514,7 +515,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               tags: event.tags,
               body: event.body,
             },
-            ctx.voices
+            userVoicesAndPresetVoices(ctx.voices)
           )
         : { url: "" };
       ops.push({
@@ -625,7 +626,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               tags: event.tags,
               body: event.body,
             },
-            ctx.voices
+            userVoicesAndPresetVoices(ctx.voices)
           )
         : { url: "" };
       ops.push({
@@ -957,7 +958,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                     body: prompt,
                     tags: cleanSplit(atts.tags, ","),
                   },
-                  ctx.voices
+                  userVoicesAndPresetVoices(ctx.voices)
                 );
                 url = voice.url;
                 break;
@@ -1399,4 +1400,8 @@ export async function renderAtts(
     }
   }
   return out;
+}
+
+export function userVoicesAndPresetVoices(userVoices: VoiceSpec[]) {
+  return [...userVoices, ...ELEVENLABS_PRESET_VOICES];
 }

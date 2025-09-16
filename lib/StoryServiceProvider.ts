@@ -209,7 +209,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   ): Promise<{ url: string }> {
     const useCache = !this.options.disableCache;
     const voiceId = autoFindVoice(spec, voices);
-    const idemp = `${spec.speaker}:${spec.voice}:${JSON.stringify(spec.tags)}:${parameterize(spec.body)}:${voiceId}`;
+    const idemp = `${spec.speaker}:${spec.voice}:${JSON.stringify(spec.tags)}:${parameterize(spec.body)}:${voiceId}:${voices.length}`;
     if (this.options.verbose) {
       console.info(chalk.gray(`Generate Speech ~> ${idemp}`));
     }
