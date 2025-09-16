@@ -28,7 +28,7 @@ HOST: You are a warrior.
 ---
 `);
 execSync(
-  `yarn ts ./run/autorun.ts ${API_KEYS} \
+  `yarn ts ./run/auto.ts ${API_KEYS} \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test-input-handling"))} \
     --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test-input-handling-session.json"))} \
     -i "Alice" -i "28" -i "alice+foo@example.com" -i "warrior"
@@ -55,7 +55,7 @@ HOST: You are a mage.
 ---
 `);
 execSync(
-  `yarn ts ./run/autorun.ts ${API_KEYS} \
+  `yarn ts ./run/auto.ts ${API_KEYS} \
     --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test-input-handling"))} \
     --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test-input-handlingb-session.json"))} \
     -i "Bob" -i "" -i "invalid" -i "mage"
