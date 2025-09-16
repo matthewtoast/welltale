@@ -1002,11 +1002,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
 
       if (ctx.session.input && ctx.session.input.body !== null) {
         const raw = ctx.session.input.body;
-        // Make original input available in state
-        ctx.scope["input"] = raw;
-        if (!isBlank(atts.key)) {
-          ctx.scope[atts.key] = raw;
-        }
 
         const groups: Record<string, FieldSpec> = parseFieldGroups(atts);
         const keys = Object.keys(groups);
@@ -1026,8 +1021,17 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           }
         }
 
+        // Make original input available in state
+        ctx.scope["input"] = raw;
+        ctx.session.state["input"] = raw;
+        if (!isBlank(atts.key)) {
+          ctx.scope[atts.key] = raw;
+          ctx.session.state[atts.key] = raw;
+        }
         for (const key in extracted) {
+          // Set input values in both scope (for immediate use) and global state (for persistence)
           ctx.scope[key] = extracted[key];
+          ctx.session.state[key] = extracted[key];
         }
 
         ctx.session.input = null;
