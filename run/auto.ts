@@ -1,6 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
-import { PRNG } from "lib/RandHelpers";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
 import {
@@ -8,16 +7,19 @@ import {
   RunnerOptions,
   runUntilComplete,
 } from "lib/LocalRunnerUtils";
-import { compileStory } from "lib/StoryCompiler";
+import { PRNG } from "lib/RandHelpers";
+import { CompileOptions, compileStory } from "lib/StoryCompiler";
 import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
 } from "lib/StoryServiceProvider";
 import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
+import { railsTimestamp } from "lib/TextHelpers";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
 import { join } from "path";
+import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
@@ -39,9 +41,24 @@ async function runAutorun() {
       description: "Use mock service provider for service calls",
       default: false,
     })
-    .option("playAudio", {
+    .option("doPlayAudio", {
       type: "boolean",
       description: "Play audio files true/false",
+      default: false,
+    })
+    .option("doGenerateSpeech", {
+      type: "boolean",
+      description: "Generate speech audio",
+      default: false,
+    })
+    .option("doGenerateAudio", {
+      type: "boolean",
+      description: "Generate other audio",
+      default: false,
+    })
+    .option("doCompileVoices", {
+      type: "boolean",
+      description: "Generate other audio",
       default: false,
     })
     .option("verbose", {
@@ -57,22 +74,22 @@ async function runAutorun() {
     .option("sessionPath", {
       type: "string",
       description: "Path to the JSON file at which to save session data",
-      demandOption: true,
+      default: join(cwd(), "tmp", `welltale-${railsTimestamp()}.json`),
     })
     .option("openRouterApiKey", {
       type: "string",
-      description: "OpenAI API key",
-      demandOption: true,
+      description: "OpenRouter API key",
+      default: process.env.OPENROUTER_API_KEY,
     })
     .option("openRouterBaseUrl", {
       type: "string",
       description: "OpenRouter base URL",
-      demandOption: true,
+      default: process.env.OPENROUTER_BASE_URL,
     })
     .option("elevenlabsKey", {
       type: "string",
       description: "ElevenLabs API key",
-      demandOption: true,
+      default: process.env.ELEVENLABS_API_KEY,
     })
     .option("cacheDir", {
       type: "string",
@@ -108,44 +125,55 @@ async function runAutorun() {
   session.turn = argv.sessionTurn;
   session.address = argv.sessionAddress ?? null;
 
-  const options: RunnerOptions = {
+  const runnerOptions: RunnerOptions = {
     seed: argv.seed,
     verbose: argv.verbose,
     ream: 100,
     loop: 0,
-    doGenerateSpeech: false,
-    doGenerateAudio: false,
     maxCheckpoints: 20,
+    doGenerateSpeech: argv.doGenerateSpeech,
+    doGenerateAudio: argv.doGenerateAudio,
+    doPlayMedia: argv.doPlayAudio,
     models: DEFAULT_LLM_SLUGS,
-    doPlayMedia: argv.playAudio,
+  };
+
+  const compileOptions: CompileOptions = {
+    doCompileVoices: false,
   };
 
   console.info(
     chalk.gray(
       `Auto-running game...`,
-      JSON.stringify({ options, inputs: argv.inputs }, null, 2)
+      JSON.stringify({ options: runnerOptions, inputs: argv.inputs }, null, 2)
     )
   );
 
   const provider = argv.mock
     ? new MockStoryServiceProvider()
-    : new DefaultStoryServiceProvider({
-        eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
-        openai: new OpenAI({
-          apiKey: argv.openRouterApiKey,
-          baseURL: argv.openRouterBaseUrl,
-        }),
-        cache: new LocalCache(argv.cacheDir),
-      });
+    : new DefaultStoryServiceProvider(
+        {
+          eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
+          openai: new OpenAI({
+            apiKey: argv.openRouterApiKey,
+            baseURL: argv.openRouterBaseUrl,
+          }),
+          cache: new LocalCache(argv.cacheDir),
+        },
+        {
+          disableCache: false,
+          verbose: argv.verbose,
+        }
+      );
 
-  const rng = new PRNG(options.seed);
-  const ctx = { rng, provider, scope: {}, options };
-  const sources = await compileStory(ctx, cartridge, {
-    doCompileVoices: false,
-  });
+  const rng = new PRNG(runnerOptions.seed);
+  const sources = await compileStory(
+    { rng, provider, scope: {}, options: runnerOptions },
+    cartridge,
+    compileOptions
+  );
 
   return await runUntilComplete({
-    options,
+    options: runnerOptions,
     provider,
     session,
     sources,

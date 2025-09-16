@@ -5,7 +5,7 @@ import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
 import { PRNG } from "lib/RandHelpers";
 import { handleCommand } from "lib/ReplCommands";
-import { compileStory } from "lib/StoryCompiler";
+import { CompileOptions, compileStory } from "lib/StoryCompiler";
 import { SeamType } from "lib/StoryEngine";
 import {
   DefaultStoryServiceProvider,
@@ -42,6 +42,11 @@ async function runRepl() {
       type: "boolean",
       description: "Use mock service provider for service calls",
       default: false,
+    })
+    .option("verbose", {
+      type: "boolean",
+      description: "Verbose logging",
+      default: true,
     })
     .option("doPlayAudio", {
       type: "boolean",
@@ -115,44 +120,56 @@ async function runRepl() {
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
 
-  const options: RunnerOptions = {
+  const compileOptions: CompileOptions = {
+    doCompileVoices: argv.doCompileVoices,
+  };
+
+  const runnerOptions: RunnerOptions = {
     seed: argv.seed,
-    verbose: true,
+    verbose: argv.verbose,
     ream: 100,
     loop: 0,
-    doGenerateSpeech: argv.doGenerateSpeech,
-    doGenerateAudio: argv.doGenerateAudio,
     maxCheckpoints: 20,
     models: DEFAULT_LLM_SLUGS,
+    doGenerateSpeech: argv.doGenerateSpeech,
+    doGenerateAudio: argv.doGenerateAudio,
     doPlayMedia: argv.doPlayAudio,
   };
 
   console.info(
-    chalk.gray(`Starting REPL...`, JSON.stringify(options, null, 2))
+    chalk.gray(`Starting REPL...`, JSON.stringify(runnerOptions, null, 2))
   );
 
   const provider = argv.mock
     ? new MockStoryServiceProvider()
-    : new DefaultStoryServiceProvider({
-        eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
-        openai: new OpenAI({
-          apiKey: argv.openRouterApiKey,
-          baseURL: argv.openRouterBaseUrl,
-        }),
-        cache: new LocalCache(argv.cacheDir),
-      });
+    : new DefaultStoryServiceProvider(
+        {
+          eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
+          openai: new OpenAI({
+            apiKey: argv.openRouterApiKey,
+            baseURL: argv.openRouterBaseUrl,
+          }),
+          cache: new LocalCache(argv.cacheDir),
+        },
+        {
+          disableCache: false,
+          verbose: argv.verbose,
+        }
+      );
 
-  const rng = new PRNG(options.seed);
-  const ctx = { rng, provider, scope: {}, options };
-  const sources = await compileStory(ctx, cartridge, {
-    doCompileVoices: argv.doCompileVoices,
-  });
+  const rng = new PRNG(runnerOptions.seed);
+
+  const sources = await compileStory(
+    { rng, provider, scope: {}, options: runnerOptions },
+    cartridge,
+    compileOptions
+  );
 
   let resp = await renderNext(
     null,
     session,
     sources,
-    { ...options, seed },
+    { ...runnerOptions, seed },
     provider
   );
 
@@ -179,7 +196,7 @@ async function runRepl() {
       const r = await handleCommand(fixed, {
         session,
         sources,
-        options,
+        options: runnerOptions,
         provider,
         seed,
         save: () => saveSessionToDisk(session, argv.sessionPath),
@@ -198,7 +215,7 @@ async function runRepl() {
           fixed,
           session,
           sources,
-          { ...options, seed },
+          { ...runnerOptions, seed },
           provider
         );
         saveSessionToDisk(session, argv.sessionPath);

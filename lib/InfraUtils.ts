@@ -42,14 +42,20 @@ export async function compileStoryJob(storyId: string) {
   const cartridge: StoryCartridge = {};
   for (const k of Object.keys(files)) cartridge[k] = files[k];
 
-  const provider = new DefaultStoryServiceProvider({
-    openai: new OpenAI({
-      apiKey: OPENROUTER_API_KEY,
-      baseURL: OPENROUTER_BASE_URL,
-    }),
-    eleven: new ElevenLabsClient({ apiKey: ELEVENLABS_API_KEY }),
-    cache: new S3Cache(s3Client, CACHE_BUCKET),
-  });
+  const provider = new DefaultStoryServiceProvider(
+    {
+      openai: new OpenAI({
+        apiKey: OPENROUTER_API_KEY,
+        baseURL: OPENROUTER_BASE_URL,
+      }),
+      eleven: new ElevenLabsClient({ apiKey: ELEVENLABS_API_KEY }),
+      cache: new S3Cache(s3Client, CACHE_BUCKET),
+    },
+    {
+      disableCache: false,
+      verbose: true,
+    }
+  );
 
   const options = {
     verbose: false,

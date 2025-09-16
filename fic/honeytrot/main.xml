@@ -1,7 +1,3 @@
-<!-- <compile:voice id="host" description="a neutral American female voice, audiobook narrator, undertones of intrigue and mystery" /> -->
-<!-- <compile:voice id="jacobson" description="deep male voice, American, authoritative, military background, serious yet soft" /> -->
-<!-- <compile:voice id="warner" descriptino="middle aged male, nasally and pinched, nerdy, well-enunciated with pedantic undertones" /> -->
-
 <intro>
   <music duration="10000" fadeAt="75000" fadeDuration="2500">
     1990s spy thriller intro music, electronic, pulsing notes reminiscent of information flowing through circuit boards
@@ -9,7 +5,6 @@
   <p>
     You're playing Honeytrot, by Matthew Trost.
   </p>
-  <sleep duration="2000" />
   <yield to="get-name" />
 </intro>
 
@@ -24,7 +19,6 @@
   <p>
     Welcome back to Honeytrot.
   </p>
-  <sleep duration="2000" />
   <if cond="blank(playerName)">
     <yield to="get-name" />
   </if>
@@ -33,9 +27,7 @@
 <origin>
   <p>
     It’s 1994. As the Cold War ended, you, like so many others who worked in intelligence, returned to civilian life.
-    You were relieved to say goodbye to the secrecy, the bureaucracy, and - most of all - the unshakeable feeling that you were just a pawn in someone else's game.
-    But the secret world, the world of espionage, continued just the same without you. You were happy leaving it all behind...
-    But then you received the phone call, from a voice you hadn't heard for years.
+    You thought you were done for good. But then, the phone rang.
   </p>
   <jump to="jacobson-phone-call" />
 </origin>
@@ -45,9 +37,6 @@
 
   <p from="Clyde">
     {{playerName}}. It's great to hear your voice.
-    Listen, there's... something at work I really need your input on.
-    I'm wondering if you can meet me for lunch - today - to discuss.
-    The usual spot, near my office.
   </p>
 
   <p from="Clyde" id="jacobson-begs">
@@ -66,118 +55,3 @@
     See you soon.
   </p>
 </sec>
-
-<!-- <sec id="intro">
-  <p from="boss">
-    I'm happy to see you again agent Foster. [pause] You look good. [awkward] Well... Look, let me just cut to the chase.
-    [back in control] We need your help on a pretty tight turnaround.
-    I admit, I hesitated to call you because, well... [awkward pause] maybe the call wouldn't be welcome. [deep breath]
-    But, due to the nature of this job, I can only ask someone I have complete trust in. And, at the end of the day, that's you.
-  </p>
-
-  
-  explain Werner Brandes, situation
-  -->
-<!--
-  <p from="boss">
-    If you aren't sure what to say, or if you need a hint on how to continue, use the the word "perhaps", and Mother will give you whatever advice he can.
-    Keep in mind Mother is always listening. But when you use the keyword "perhaps", he'll know you're talking to him.
-    Just try not to be too obvious about it.
-    And he may not always be able to chime in right away - if he needs time to think or went for a bathroom break.
-  </p>
-
-  <p from="boss">
-    That reminds me, if you need to ask Mother a more detailed question, you can always excuse yourself to use the bathroom and talk to your earpiece there.
-    Just keep in mind that using the bathroom too many times will make Werner suspicious.
-  </p>
-
-  <p from="boss">
-    There's one other keyword you should know: "marvelous".
-    If you need a reminder of which words you still need to capture, find a way to use the word "marvelous", and Mother will say it into your earpiece.
-    But don't be too obvious about it, and don't say it too many times. We don't want Warner to suspect something.
-  </p>
-</sec> -->
-
-<!-- <var id="chineseRestaurantPrompt">
-  This restaurant, Gold Sikh Tong, is full of gaudy red decoration.
-  
-</var>
-
-<var id="worldStatus">
-  It's May of 1994.
-</var>
-
-<var id="wernerPrompt">
-  Your name is Werner Brandes. You were born in 1954.
-
-  It's 7:00pm.
-
-  <when>
-
-  </when>
-</var>
- -->
-
-<!-- 
-<data key="wordsRemaining">
-  ["my", "name", "is", "Werner", "Brandes", "voice", "passport", "verify", "me"]
-</data>
-<sec id="date">
-  <audio gen="the background noise of a restaurant" background="true" />
-
-  <var name="werner.suspicion" value="0.0" type="number" />
-  <var name="werner.amorous" value="0.0" type="number" />
-
-  <code>
-    dinnerStartTime = now()
-    dinnerHourStartInt = 7
-  </code>
-
-  <while id="talking-to-warner" cond="true">
-    <code>
-      dinnerTimeElapsedMilliseconds = now() - dinnerStartTime
-      dinnerTimeElapsedHours = msToDecimalHours(dinnerTimeElapsedMilliseconds)
-      dinnerHour = dinnerHourStartInt + dinnerTimeElapsedHours
-      clockTime = decimalHoursToClock(dinnerHour)
-    </code>
-
-    <if cond="didSayPerhaps">
-      <if cond="numTimesSaidPerhaps > 5">
-        <var.incr name="werner.suspicion" step="0.1" upto="1" />
-      </if>
-      <jump to="" />
-    </if>
-
-    <if cond="didSayMarvelous">
-      <if cond="numTimesSaidMarevlous > 5">
-        <var.incr name="werner.suspicion" step="0.1" upto="1" />
-      </if>
-      <var.incr name="werner.suspicion" step="0.1" />
-      <jump to="" />
-    </if>
-
-    <if cond="numTimesRequestedBathroom > 3">
-      <jump to="" />
-    </if>
-
-    <input />
-
-    <var name="didSayPerhaps" value='includes(input, "perhaps")' />
-    <var name="numTimesSaidPerhaps" value="didSayPerhaps ? numTimesSaidPerhaps + 1 : numTimesSaidPerhaps" />
-    <var name="didSayMarvelous" value='includes(input, "marvelous")' />
-    <var name="numTimesSaidMarvelous" value="didSayMarvelous ? numTimesSaidMarvelous + 1 : numTimesSaidMarvelous" />
-
-    <llm:parse
-      wasMarvelousWordSus.type="number"
-      wasWordMarvelousSus.description="If the player used the word 'marvelous' in their input, please judge whether it was natural or not by returning a score between 0.0 and 1.0. If they didn't use the word, return 0."
-
-      didAskToUseBathroom.type="boolean"
-      didAskToUseBathroom.description="Did the player make request to go to the bathroom ('i need to go freshen up', 'i'll be right back', 'i'm going to use the ladies room' etc)? Return true/false"
-    >
-      {{input}}
-    </llm:parse>
-
-    <var name="numTimesRequestedBathroom" value="didAskToUseBathroom ? numTimesRequestedBathroom + 1 : numTimesRequestedBathroom" />
-  </while>
-</sec>
- -->

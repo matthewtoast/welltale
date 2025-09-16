@@ -51,15 +51,20 @@ async function go() {
 
   const provider = argv.mock
     ? new MockStoryServiceProvider()
-    : new DefaultStoryServiceProvider({
-        disableCache: false,
-        eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
-        openai: new OpenAI({
-          apiKey: argv.openRouterApiKey,
-          baseURL: argv.openRouterBaseUrl,
-        }),
-        cache: new LocalCache(argv.cacheDir),
-      });
+    : new DefaultStoryServiceProvider(
+        {
+          eleven: new ElevenLabsClient({ apiKey: argv.elevenlabsKey }),
+          openai: new OpenAI({
+            apiKey: argv.openRouterApiKey,
+            baseURL: argv.openRouterBaseUrl,
+          }),
+          cache: new LocalCache(argv.cacheDir),
+        },
+        {
+          disableCache: false,
+          verbose: true,
+        }
+      );
 
   const i1 = await provider.generateJson(
     dedent`

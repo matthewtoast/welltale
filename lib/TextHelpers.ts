@@ -15,7 +15,12 @@ export function smoosh(s: string): string {
 }
 
 export function snorm(s: string): string {
-  return s.split("\n").map(smoosh).join("\n");
+  return s
+    .split("\n")
+    .map(smoosh)
+    .filter((s) => !!s)
+    .join("\n")
+    .trim();
 }
 
 export function fence() {

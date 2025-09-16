@@ -1,4 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import chalk from "chalk";
 import { map } from "lodash";
 import { OpenAI } from "openai";
 import { NonEmpty, TSerial } from "typings";
@@ -23,7 +24,7 @@ import { generatePredictableKey, parameterize } from "./TextHelpers";
 
 type Model = (typeof LLM_SLUGS)[number];
 
-export type GenerateOptions = {
+export type GenerateTextCompletionOptions = {
   models: NonEmpty<Model>;
   useWebSearch: boolean;
 };
@@ -36,11 +37,14 @@ export type SpeechSpec = {
 };
 
 export interface StoryServiceProvider {
-  generateText(prompt: string, options: GenerateOptions): Promise<string>;
+  generateText(
+    prompt: string,
+    options: GenerateTextCompletionOptions
+  ): Promise<string>;
   generateJson(
     prompt: string,
     schema: Record<string, TSerial>,
-    options: GenerateOptions
+    options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>>;
   generateSound(prompt: string, durationMs: number): Promise<{ url: string }>;
   generateMusic(prompt: string, durationMs: number): Promise<{ url: string }>;
@@ -58,16 +62,23 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       openai: OpenAI;
       eleven: ElevenLabsClient;
       cache: Cache;
+    },
+    public options: {
       disableCache?: boolean;
+      verbose?: boolean;
     }
   ) {}
 
   async generateText(
     prompt: string,
-    options: GenerateOptions
+    options: GenerateTextCompletionOptions
   ): Promise<string> {
-    const useCache = !this.config.disableCache;
-    const key = generatePredictableKey("text", prompt, "txt");
+    const useCache = !this.options.disableCache;
+    const idemp = `${JSON.stringify(options.models)}:${parameterize(prompt)}`;
+    if (this.options.verbose) {
+      console.info(chalk.gray(`Generate Text ~> ${idemp}`));
+    }
+    const key = generatePredictableKey("text", idemp, "txt");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -94,11 +105,14 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   async generateJson(
     prompt: string,
     schema: Record<string, TSerial>,
-    options: GenerateOptions
+    options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>> {
-    const useCache = !this.config.disableCache;
-    const cacheKey = `${prompt}\n${schema}`;
-    const key = generatePredictableKey("json", cacheKey, "json");
+    const useCache = !this.options.disableCache;
+    const idemp = `${JSON.stringify(options.models)}:${prompt}:${schema}:${options.useWebSearch}`;
+    if (this.options.verbose) {
+      console.info(chalk.gray(`Generate JSON ~> ${idemp}`));
+    }
+    const key = generatePredictableKey("json", idemp, "json");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -133,8 +147,12 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     prompt: string,
     durationMs: number
   ): Promise<{ url: string }> {
-    const useCache = !this.config.disableCache;
-    const key = generatePredictableKey("sfx", `${prompt}:${durationMs}`, "mp3");
+    const useCache = !this.options.disableCache;
+    const idemp = `${prompt}:${durationMs}`;
+    if (this.options.verbose) {
+      console.info(chalk.gray(`Generate Sound ~> ${idemp}`));
+    }
+    const key = generatePredictableKey("sfx", idemp, "mp3");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -159,12 +177,12 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     prompt: string,
     durationMs: number
   ): Promise<{ url: string }> {
-    const useCache = !this.config.disableCache;
-    const key = generatePredictableKey(
-      "music",
-      `${prompt}:${durationMs}`,
-      "mp3"
-    );
+    const useCache = !this.options.disableCache;
+    const idemp = `${prompt}:${durationMs}`;
+    if (this.options.verbose) {
+      console.info(chalk.gray(`Generate Music ~> ${idemp}`));
+    }
+    const key = generatePredictableKey("music", idemp, "mp3");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -189,11 +207,13 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     spec: SpeechSpec,
     voices: VoiceSpec[]
   ): Promise<{ url: string }> {
-    const useCache = !this.config.disableCache;
+    const useCache = !this.options.disableCache;
     const voiceId = autoFindVoice(spec, voices);
-    const promptKey = `${spec.speaker}:${spec.voice}:${spec.tags.join(",")}:${parameterize(spec.body)}:${voiceId}`;
-    console.log(promptKey);
-    const key = generatePredictableKey("vox", promptKey, "mp3");
+    const idemp = `${spec.speaker}:${spec.voice}:${JSON.stringify(spec.tags)}:${parameterize(spec.body)}:${voiceId}`;
+    if (this.options.verbose) {
+      console.info(chalk.gray(`Generate Speech ~> ${idemp}`));
+    }
+    const key = generatePredictableKey("vox", idemp, "mp3");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -215,8 +235,12 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   }
 
   async generateVoice(prompt: string): Promise<{ id: string }> {
-    const useCache = !this.config.disableCache;
-    const key = generatePredictableKey("voice", prompt, "txt");
+    const useCache = !this.options.disableCache;
+    const idemp = prompt;
+    if (this.options.verbose) {
+      console.info(chalk.gray(`Generate Voice ~> ${idemp}`));
+    }
+    const key = generatePredictableKey("voice", idemp, "txt");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -238,9 +262,12 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   }
 
   async generateChat(messages: AIChatMessage[]): Promise<AIChatMessage> {
-    const useCache = !this.config.disableCache;
-    const cacheKey = JSON.stringify(messages);
-    const key = generatePredictableKey("chat", cacheKey, "json");
+    const useCache = !this.options.disableCache;
+    const idemp = JSON.stringify(messages);
+    if (this.options.verbose) {
+      console.info(chalk.gray(`Generate Chat ~> ${idemp}`));
+    }
+    const key = generatePredictableKey("chat", idemp, "json");
     if (useCache) {
       const cached = await this.config.cache.get(key);
       if (cached) {
@@ -273,7 +300,7 @@ function extractBracketContent(prompt: string): string | null {
 export class MockStoryServiceProvider implements StoryServiceProvider {
   async generateText(
     prompt: string,
-    options: GenerateOptions
+    options: GenerateTextCompletionOptions
   ): Promise<string> {
     return (
       extractBracketContent(prompt) ?? `Mock completion for prompt: ${prompt}`
@@ -283,7 +310,7 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
   async generateJson(
     prompt: string,
     schema: Record<string, TSerial>,
-    options: GenerateOptions
+    options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>> {
     return (
       safeJsonParse(extractBracketContent(prompt)) ??
