@@ -304,16 +304,33 @@ export async function advanceStory(
         session.stack.length > 0 &&
         wouldEscapeCurrentBlock(node, result.next.node, root)
       ) {
-        // Pop from callstack instead of using the next node
-        const { returnAddress } = session.stack.pop()!;
-        session.address = returnAddress;
+        // Don't pop if the top frame is a yield - we need to keep it for the block to process
+        const topFrame = session.stack[session.stack.length - 1];
+        if (topFrame.blockType !== "yield") {
+          // Pop from callstack instead of using the next node
+          const { returnAddress } = session.stack.pop()!;
+          session.address = returnAddress;
+        } else {
+          session.address = result.next.node.addr;
+        }
       } else {
         session.address = result.next.node.addr;
       }
     } else {
       // No next node - check if we should return from a block
       if (session.stack.length > 0) {
-        const { returnAddress } = session.stack.pop()!;
+        const { returnAddress, blockType } = session.stack.pop()!;
+
+        // If we just finished a yield block and the return address is the same as the parent's return,
+        // we should pop the parent frame too to avoid double execution
+        if (blockType === "yield" && session.stack.length > 0) {
+          const parentFrame = session.stack[session.stack.length - 1];
+          if (parentFrame.returnAddress === returnAddress) {
+            // Pop the parent frame as well since we're at the end of both containers
+            session.stack.pop();
+          }
+        }
+
         session.address = returnAddress;
       } else {
         if (session.loops < options.loop) {
@@ -848,10 +865,24 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     // Blocks are only rendered if <yield>-ed to
     match: (node: StoryNode) => node.type === "block",
-    exec: async (ctx) => ({
-      ops: [],
-      next: skipBlock(ctx.node, ctx.root),
-    }),
+    exec: async (ctx) => {
+      // Check if we're in a yield context (i.e., this block was yielded to)
+      const inYieldContext =
+        ctx.session.stack.length > 0 &&
+        ctx.session.stack[ctx.session.stack.length - 1].blockType === "yield";
+
+      if (inYieldContext) {
+        // Process children when yielded to - treat block like a container
+        const next =
+          ctx.node.kids.length > 0
+            ? { node: ctx.node.kids[0] }
+            : nextNode(ctx.node, ctx.root, false);
+        return { ops: [], next };
+      } else {
+        // Skip block in normal flow
+        return { ops: [], next: skipBlock(ctx.node, ctx.root) };
+      }
+    },
   },
   {
     match: (node: StoryNode) => node.type === "yield",
@@ -898,20 +929,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         scope,
         blockType: "yield",
       });
-      // Go to first child of block (or next sibling if no children)
-      if (blockResult.node.kids.length > 0) {
-        return {
-          ops: [],
-          next: {
-            node: blockResult.node.kids[0],
-          },
-        };
-      } else {
-        return {
-          ops: [],
-          next: nextNode(blockResult.node, ctx.root, false),
-        };
-      }
+      // Instead of jumping to the block's children, jump to the block itself
+      // The block handler will need to process its children when yielded to
+      return {
+        ops: [],
+        next: {
+          node: blockResult.node,
+        },
+      };
     },
   },
   {
@@ -1148,7 +1173,13 @@ export function nextNode(
   if (LOOP_TAGS.includes(parent.type)) {
     return { node: parent };
   }
-  // No more siblings, recurse up the tree
+  // No more siblings, check if parent is a block that should end here
+  if (parent.type === "block") {
+    // If we're at the end of a block, don't continue to its siblings
+    // The block handler or yield return logic should handle what comes next
+    return null;
+  }
+  // Otherwise recurse up the tree
   return nextNode(parent, root, false);
 }
 
