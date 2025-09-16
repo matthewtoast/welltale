@@ -12,6 +12,8 @@ import {
 } from "./ElevenLabsUtils";
 import { safeJsonParse } from "./JSONHelpers";
 import {
+  AIChatMessage,
+  generateChatResponse,
   generateJson,
   generateJsonWithWeb,
   generateText,
@@ -47,6 +49,7 @@ export interface StoryServiceProvider {
     voices: VoiceSpec[]
   ): Promise<{ url: string }>;
   generateVoice(prompt: string): Promise<{ id: string }>;
+  generateChat(messages: AIChatMessage[]): Promise<AIChatMessage>;
 }
 
 export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
@@ -232,6 +235,31 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     }
     return { id: res.voiceId };
   }
+
+  async generateChat(messages: AIChatMessage[]): Promise<AIChatMessage> {
+    const useCache = !this.config.disableCache;
+    const cacheKey = JSON.stringify(messages);
+    const key = generatePredictableKey("chat", cacheKey, "json");
+    if (useCache) {
+      const cached = await this.config.cache.get(key);
+      if (cached) {
+        return JSON.parse(cached.toString());
+      }
+    }
+    const response = await generateChatResponse(this.config.openai, messages, [
+      "openai/gpt-5-mini",
+      "openai/gpt-4.1-mini",
+    ] as NonEmpty<Model>);
+    const responseMessage: AIChatMessage = {
+      role: "assistant",
+      body: response,
+    };
+    if (useCache) {
+      const buffer = Buffer.from(JSON.stringify(responseMessage, null, 2));
+      await this.config.cache.set(key, buffer, "application/json");
+    }
+    return responseMessage;
+  }
 }
 
 export class DefaultStoryServiceProvider extends BaseStoryServiceProvider {}
@@ -289,5 +317,12 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
 
   async generateVoice(prompt: string): Promise<{ id: string }> {
     return { id: extractBracketContent(prompt) ?? "mock-voice-id" };
+  }
+
+  async generateChat(messages: AIChatMessage[]): Promise<AIChatMessage> {
+    const lastMessage = messages[messages.length - 1];
+    const mockResponse =
+      extractBracketContent(lastMessage?.body ?? "") ?? "Mock chat response";
+    return { role: "assistant", body: mockResponse };
   }
 }

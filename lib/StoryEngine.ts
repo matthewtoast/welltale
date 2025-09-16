@@ -490,7 +490,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
 
       // Treated as the data in the normal case, or fallback if we have a URL
       if (isBlank(raw)) {
-        raw = await marshallText(ctx.node, ctx, "");
+        raw = await renderText(await marshallText(ctx.node, ctx, ""), ctx);
       }
 
       let val = null as TSerial | null;
@@ -507,21 +507,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const key = atts.key ?? "data";
       setState(ctx.scope, key, val);
       return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
-    },
-  },
-  {
-    match: (node) => node.type === "error",
-    exec: async (ctx) => {
-      const returnAddress =
-        ctx.session.input?.returnTo ??
-        nextNode(ctx.node, ctx.root, false)?.node.addr ??
-        ctx.origin.addr;
-      ctx.session.stack.push({ returnAddress, scope: {}, blockType: "scope" });
-      const next =
-        ctx.node.kids.length > 0
-          ? { node: ctx.node.kids[0] }
-          : nextNode(ctx.node, ctx.root, false);
-      return { ops: [], next };
     },
   },
   {
@@ -549,7 +534,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let text = "";
       if (isBlank(text)) {
         // Assume text nodes never contain actionable children, only text
-        text = await marshallText(ctx.node, ctx);
+        text = await renderText(await marshallText(ctx.node, ctx), ctx);
       }
       // Early exit spurious empty nodes
       if (isBlank(text)) {
@@ -558,9 +543,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           next,
         };
       }
-      text = await renderText(text, ctx);
       const event: StoryEvent = {
-        body: ctx.rng.randomElement(cleanSplit(text, "|")),
+        body: text,
         from: atts.from ?? atts.speaker ?? atts.label ?? "",
         to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
         obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
@@ -704,11 +688,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
-      let rollup = await marshallText(ctx.node, ctx);
-      if (!isBlank(atts.stash)) {
-        rollup = await renderText(rollup, ctx);
-      }
-      const value = !isBlank(rollup) ? rollup : atts.value;
+      let rollup = (await marshallText(ctx.node, ctx)).trim();
+      const value = await renderText(
+        !isBlank(rollup) ? rollup : atts.value,
+        ctx
+      );
       setState(ctx.scope, key, castToTypeEnhanced(value, atts.type));
       return {
         ops: [],
@@ -1305,7 +1289,7 @@ export function createScope(session: StorySession): { [key: string]: TSerial } {
 
 export async function renderText(
   text: string,
-  ctx: Partial<BaseActionContext>
+  ctx: BaseActionContext
 ): Promise<string> {
   if (isBlank(text) || text.length < 3) {
     return text;
@@ -1337,7 +1321,7 @@ export async function renderText(
 
 export async function renderAtts(
   atts: Record<string, string>,
-  ctx: Partial<BaseActionContext>
+  ctx: BaseActionContext
 ) {
   const out: Record<string, string> = {};
   for (const key in atts) {

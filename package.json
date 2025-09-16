@@ -15,7 +15,7 @@
     "web:dev": "next dev web",
     "web:build": "next build web",
     "web:start": "next start web",
-    "web:typecheck": "tsc -p web/tsconfig.json --noEmit",
+    "web:typecheck": "tsc -p web/tsconfig.typecheck.json --noEmit",
     "web:sst:dev": "sst dev",
     "web:sst:deploy": "sst deploy --stage prod",
     "web:sst:remove": "sst remove --stage prod"
@@ -38,8 +38,11 @@
     "@types/unzipper": "^0.10.11",
     "@types/xml2js": "^0.4.14",
     "@types/yargs": "^17.0.33",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
     "prettier": "^3.4.2",
     "sst": "^2.41.6",
+    "tailwindcss": "^4.1.13",
     "tsx": "^4.7.1",
     "typescript": "^5.8.3"
   },

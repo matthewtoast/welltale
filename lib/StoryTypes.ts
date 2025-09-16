@@ -36,7 +36,6 @@ const StoryEventSchema = z.object({
 });
 
 export const StoryCheckpointSchema = z.object({
-  createdAt: z.number(),
   addr: z.string().nullable(),
   turn: z.number(),
   cycle: z.number(),

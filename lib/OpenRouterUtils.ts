@@ -3,14 +3,14 @@ import OpenAI from "openai";
 import { NonEmpty, TSerial } from "typings";
 import { LLM_SLUGS } from "./StoryTypes";
 
-type Model = (typeof LLM_SLUGS)[number];
+type OpenAIChatModel = (typeof LLM_SLUGS)[number];
 
-type Msg = {
+export type AIChatMessage = {
   role: "user" | "assistant" | "system" | "developer";
-  content: string;
+  body: string;
 };
 
-const asInput = (p: string | Msg[]) =>
+const asInput = (p: string | AIChatMessage[]) =>
   typeof p === "string"
     ? [{ role: "user" as const, content: p }]
     : p.map((m) => ({
@@ -18,7 +18,7 @@ const asInput = (p: string | Msg[]) =>
           | "user"
           | "assistant"
           | "system",
-        content: m.content,
+        content: m.body,
       }));
 
 const readText = (r: {
@@ -27,7 +27,7 @@ const readText = (r: {
 
 const addOnline = (s: string, on: boolean) =>
   on ? (s.includes(":online") ? s : `${s}:online`) : s;
-const prepRoute = (models: NonEmpty<Model>, online: boolean) => {
+const prepRoute = (models: NonEmpty<OpenAIChatModel>, online: boolean) => {
   const route = models.map((m) => addOnline(m, online));
   const [model, ...fallbacks] = route;
   return { model, fallbacks };
@@ -37,7 +37,7 @@ export async function generateText(
   openai: OpenAI,
   prompt: string,
   useWebSearch = false,
-  models: NonEmpty<Model>
+  models: NonEmpty<OpenAIChatModel>
 ) {
   const { model, fallbacks } = prepRoute(models, useWebSearch);
   const r = await openai.chat.completions.create({
@@ -52,7 +52,7 @@ export async function extractJson(
   openai: OpenAI,
   text: string,
   schema: string,
-  models: NonEmpty<Model>
+  models: NonEmpty<OpenAIChatModel>
 ): Promise<Record<string, TSerial>> {
   return generateJson(
     openai,
@@ -71,7 +71,7 @@ export async function generateJsonWithWeb(
   openai: OpenAI,
   prompt: string,
   schema: string,
-  models: NonEmpty<Model>
+  models: NonEmpty<OpenAIChatModel>
 ) {
   return extractJson(
     openai,
@@ -85,7 +85,7 @@ export async function generateJson(
   openai: OpenAI,
   prompt: string,
   schema: string,
-  models: NonEmpty<Model>
+  models: NonEmpty<OpenAIChatModel>
 ): Promise<Record<string, TSerial>> {
   const { model, fallbacks } = prepRoute(models, false);
   const preface = "Return only a JSON object. Follow this schema:\n" + schema;
@@ -104,8 +104,8 @@ export async function generateJson(
 
 export async function generateChatResponse(
   openai: OpenAI,
-  messages: Msg[],
-  models: NonEmpty<Model>
+  messages: AIChatMessage[],
+  models: NonEmpty<OpenAIChatModel>
 ) {
   const { model, fallbacks } = prepRoute(models, true);
   const r = await openai.chat.completions.create({
