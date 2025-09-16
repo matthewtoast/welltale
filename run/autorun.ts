@@ -1,6 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
-import { makeBaseCtx } from "lib/ContextUtils";
+import { PRNG } from "lib/RandHelpers";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
 import {
@@ -138,7 +138,8 @@ async function runAutorun() {
         cache: new LocalCache(argv.cacheDir),
       });
 
-  const ctx = makeBaseCtx(provider, options);
+  const rng = new PRNG(options.seed);
+  const ctx = { rng, provider, scope: {}, options };
   const sources = await compileStory(ctx, cartridge, {
     doCompileVoices: false,
   });

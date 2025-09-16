@@ -33,6 +33,7 @@ export default {
           },
         ],
       });
+      const cacheBucket = new Bucket(stack, "Cache");
       const table = new Table(stack, "StoriesTable", {
         fields: {
           id: "string",
@@ -52,9 +53,13 @@ export default {
             handler: "jobs/worker.handler",
             environment: {
               STORIES_BUCKET: bucket.bucketName,
-              STORIES_TABLE: table.tableName
+              STORIES_TABLE: table.tableName,
+              CACHE_BUCKET: cacheBucket.bucketName,
+              OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "",
+              OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
+              ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY || ""
             },
-            permissions: [bucket, table]
+            permissions: [bucket, table, cacheBucket]
           }
         }
       });
@@ -67,7 +72,13 @@ export default {
           STORIES_TABLE: table.tableName
         }
       });
-      stack.addOutputs({ SiteUrl: site.url, JobsQueueUrl: queue.queueUrl, StoriesBucket: bucket.bucketName, StoriesTable: table.tableName });
+      stack.addOutputs({ 
+        SiteUrl: site.url, 
+        JobsQueueUrl: queue.queueUrl, 
+        StoriesBucket: bucket.bucketName, 
+        StoriesTable: table.tableName,
+        CacheBucket: cacheBucket.bucketName
+      });
     });
   }
 } satisfies SSTConfig;

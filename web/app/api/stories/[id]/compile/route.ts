@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { getMeta, putMeta } from "lib/StoryRepo";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -21,4 +21,3 @@ export async function POST(_: Request, ctx: { params: { id: string } }) {
   await c.send(new SendMessageCommand({ QueueUrl: q, MessageBody: body }));
   return NextResponse.json({ ok: true }, { status: 200 });
 }
-

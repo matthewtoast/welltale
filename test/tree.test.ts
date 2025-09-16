@@ -7,8 +7,9 @@ import {
 } from "lib/StoryNodeHelpers";
 import { StoryNode } from "lib/StoryTypes";
 import { expect } from "./TestUtils";
-import { makeBaseCtx, makeOptions } from "lib/ContextUtils";
 import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
+import { PRNG } from "lib/RandHelpers";
+import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 
 function createTestTree(): StoryNode {
   return {
@@ -92,8 +93,18 @@ async function test() {
   
   // Create a test context object
   const provider = new MockStoryServiceProvider();
-  const options = makeOptions("test-seed");
-  const ctx: BaseActionContext = makeBaseCtx(provider, options);
+  const options = {
+    verbose: false,
+    seed: "test-seed",
+    loop: 0,
+    ream: 100,
+    doGenerateSpeech: false,
+    doGenerateAudio: false,
+    maxCheckpoints: 20,
+    models: DEFAULT_LLM_SLUGS,
+  };
+  const rng = new PRNG(options.seed);
+  const ctx: BaseActionContext = { rng, provider, scope: {}, options };
 
   const foundNode = walkTree(tree, (node) =>
     node.atts.id === "intro-para" ? node : null

@@ -4,7 +4,7 @@ import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
 import { handleCommand } from "lib/ReplCommands";
 import { compileStory } from "lib/StoryCompiler";
-import { makeBaseCtx } from "lib/ContextUtils";
+import { PRNG } from "lib/RandHelpers";
 import { SeamType } from "lib/StoryEngine";
 import {
   DefaultStoryServiceProvider,
@@ -112,7 +112,8 @@ async function runRepl() {
         cache: new LocalCache(argv.cacheDir),
       });
 
-  const ctx = makeBaseCtx(provider, options);
+  const rng = new PRNG(options.seed);
+  const ctx = { rng, provider, scope: {}, options };
   const sources = await compileStory(ctx, cartridge, {
     doCompileVoices: false,
   });
