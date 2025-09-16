@@ -6,7 +6,7 @@ import { parseFieldGroups, parseFieldGroupsNested } from "lib/InputHelpers";
 import { simplifySchema } from "lib/JSONHelpers";
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
-import { renderText } from "lib/StoryEngine";
+import { renderText, BaseActionContext } from "lib/StoryEngine";
 import {
   enhanceText,
   generatePredictableKey,
@@ -20,8 +20,11 @@ import { parseSchemaString } from "lib/ZodHelpers";
 import { camelCase } from "lodash";
 import zodToJsonSchema from "zod-to-json-schema";
 import { expect } from "./TestUtils";
+import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 
 const rng = new PRNG("test");
+const mockProvider = new MockStoryServiceProvider();
 
 async function test() {
   // Eval expressions
@@ -160,17 +163,33 @@ async function test() {
   expect(camelCase("FOO_BAR"), "fooBar");
 
   // Template rendering (no escaping, dotted and bracket access)
+  const baseContext: BaseActionContext = {
+    rng,
+    provider: mockProvider,
+    scope: {},
+    options: {
+      verbose: false,
+      seed: "test",
+      loop: 0,
+      ream: 100,
+      doGenerateSpeech: false,
+      doGenerateAudio: false,
+      maxCheckpoints: 20,
+      models: DEFAULT_LLM_SLUGS,
+    },
+  };
+  
   expect(
-    await renderText("Hello {{name}}", { scope: { name: "World" } }),
+    await renderText("Hello {{name}}", { ...baseContext, scope: { name: "World" } }),
     "Hello World"
   );
-  expect(await renderText("Num {{x.y}}", { scope: { x: { y: 3 } } }), "Num 3");
+  expect(await renderText("Num {{x.y}}", { ...baseContext, scope: { x: { y: 3 } } }), "Num 3");
   expect(
-    await renderText("Arr {{a.0.name}}", { scope: { a: [{ name: "Z" }] } }),
+    await renderText("Arr {{a.0.name}}", { ...baseContext, scope: { a: [{ name: "Z" }] } }),
     "Arr Z"
   );
   expect(
-    await renderText("Obj {{o}}", { scope: { o: { z: 1 } } }),
+    await renderText("Obj {{o}}", { ...baseContext, scope: { o: { z: 1 } } }),
     'Obj {"z":1}'
   );
 
