@@ -62,11 +62,9 @@ export const StorySessionSchema = z.object({
   address: z.string().nullable(),
   input: z.union([
     z.object({
+      from: z.string(),
       body: z.string().nullable(),
       atts: z.record(z.any()),
-      addr: z.string().optional(),
-      retries: z.number().optional(),
-      returnTo: z.string().optional(),
     }),
     z.null(),
   ]),

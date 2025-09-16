@@ -6,8 +6,9 @@ import { safeJsonParse } from "lib/JSONHelpers";
 import {
   advanceStory,
   createDefaultSession,
-  FALLBACK_SPEAKER,
+  HOST_ID,
   OP,
+  PLAYER_ID,
   PlayMediaOptions,
   SeamType,
 } from "lib/StoryEngine";
@@ -93,7 +94,7 @@ export async function renderNext(
   if (input !== null) {
     console.log(chalk.greenBright(`${CAROT}${input}`));
     if (!session.input) {
-      session.input = { atts: {}, body: input };
+      session.input = { atts: {}, body: input, from: PLAYER_ID };
     } else {
       session.input.body = input;
     }
@@ -112,7 +113,7 @@ export async function renderNext(
           break;
         case "play-event":
           console.log(
-            chalk.cyan.bold(`${op.event.from || FALLBACK_SPEAKER}:`) +
+            chalk.cyan.bold(`${op.event.from || HOST_ID}:`) +
               " " +
               chalk.cyan(`${op.event.body}`)
           );

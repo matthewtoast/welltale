@@ -42,3 +42,5 @@ db/*
 
 run/sessions/*
 test/fixtures/sessions/*
+
+tmp/*

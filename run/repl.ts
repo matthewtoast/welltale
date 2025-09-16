@@ -1,20 +1,23 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
+import { loadEnv } from "lib/DotEnv";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
+import { PRNG } from "lib/RandHelpers";
 import { handleCommand } from "lib/ReplCommands";
 import { compileStory } from "lib/StoryCompiler";
-import { PRNG } from "lib/RandHelpers";
 import { SeamType } from "lib/StoryEngine";
 import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
 } from "lib/StoryServiceProvider";
 import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
+import { railsTimestamp } from "lib/TextHelpers";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { homedir } from "os";
 import { join } from "path";
+import { cwd } from "process";
 import readline from "readline";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -27,6 +30,8 @@ import {
 } from "../lib/LocalRunnerUtils";
 
 async function runRepl() {
+  loadEnv();
+
   const argv = await yargs(hideBin(process.argv))
     .option("seed", {
       type: "string",
@@ -38,9 +43,24 @@ async function runRepl() {
       description: "Use mock service provider for service calls",
       default: false,
     })
-    .option("playAudio", {
+    .option("doPlayAudio", {
       type: "boolean",
       description: "Play audio files true/false",
+      default: false,
+    })
+    .option("doGenerateSpeech", {
+      type: "boolean",
+      description: "Generate speech audio",
+      default: false,
+    })
+    .option("doGenerateAudio", {
+      type: "boolean",
+      description: "Generate other audio",
+      default: false,
+    })
+    .option("doCompileVoices", {
+      type: "boolean",
+      description: "Generate other audio",
       default: false,
     })
     .option("cartridgeDir", {
@@ -51,22 +71,22 @@ async function runRepl() {
     .option("sessionPath", {
       type: "string",
       description: "Path to the JSON file at which to save session data",
-      demandOption: true,
+      default: join(cwd(), "tmp", `welltale-${railsTimestamp()}.json`),
     })
     .option("openRouterApiKey", {
       type: "string",
-      description: "OpenAI API key",
-      demandOption: true,
+      description: "OpenRouter API key",
+      default: process.env.OPENROUTER_API_KEY,
     })
     .option("openRouterBaseUrl", {
       type: "string",
       description: "OpenRouter base URL",
-      demandOption: true,
+      default: process.env.OPENROUTER_BASE_URL,
     })
     .option("elevenlabsKey", {
       type: "string",
       description: "ElevenLabs API key",
-      demandOption: true,
+      default: process.env.ELEVENLABS_API_KEY,
     })
     .option("cacheDir", {
       type: "string",
@@ -80,6 +100,16 @@ async function runRepl() {
     .help()
     .parse();
 
+  if (!argv.elevenlabsKey) {
+    throw new Error("elevenlabsKey missing");
+  }
+  if (!argv.openRouterApiKey) {
+    throw new Error("openRouterApiKey missing");
+  }
+  if (!argv.openRouterBaseUrl) {
+    throw new Error("openRouterBaseUrl missing");
+  }
+
   const seed = argv.seed;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
@@ -90,11 +120,11 @@ async function runRepl() {
     verbose: true,
     ream: 100,
     loop: 0,
-    doGenerateSpeech: false,
-    doGenerateAudio: false,
+    doGenerateSpeech: argv.doGenerateSpeech,
+    doGenerateAudio: argv.doGenerateAudio,
     maxCheckpoints: 20,
     models: DEFAULT_LLM_SLUGS,
-    doPlayMedia: argv.playAudio,
+    doPlayMedia: argv.doPlayAudio,
   };
 
   console.info(
@@ -115,7 +145,7 @@ async function runRepl() {
   const rng = new PRNG(options.seed);
   const ctx = { rng, provider, scope: {}, options };
   const sources = await compileStory(ctx, cartridge, {
-    doCompileVoices: false,
+    doCompileVoices: argv.doCompileVoices,
   });
 
   let resp = await renderNext(

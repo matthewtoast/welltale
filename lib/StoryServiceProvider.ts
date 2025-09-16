@@ -19,7 +19,7 @@ import {
   generateText,
 } from "./OpenRouterUtils";
 import { LLM_SLUGS, VoiceSpec } from "./StoryTypes";
-import { generatePredictableKey } from "./TextHelpers";
+import { generatePredictableKey, parameterize } from "./TextHelpers";
 
 type Model = (typeof LLM_SLUGS)[number];
 
@@ -191,7 +191,8 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   ): Promise<{ url: string }> {
     const useCache = !this.config.disableCache;
     const voiceId = autoFindVoice(spec, voices);
-    const promptKey = `${spec.speaker}:${spec.voice}:${spec.tags.join(",")}:${spec.body}:${voiceId}`;
+    const promptKey = `${spec.speaker}:${spec.voice}:${spec.tags.join(",")}:${parameterize(spec.body)}:${voiceId}`;
+    console.log(promptKey);
     const key = generatePredictableKey("vox", promptKey, "mp3");
     if (useCache) {
       const cached = await this.config.cache.get(key);

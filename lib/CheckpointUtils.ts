@@ -1,10 +1,17 @@
-import { StoryCheckpoint, StoryEvent, StoryOptions, StorySession } from "./StoryTypes";
+import {
+  StoryCheckpoint,
+  StoryEvent,
+  StoryOptions,
+  StorySession,
+} from "./StoryTypes";
 
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
-export function snapshotSession(session: StorySession): Omit<StoryCheckpoint, "createdAt" | "events"> {
+export function snapshotSession(
+  session: StorySession
+): Omit<StoryCheckpoint, "events"> {
   return {
     addr: session.address,
     turn: session.turn,
@@ -23,7 +30,6 @@ export function makeCheckpoint(
 ): StoryCheckpoint {
   const snap = snapshotSession(session);
   const cp: StoryCheckpoint = {
-    createdAt: Date.now(),
     ...snap,
     events: events.slice(),
   };
@@ -67,7 +73,6 @@ export function revertSession(
 export function listCheckpoints(session: StorySession) {
   return session.checkpoints.map((c, i) => ({
     i,
-    createdAt: c.createdAt,
     addr: c.addr,
     turn: c.turn,
     cycle: c.cycle,

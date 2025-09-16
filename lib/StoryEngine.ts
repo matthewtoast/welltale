@@ -10,6 +10,7 @@ import {
   enhanceText,
   isBlank,
   LIQUID,
+  snorm,
 } from "lib/TextHelpers";
 import { get, isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "typings";
@@ -28,6 +29,7 @@ import {
   parseFieldGroupsNested,
 } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
+import { AIChatMessage } from "./OpenRouterUtils";
 import {
   cloneNode,
   DESCENDABLE_TAGS,
@@ -52,7 +54,7 @@ import {
 import { renderTemplate } from "./Template";
 
 export const PLAYER_ID = "USER";
-export const FALLBACK_SPEAKER = "HOST";
+export const HOST_ID = "HOST";
 
 export function createDefaultSession(
   id: string,
@@ -464,6 +466,70 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    match: (node: StoryNode) => node.type === "llm:dialog",
+    exec: async (ctx) => {
+      const ops: OP[] = [];
+      const next = nextNode(ctx.node, ctx.root, false);
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const assistant =
+        atts.npc ?? atts.ai ?? atts.assistant ?? atts.from ?? HOST_ID;
+      const user = atts.user ?? atts.player ?? PLAYER_ID;
+      const message = atts.message ?? atts.input;
+      if (isBlank(assistant) || isBlank(user) || isBlank(message)) {
+        return { ops, next };
+      }
+      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
+      // Checkpoints *should* be in sequential order
+      const events = ctx.session.checkpoints.flatMap((cp) =>
+        cp.events.filter((ev) => {
+          return (
+            (ev.from === assistant && ev.to.includes(user)) ||
+            (ev.from === user && ev.to.includes(assistant))
+          );
+        })
+      );
+      const messages: AIChatMessage[] = [
+        { role: "system", body: prompt },
+        ...events.map((ev) => {
+          if (ev.from === assistant) {
+            return { role: "assistant" as const, body: ev.body };
+          }
+          return { role: "user" as const, body: ev.body };
+        }),
+      ];
+      const response = await ctx.provider.generateChat(messages);
+      const event: StoryEvent = {
+        body: snorm(response.body),
+        from: assistant,
+        to: [user],
+        obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
+        tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
+        time: Date.now(),
+      };
+      const { url } = ctx.options.doGenerateSpeech
+        ? await ctx.provider.generateSpeech(
+            {
+              speaker: event.from,
+              voice: atts.voice ?? event.from,
+              tags: event.tags,
+              body: event.body,
+            },
+            ctx.voices
+          )
+        : { url: "" };
+      ops.push({
+        type: "play-event",
+        media: url,
+        event,
+        fadeAtMs: null,
+        fadeDurationMs: null,
+        background: false,
+        volume: parseNumberOrNull(atts.volume),
+      });
+      return { ops, next };
+    },
+  },
+  {
     match: (node: StoryNode) => node.type === "data",
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
@@ -544,8 +610,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         };
       }
       const event: StoryEvent = {
-        body: text,
-        from: atts.from ?? atts.speaker ?? atts.label ?? "",
+        body: snorm(text),
+        from: atts.from ?? atts.speaker ?? atts.label ?? HOST_ID,
         to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
         obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
         tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
@@ -555,7 +621,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ? await ctx.provider.generateSpeech(
             {
               speaker: event.from,
-              voice: atts.voice,
+              voice: atts.voice ?? event.from,
               tags: event.tags,
               body: event.body,
             },
@@ -566,9 +632,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         type: "play-event",
         media: url,
         event,
+        volume: parseNumberOrNull(atts.volume),
+        // Probably not likely to be used unless someone wants trailing off speech?
         fadeAtMs: parseNumberOrNull(atts.fadeAt),
         fadeDurationMs: parseNumberOrNull(atts.fadeDuration),
-        volume: parseNumberOrNull(atts.fadeDuration),
         background: castToBoolean(atts.background),
       });
       recordEvent(ctx.events, event);
@@ -789,7 +856,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) => node.type === "yield",
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
-      const targetBlockId = atts.target;
+      const targetBlockId = atts.target ?? atts.to;
       const returnToNodeId = atts.returnTo ?? atts.return;
       if (!targetBlockId) {
         return {
@@ -859,7 +926,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const ops: OP[] = [];
       if (!url) {
         const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
-        const prompt = !isBlank(rollup) ? rollup : atts.make;
+        const prompt = (
+          !isBlank(rollup)
+            ? rollup
+            : (atts.make ?? atts.prompt ?? atts.description)
+        ).trim();
         if (!isBlank(prompt)) {
           if (ctx.options.doGenerateAudio) {
             switch (ctx.node.type) {
@@ -905,7 +976,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           media: url,
           fadeAtMs: parseNumberOrNull(atts.fadeAt),
           fadeDurationMs: parseNumberOrNull(atts.fadeDuration),
-          volume: parseNumberOrNull(atts.fadeDuration),
+          volume: parseNumberOrNull(atts.volume),
           background: castToBoolean(atts.background),
         });
       }
@@ -922,14 +993,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const nextAfter = nextNode(ctx.node, ctx.root, false);
       const atts = await renderAtts(ctx.node.atts, ctx);
       const inp = ctx.session.input;
-      if (!inp || inp.addr !== ctx.node.addr) {
-        const r = atts.retries ? Number(atts.retries) || 0 : undefined;
-        ctx.session.input = {
-          body: null,
-          atts,
-          addr: ctx.node.addr,
-          retries: r,
-        };
+
+      if (!inp) {
         // Auto-checkpoint before yielding for input
         makeCheckpoint(ctx.session, ctx.options, ctx.events);
         ctx.events.length = 0;

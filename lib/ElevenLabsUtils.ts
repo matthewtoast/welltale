@@ -183,8 +183,8 @@ export function autoFindVoice(
     const id = voices[i].id;
     const ref = voices[i].ref;
     if (
-      spec.voice === id ||
-      spec.voice === ref ||
+      spec.voice.toLowerCase() === id.toLowerCase() ||
+      spec.voice.toLowerCase() === ref.toLowerCase() ||
       spec.tags.includes(id) ||
       spec.tags.includes(ref)
     ) {
@@ -193,13 +193,16 @@ export function autoFindVoice(
   }
   // match by voice name
   for (let i = 0; i < voices.length; i++) {
-    if (spec.voice === voices[i].name) {
+    if (spec.voice.toLowerCase() === voices[i].name.toLowerCase()) {
       return voices[i].id;
     }
   }
   // match by given speaker or find name match in tags
   for (let i = 0; i < voices.length; i++) {
-    if (spec.tags.includes(voices[i].name) || spec.speaker === voices[i].name) {
+    if (
+      spec.tags.includes(voices[i].name) ||
+      spec.speaker.toLowerCase() === voices[i].name.toLowerCase()
+    ) {
       return voices[i].id;
     }
   }

@@ -14,6 +14,10 @@ export function smoosh(s: string): string {
   return s.trim().replaceAll(/\s+/g, " ");
 }
 
+export function snorm(s: string): string {
+  return s.split("\n").map(smoosh).join("\n");
+}
+
 export function fence() {
   return "```";
 }
