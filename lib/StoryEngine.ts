@@ -760,7 +760,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) => node.type === "jump",
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
-      let next;
+      let next: { node: StoryNode } | null = null;
       if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
         next = searchForNode(
           ctx.root,
@@ -768,6 +768,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         );
       } else {
         next = nextNode(ctx.node, ctx.root, false);
+      }
+      if (next && next.node === ctx.node) {
+        console.warn("Attempted <jump> to same node; nullifying path");
+        next = null;
       }
       return {
         ops: [],

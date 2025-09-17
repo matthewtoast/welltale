@@ -23,8 +23,9 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import {
   CAROT,
+  continueUntilBlocking,
   loadSessionFromDisk,
-  renderNext,
+  renderUntilBlocking,
   RunnerOptions,
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
@@ -165,15 +166,17 @@ async function runRepl() {
     compileOptions
   );
 
-  let resp = await renderNext(
+  const save = () => saveSessionToDisk(session, argv.sessionPath);
+  const optionsWithSeed: RunnerOptions = { ...runnerOptions, seed };
+
+  let resp = await renderUntilBlocking(
     null,
     session,
     sources,
-    { ...runnerOptions, seed },
-    provider
+    optionsWithSeed,
+    provider,
+    save
   );
-
-  saveSessionToDisk(session, argv.sessionPath);
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -183,7 +186,7 @@ async function runRepl() {
 
   rl.on("close", () => process.exit(0));
 
-  if (resp.seam === SeamType.FINISH || resp.seam === SeamType.ERROR) {
+  if (resp.seam !== SeamType.INPUT) {
     rl.close();
     return;
   }
@@ -199,7 +202,7 @@ async function runRepl() {
         options: runnerOptions,
         provider,
         seed,
-        save: () => saveSessionToDisk(session, argv.sessionPath),
+        save,
       });
       if (!r.handled) {
         console.warn("Unknown command");
@@ -207,18 +210,28 @@ async function runRepl() {
         return;
       }
       if (r.seam) {
-        resp = { seam: r.seam, ops: r.ops ?? [] };
+        resp = await continueUntilBlocking(
+          { seam: r.seam, ops: r.ops ?? [] },
+          session,
+          sources,
+          optionsWithSeed,
+          provider,
+          save
+        );
+      } else {
+        rl.prompt();
+        return;
       }
     } else {
       try {
-        resp = await renderNext(
+        resp = await renderUntilBlocking(
           fixed,
           session,
           sources,
-          { ...runnerOptions, seed },
-          provider
+          optionsWithSeed,
+          provider,
+          save
         );
-        saveSessionToDisk(session, argv.sessionPath);
       } catch (err) {
         console.error(chalk.red(err));
       }
@@ -226,11 +239,9 @@ async function runRepl() {
 
     if (resp.seam === SeamType.INPUT) {
       rl.prompt();
-    } else if (resp.seam === SeamType.GRANT) {
-      rl.prompt(); // TODO: Make granting an advance automatic?
-    } else {
-      rl.close();
+      return;
     }
+    rl.close();
   });
 }
 

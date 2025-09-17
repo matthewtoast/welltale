@@ -46,10 +46,11 @@
     {{playerName}}. [hesitant] It's great to hear your voice.
     [awkward] Listen, there's... something at work I really need your input on.
     [serious] I'm wondering if you can meet me for lunch - today - to discuss. The usual spot, near my office.
+    I know you said you were walking away for good, but...
   </p>
 
   <p from="Clyde" id="jacobson-begs">
-    I know you said you were walking away for good, but... Well, I wouldn't ask if it weren't urgent and important. Will you meet me?
+    I wouldn't ask if it weren't urgent and important. Will you meet me?
   </p>
 
   <input willMeetClyde.type="boolean" willMeetClyde.default="true" />
@@ -62,6 +63,8 @@
     Thanks, {{playerName}}. I'll owe you a favor.
     See you soon.
   </p>
+
+  <jump to="jacobson-meeting" />
 </sec>
 
 <sec id="jacobson-meeting">

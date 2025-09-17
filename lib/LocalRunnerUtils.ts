@@ -147,6 +147,41 @@ export async function renderNext(
   return { seam, ops };
 }
 
+type RenderResult = Awaited<ReturnType<typeof renderNext>>;
+
+export async function continueUntilBlocking(
+  resp: RenderResult,
+  session: StorySession,
+  sources: StorySource,
+  options: RunnerOptions,
+  provider: StoryServiceProvider,
+  after?: (resp: RenderResult) => Promise<void> | void
+) {
+  let next = resp;
+  while (next.seam === SeamType.MEDIA || next.seam === SeamType.GRANT) {
+    next = await renderNext(null, session, sources, options, provider);
+    if (after) {
+      await after(next);
+    }
+  }
+  return next;
+}
+
+export async function renderUntilBlocking(
+  input: string | null,
+  session: StorySession,
+  sources: StorySource,
+  options: RunnerOptions,
+  provider: StoryServiceProvider,
+  after?: (resp: RenderResult) => Promise<void> | void
+) {
+  const first = await renderNext(input, session, sources, options, provider);
+  if (after) {
+    await after(first);
+  }
+  return continueUntilBlocking(first, session, sources, options, provider, after);
+}
+
 export async function runUntilComplete(
   info: {
     options: RunnerOptions;
@@ -157,28 +192,32 @@ export async function runUntilComplete(
     inputs: string[];
   },
   seam: SeamType = SeamType.GRANT,
-  // Provided so a caller can accumulate what is produced through this run
-  // or even throw in a courtesy wait() to avoid rate limiting or something
   thunk?: (resp: {
     ops: OP[];
     seam: SeamType;
     session: StorySession;
   }) => Promise<void>
 ) {
-  if (seam === SeamType.ERROR || seam === SeamType.FINISH) {
-    // Terminate early (do not recurse)
-    return seam;
+  let next = seam;
+  const runOptions = { ...info.options, seed: info.seed };
+  const after = thunk
+    ? async (resp: RenderResult) => {
+        await thunk({ ...resp, session: info.session });
+      }
+    : undefined;
+  while (true) {
+    if (next === SeamType.ERROR || next === SeamType.FINISH) {
+      return next;
+    }
+    const input = next === SeamType.INPUT ? info.inputs.shift() ?? "" : null;
+    const resp = await renderUntilBlocking(
+      input,
+      info.session,
+      info.sources,
+      runOptions,
+      info.provider,
+      after
+    );
+    next = resp.seam;
   }
-  const resp = await renderNext(
-    seam === SeamType.INPUT ? (info.inputs.shift() ?? "") : null,
-    info.session,
-    info.sources,
-    { ...info.options, seed: info.seed },
-    info.provider
-  );
-  if (thunk) {
-    await thunk({ ...resp, session: info.session });
-  }
-  // Contine if seam was GRANT, INPUT, or MEDIA
-  return runUntilComplete(info, resp.seam);
 }
