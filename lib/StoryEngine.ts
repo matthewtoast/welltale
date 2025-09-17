@@ -1388,6 +1388,8 @@ export function createScope(session: StorySession): { [key: string]: TSerial } {
   });
 }
 
+const DDV_SEPARATOR = "|";
+
 export async function renderText(
   text: string,
   ctx: BaseActionContext
@@ -1395,28 +1397,29 @@ export async function renderText(
   if (isBlank(text) || text.length < 3) {
     return text;
   }
+  // 1. {{handlebars}} for interpolation
   let result = renderTemplate(text, ctx.scope ?? {});
-  if (ctx.rng) {
-    result = await enhanceText(
-      result,
-      async (chunk: string) => {
-        return castToString(evalExpr(chunk, ctx.scope ?? {}, {}, ctx.rng!));
-      },
-      DOLLAR
-    );
-  }
-  if (ctx.provider) {
-    result = await enhanceText(
-      result,
-      async (chunk: string) => {
-        return await ctx.provider!.generateText(chunk, {
-          models: ctx.options?.models ?? DEFAULT_LLM_SLUGS,
-          useWebSearch: false,
-        });
-      },
-      LIQUID
-    );
-  }
+  // 2. {$dollars$} for scripting
+  result = await enhanceText(
+    result,
+    async (chunk: string) => {
+      return castToString(evalExpr(chunk, ctx.scope ?? {}, {}, ctx.rng!));
+    },
+    DOLLAR
+  );
+  // 3. "|" pipe for dynamic variation
+  result = ctx.rng.randomElement(result.split(DDV_SEPARATOR));
+  // 4. {%liquid%} for inline LLM calls
+  result = await enhanceText(
+    result,
+    async (chunk: string) => {
+      return await ctx.provider!.generateText(chunk, {
+        models: ctx.options?.models ?? DEFAULT_LLM_SLUGS,
+        useWebSearch: false,
+      });
+    },
+    LIQUID
+  );
   return result;
 }
 

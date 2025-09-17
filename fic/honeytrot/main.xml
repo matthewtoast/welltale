@@ -1,3 +1,7 @@
+<!-- <compile:voice id="host" description="a neutral American female voice, audiobook narrator, undertones of intrigue and mystery" /> -->
+<!-- <compile:voice id="jacobson" description="deep male voice, American, authoritative, military background, serious yet soft" /> -->
+<!-- <compile:voice id="warner" descriptino="middle aged male, nasally and pinched, nerdy, well-enunciated with pedantic undertones" /> -->
+
 <intro>
   <music duration="10000" fadeAt="75000" fadeDuration="2500">
     1990s spy thriller intro music, electronic, pulsing notes reminiscent of information flowing through circuit boards
@@ -10,7 +14,7 @@
 
 <block id="get-name">
   <p>
-    Before we begin, what is your first name?
+    Before we begin, what's your first name?
   </p>
   <input playerName.description="The player's first name" playerName.default="Blake" />
 </block>
@@ -26,8 +30,11 @@
 
 <origin>
   <p>
-    It’s 1994. As the Cold War ended, you, like so many others who worked in intelligence, returned to civilian life.
-    You thought you were done for good. But then, the phone rang.
+    It’s 1994.
+    After the Cold War ended, you, like so many others who worked in intelligence, returned to civilian life.
+    You said goodbye to the secrecy, the bureaucracy, and - most of all - the unshakeable feeling that you were just a pawn.
+    But the secret world, the world of espionage, continued just the same. You were content leaving it all behind...
+    Until you received the phone call. The voice on the line was someone you hadn't heard for years.
   </p>
   <jump to="jacobson-phone-call" />
 </origin>
@@ -36,12 +43,13 @@
   <sound prompt="an early 1990s digital telephone ringing twice, then being quickly picked up and the 'answer' button pressed" duration="4000" />
 
   <p from="Clyde">
-    {{playerName}}. It's great to hear your voice.
+    {{playerName}}. [hesitant] It's great to hear your voice.
+    [awkward] Listen, there's... something at work I really need your input on.
+    [serious] I'm wondering if you can meet me for lunch - today - to discuss. The usual spot, near my office.
   </p>
 
   <p from="Clyde" id="jacobson-begs">
-    I know you said you were walking away for good, but... I wouldn't ask if it weren't urgent and important.
-    Will you meet me?
+    I know you said you were walking away for good, but... Well, I wouldn't ask if it weren't urgent and important. Will you meet me?
   </p>
 
   <input willMeetClyde.type="boolean" willMeetClyde.default="true" />
@@ -53,5 +61,16 @@
   <p from="Clyde">
     Thanks, {{playerName}}. I'll owe you a favor.
     See you soon.
+  </p>
+</sec>
+
+<sec id="jacobson-meeting">
+  <sound prompt="the din of a public park in an office area of a city - birds chirping, car traffic, distant conversation" duration="4000" />
+
+  <p from="Clyde">
+    I'm happy to see you again agent {{playerName}}. [pause] You look good. [awkward] Well... Look, let me just cut to the chase.
+    [businesslike] We need your help on a pretty tight turnaround.
+    I admit, I hesitated to call you because, well... [awkward] maybe the call wouldn't be welcome. [deep breath]
+    But, due to the nature of this job, I can only ask someone I have complete trust in. [confident] And, at the end of the day, that's you.
   </p>
 </sec>
