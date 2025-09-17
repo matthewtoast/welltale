@@ -1,18 +1,34 @@
-import { execSync } from "child_process";
-import { loadEnv } from "lib/DotEnv";
-import { quo } from "lib/JSONHelpers";
-import { join } from "path";
+import { expect, runTestStory } from "./TestUtils";
 
-loadEnv();
+async function testSimpleStory() {
+  const xmlContent = `
+<p>
+  Hello world
+</p>
 
-const cwd = join(__dirname, "..");
+<input />
 
-const API_KEYS = `--openRouterBaseUrl ${process.env.OPENROUTER_BASE_URL} --openRouterApiKey ${process.env.OPENROUTER_API_KEY} --elevenlabsKey ${process.env.ELEVENLABS_API_KEY}`;
+<p>
+  Input was: {{input}}
+</p>
+`;
 
-execSync(
-  `yarn ts ./run/auto.ts ${API_KEYS} \
-    --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test-simple"))} \
-    --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test-simple-session.json"))}
-    `,
-  { stdio: "inherit", cwd }
-);
+  const userInput = "test input";
+  const { ops, seam } = await runTestStory(xmlContent, [userInput]);
+  
+  const eventOps = ops.filter(op => op.type === "play-event");
+  const textEvents = eventOps.filter(op => op.event && op.event.body);
+  
+  expect(textEvents.length >= 2, true);
+  expect(textEvents[0].event.body.includes("Hello world"), true);
+  expect(textEvents[1].event.body.includes("Input was: test input"), true);
+  
+  const inputOps = ops.filter(op => op.type === "get-input");
+  expect(inputOps.length, 1);
+  
+  expect(seam, "finish");
+  
+  console.log("✓ simple.test.ts passed");
+}
+
+testSimpleStory().catch(console.error);

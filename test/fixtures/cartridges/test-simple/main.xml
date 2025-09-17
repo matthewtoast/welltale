@@ -1,9 +1,0 @@
-<p>
-  Hello world
-</p>
-
-<input />
-
-<p>
-  Input was: {{input}}
-</p>

@@ -1,16 +1,30 @@
-import { execSync } from "child_process";
-import { loadEnv } from "lib/DotEnv";
-import { quo } from "lib/JSONHelpers";
-import { join } from "path";
+import { expect, runTestStory } from "./TestUtils";
 
-loadEnv();
+async function testModuleInclude() {
+  const xmlContent = `
+<module id="greeting">
+  <p>Hello from module!</p>
+</module>
 
-const cwd = join(__dirname, "..");
-const API_KEYS = `--openRouterBaseUrl ${process.env.OPENROUTER_BASE_URL} --openRouterApiKey ${process.env.OPENROUTER_API_KEY} --elevenlabsKey ${process.env.ELEVENLABS_API_KEY}`;
-execSync(
-  `yarn ts ./run/auto.ts ${API_KEYS} \
-    --cartridgeDir ${quo(join(cwd, "test/fixtures/cartridges/test-module-include"))} \
-    --sessionPath ${quo(join(cwd, "test/fixtures/sessions/test-module-include-session.json"))}
-    `,
-  { stdio: "inherit", cwd }
-);
+<p>Start</p>
+<include id="greeting" />
+<p>End</p>
+`;
+
+  const { ops, seam } = await runTestStory(xmlContent);
+  
+  const eventOps = ops.filter(op => op.type === "play-event");
+  const textEvents = eventOps.filter(op => op.event && op.event.body);
+  const textBodies = textEvents.map(e => e.event.body.trim());
+  
+  expect(textBodies.length, 3);
+  expect(textBodies[0], "Start");
+  expect(textBodies[1], "Hello from module!");
+  expect(textBodies[2], "End");
+  
+  expect(seam, "finish");
+  
+  console.log("✓ mod-incl-cart.test.ts passed");
+}
+
+testModuleInclude().catch(console.error);
