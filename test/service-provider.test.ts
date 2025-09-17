@@ -102,7 +102,8 @@ async function go() {
     dedent`
       A very enthusiastic baseball announcer speaking as if in the final inning, tied with bases loaded.
       High tension and excitement, suspense is in the air
-    `
+    `,
+    {}
   );
   console.log(i3);
 
@@ -113,19 +114,22 @@ async function go() {
       voice: "",
       tags: [],
     },
-    [{ ...i3, tags: [], name: "BaseballGuy", ref: "" }]
+    [{ ...i3, tags: [], name: "BaseballGuy", ref: "" }],
+    {}
   );
   console.log(i4);
 
   const i5 = await provider.generateSound(
     "Sounds of horses hooves and swords clashing, a chaotic medieval battlefield",
-    5_000
+    5_000,
+    {}
   );
   console.log(i5);
 
   const i6 = await provider.generateMusic(
     "Cinematic music, an elderly knight riding out for what's sure ot be his final battle, symphonic, tragic",
-    30_000
+    30_000,
+    {}
   );
   console.log(i6);
 }

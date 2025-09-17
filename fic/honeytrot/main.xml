@@ -14,9 +14,14 @@
 
 <block id="get-name">
   <p>
-    Before we begin, what's your first name?
+    Before we begin, what's your first name and gender?
   </p>
-  <input playerName.description="The player's first name" playerName.default="Blake" />
+  <input
+    playerName.description="The player's first name"
+    playerName.default="Blake"
+    playerGender.description="The player's gender"
+    playerGender.type="man|woman"
+    playerGender.default="man" />
 </block>
 
 <resume>
@@ -73,7 +78,44 @@
   <p from="Clyde">
     I'm happy to see you again {{playerName}}. [pause] You look good. [awkward] Well... Look, let me just cut to the chase.
     [businesslike] We need your help on a pretty tight turnaround.
+  </p>
+  <p from="Clyde">
     I admit, I hesitated to call you because, well... [awkward] maybe the call wouldn't be welcome. [deep breath]
     But, due to the nature of this job, I can only ask someone I have complete trust in. [confident] And, at the end of the day, that's you.
   </p>
+  <p from="Clyde">
+    The target is a 42-year-old white male named Wesley Tidus.
+    Martial status: Single, never married.
+    Occupation: computer systems analyst at Funtronics. Yes, the toy company.
+  </p>
+  <p from="Clyde">
+    Now, we've only had two days to surveil him - like I told you, tight turnaround - but the picture we get is a man dedicated to his work.
+    He's a lifelong bachelor, but he doesn't socialize - not as far as we can tell. He's up at 5am, asleep by 9pm every day. You can set a clock to this guy's routine.
+  </p>
+  <p from="Clyde">
+    The only sign he's interested in a life outside of work is from garbage analysis.
+    Long story short, one interesting item we found was a registration receipt for a video matchmaking service.
+    That's where you come in. Any questions so far?
+  </p>
+  <p from="Clyde">
+    Tidus is one of the few non-researchers to have access to the high-security R&D wing at Funtronics' main building.
+    Part of the security process involves passing through a state-of-the-art voice identity checkpoint.
+  </p>
+  <p from="Clyde">
+    To pass the voice analysis system, Tidus has to say the passphrase, "My name is Wesley Tidus. My voice is my passport. Verify me."
+  </p>
+
+  <!-- <while cond="true" />
+    <llm:classify key="resp"
+        whats_in_trash="wants info about other items found in Tidus' trash"
+        our_relationship="wants to know about their personal history with Jacobson"
+      >
+      The player and an NPC named Jacobson are talking about another NPC named Wesley Tidus.
+      Here is the player's most recent input: "{{input}}"
+      Find the best classification for what the player is saying in essence.
+    </llm:classify>
+    <if cond="includes(resp, '')">
+    </if>
+  </while> -->
+
 </sec>

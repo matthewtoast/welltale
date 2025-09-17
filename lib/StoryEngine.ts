@@ -22,13 +22,9 @@ import {
   castToTypeEnhanced,
   isTruthy,
 } from "./EvalCasting";
-import { evalExpr } from "./EvalUtils";
+import { ensureArray, evalExpr } from "./EvalUtils";
 import { fetch, isValidUrl, toHttpMethod } from "./HTTPHelpers";
-import {
-  FieldSpec,
-  parseFieldGroups,
-  parseFieldGroupsNested,
-} from "./InputHelpers";
+import { parseFieldGroups, parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { AIChatMessage } from "./OpenRouterUtils";
 import {
@@ -158,6 +154,7 @@ export async function advanceStory(
 ): Promise<{
   ops: OP[];
   session: StorySession;
+  addr: string | null;
   seam: SeamType;
   info: Record<string, string>;
 }> {
@@ -173,7 +170,7 @@ export async function advanceStory(
 
   const voices = source.voices;
 
-  if (calls++ < 1) {
+  if (calls++ < 1 && options.verbose) {
     console.info(chalk.gray(dumpTree(root)));
   }
 
@@ -212,13 +209,17 @@ export async function advanceStory(
     session.address = origin.addr;
   }
 
-  function done(seam: SeamType, info: Record<string, string>) {
+  function done(
+    seam: SeamType,
+    addr: string | null,
+    info: Record<string, string>
+  ) {
     if (evs.length > 0) {
       makeCheckpoint(session, options, evs);
       evs.length = 0;
     }
     session.cycle = rng.cycle;
-    return { ops: out, session, seam, info };
+    return { ops: out, session, seam, addr, info };
   }
 
   const eventHandlers = findNodes(root, (node) => node.type === "event");
@@ -230,7 +231,7 @@ export async function advanceStory(
     if (session.address === OUTRO_RETURN_ADDR) {
       session.address = null;
       out.push({ type: "story-end" });
-      return done(SeamType.FINISH, {});
+      return done(SeamType.FINISH, null, {});
     }
 
     let node: StoryNode | null =
@@ -239,20 +240,20 @@ export async function advanceStory(
     if (!node) {
       const error = `Node ${session.address} not found`;
       console.warn(error);
-      return done(SeamType.ERROR, { error });
+      return done(SeamType.ERROR, null, { error });
     }
 
     if (!visits[node.addr]) {
       visits[node.addr] += 1;
     } else {
-      return done(SeamType.GRANT, {
+      return done(SeamType.GRANT, node.addr, {
         reason: `Loop encountered at node ${node.addr}`,
       });
     }
 
     if (iterations > 0 && iterations % options.ream === 0) {
       iterations += 1;
-      return done(SeamType.GRANT, {
+      return done(SeamType.GRANT, node.addr, {
         reason: `Iteration ${iterations} reached`,
       });
     }
@@ -367,13 +368,13 @@ export async function advanceStory(
       const type = out[out.length - 1].type;
       switch (type) {
         case "get-input":
-          return done(SeamType.INPUT, {});
+          return done(SeamType.INPUT, node.addr, {});
         case "story-end":
-          return done(SeamType.FINISH, {});
+          return done(SeamType.FINISH, node.addr, {});
         // Let the client start playing the media right away when available
         case "play-event":
         case "play-media":
-          return done(SeamType.MEDIA, {});
+          return done(SeamType.MEDIA, node.addr, {});
         default: // no-op
       }
     }
@@ -417,7 +418,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema[k] = schemaAll[k];
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
-      const models = attsToModels(ctx.options, atts.models);
+      const models = normalizeModels(ctx.options, atts.models);
       const result = await ctx.provider.generateJson(
         dedent`
           Extract structured data from the input per the schema.
@@ -436,24 +437,21 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
-      const cleaned = publicAtts(atts);
-      const cats: string[] = [];
-      for (const k in cleaned) {
-        if (k === "key" || k === "web") continue;
-        if (!k.includes(".")) cats.push(k);
-      }
+      const cleaned = omit(publicAtts(atts), "key");
       const useWebSearch = isTruthy(atts.web) ? true : false;
-      const models = attsToModels(ctx.options, atts.models);
-      const out = await ctx.provider.generateText(
+      const models = normalizeModels(ctx.options, atts.models);
+      const out = await ctx.provider.generateJson(
         dedent`
-          Classify the input into one of these labels: ${cats.join(", ")}.
-          Return only the winning label.
+          Classify the input into 0 or more labels based on the best fit per each label's description.
           <input>${prompt}</input>
+          <labels>${JSON.stringify(cleaned, null, 2)}</labels>
+          Return only the winning labels. Return multiple labels only if multiple are relevant.
         `,
+        { labels: "array<string> - Classification labels for the input" },
         { models, useWebSearch }
       );
       const key = atts.key ?? "classify";
-      setState(ctx.scope, key, out);
+      setState(ctx.scope, key, ensureArray(out.labels ?? []));
       return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
     },
   },
@@ -469,7 +467,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         if (!k.includes(".")) schema[k] = "number";
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
-      const models = attsToModels(ctx.options, atts.models);
+      const models = normalizeModels(ctx.options, atts.models);
       const result = await ctx.provider.generateJson(
         dedent`
           Score the input for each key between 0.0 and 1.0.
@@ -496,7 +494,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema[k] = schemaAll[k];
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
-      const models = attsToModels(ctx.options, atts.models);
+      const models = normalizeModels(ctx.options, atts.models);
       const result = await ctx.provider.generateJson(
         dedent`
           Generate data per the instruction, conforming to the schema.
@@ -542,7 +540,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           return { role: "user" as const, body: ev.body };
         }),
       ];
-      const response = await ctx.provider.generateChat(messages);
+      const response = await ctx.provider.generateChat(messages, {});
       const event: StoryEvent = {
         body: snorm(response.body),
         from: assistant,
@@ -559,7 +557,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               tags: event.tags,
               body: event.body,
             },
-            userVoicesAndPresetVoices(ctx.voices)
+            userVoicesAndPresetVoices(ctx.voices),
+            {}
           )
         : { url: "" };
       ops.push({
@@ -670,7 +669,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               tags: event.tags,
               body: event.body,
             },
-            userVoicesAndPresetVoices(ctx.voices)
+            userVoicesAndPresetVoices(ctx.voices),
+            {}
           )
         : { url: "" };
       ops.push({
@@ -1011,14 +1011,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               case "audio":
                 const audio = await ctx.provider.generateSound(
                   prompt,
-                  parseNumberOrNull(atts.duration) ?? 5_000
+                  parseNumberOrNull(atts.duration) ?? 5_000,
+                  {}
                 );
                 url = audio.url;
                 break;
               case "music":
                 const music = await ctx.provider.generateMusic(
                   prompt,
-                  parseNumberOrNull(atts.duration) ?? 10_000
+                  parseNumberOrNull(atts.duration) ?? 10_000,
+                  {}
                 );
                 url = music.url;
                 break;
@@ -1030,7 +1032,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                     body: prompt,
                     tags: cleanSplit(atts.tags, ","),
                   },
-                  userVoicesAndPresetVoices(ctx.voices)
+                  userVoicesAndPresetVoices(ctx.voices),
+                  {}
                 );
                 url = voice.url;
                 break;
@@ -1074,27 +1077,48 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
 
       if (ctx.session.input && ctx.session.input.body !== null) {
-        const raw = ctx.session.input.body;
+        const raw = snorm(ctx.session.input.body);
+        const extracted: Record<string, TSerial> = {};
 
-        const groups: Record<string, FieldSpec> = parseFieldGroups(atts);
-        const keys = Object.keys(groups);
+        if (ctx.options.verbose) {
+          console.info(chalk.gray("<input>", raw));
+        }
 
-        let extracted: Record<string, TSerial> = {};
+        // We might have received JSON as input; this is just an affordance for automations
         const parsed = safeJsonParse(raw);
         if (parsed && typeof parsed === "object") {
-          extracted = parsed as Record<string, TSerial>;
+          Object.assign(extracted, parsed as Record<string, TSerial>);
         } else {
-          for (const key of keys) {
-            const spec = groups[key];
-            extracted[key] = await processInputValue(
-              castToString(raw),
-              spec,
-              ctx
-            );
+          const groups = parseFieldGroups(omit(atts, "models", "key"));
+          const keys = Object.keys(groups);
+          if (keys.length > 0) {
+            // In the simple case we receive a single word input, skip the LLM call and parse
+            if (!raw.match(/\s/) && keys.length === 1) {
+              const key = keys[0]!;
+              const value = processSimpleInputValue(raw, groups[key], ctx);
+              extracted[key] = value;
+            } else {
+              const enhanced = await ctx.provider.generateJson(
+                dedent`
+                  Extract structured data from the input.
+                  <input>${raw}</input>
+                  Example:
+                  If the input is "my name is Bob and I'm 24", and the schema is {"name.type": "string", "name.description": "the user's name", "age.type": "number"}, your output should be: {"name": "Bob", "age": 25}.
+                  Normalize and return JSON per the schema.
+                `,
+                omit(atts, "models"),
+                {
+                  disableCache: true,
+                  useWebSearch: false, // Can't think of a good reason to use web search for input
+                  models: normalizeModels(ctx.options, atts.models),
+                }
+              );
+              Object.assign(extracted, enhanced);
+            }
           }
         }
 
-        // Make original input available in state
+        // Make original input available in state - local scope and global
         ctx.scope["input"] = raw;
         ctx.session.state["input"] = raw;
         if (!isBlank(atts.key)) {
@@ -1102,9 +1126,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           ctx.session.state[atts.key] = raw;
         }
         for (const key in extracted) {
-          // Set input values in both scope (for immediate use) and global state (for persistence)
           ctx.scope[key] = extracted[key];
-          ctx.session.state[key] = extracted[key];
+          // MAYBE: Do we also want to hoist the key into global state as well
+          // ctx.session.state[key] = extracted[key];
         }
 
         ctx.session.input = null;
@@ -1165,16 +1189,17 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
 ];
 
-export function attsToModels(
+export function normalizeModels(
   options: StoryOptions,
-  attms: string | undefined
+  attms: string | undefined,
+  defaultModels: NonEmpty<(typeof LLM_SLUGS)[number]> = DEFAULT_LLM_SLUGS
 ): NonEmpty<(typeof LLM_SLUGS)[number]> {
   const models: (typeof LLM_SLUGS)[number][] = [...options.models];
   const want = cleanSplit(attms, ",")
     .filter((m) => (LLM_SLUGS as readonly string[]).includes(m))
     .reverse();
   for (const w of want) models.unshift(w as (typeof LLM_SLUGS)[number]);
-  const out = (models.length > 0 ? models : [...DEFAULT_LLM_SLUGS]) as NonEmpty<
+  const out = (models.length > 0 ? models : [...defaultModels]) as NonEmpty<
     (typeof LLM_SLUGS)[number]
   >;
   return out;
@@ -1325,67 +1350,6 @@ function setState(
   set(state, key, value);
 }
 
-async function processInputValue(
-  raw: string,
-  atts: Record<string, string>,
-  ctx: ActionContext
-): Promise<TSerial> {
-  let value: TSerial = raw;
-  const type = atts.type ?? "string";
-  const fallback = atts.default ?? "";
-
-  // AI Enhancement
-  if (!isBlank(atts.make)) {
-    const enhanced = await ctx.provider.generateJson(
-      dedent`
-        Extract the most appropriate value of type "${type}" from the input, per the instruction, conforming to the pattern.
-        <input>${raw}</input>
-        <instruction>${atts.make}</instruction>
-        <pattern>${atts.pattern ?? ".*"}</pattern>
-      `,
-      { value: type },
-      {
-        models: DEFAULT_LLM_SLUGS,
-        useWebSearch: false,
-      }
-    );
-    value = enhanced.value;
-  }
-
-  // Default Fallback
-  if (isBlank(value)) {
-    value = fallback;
-  }
-
-  // Parse Expression (using existing evalExpr)
-  if (atts.parse) {
-    value = evalExpr(
-      castToString(atts.parse),
-      { ...ctx.scope, input: value },
-      {},
-      ctx.rng
-    );
-    if (value === undefined || value === null) {
-      value = fallback;
-    }
-  }
-
-  // Pattern Validation
-  if (atts.pattern) {
-    const pattern = castToString(atts.pattern);
-    if (!new RegExp(pattern).test(castToString(value))) {
-      value = fallback; // If not valid, make blank to be filled in by defaults later
-    }
-  }
-
-  // Type Casting
-  if (atts.type) {
-    value = castToTypeEnhanced(value, atts.type);
-  }
-
-  return value;
-}
-
 export function createScope(session: StorySession): { [key: string]: TSerial } {
   const globalState = session.state;
 
@@ -1487,4 +1451,48 @@ export async function renderAtts(
 
 export function userVoicesAndPresetVoices(userVoices: VoiceSpec[]) {
   return [...userVoices, ...ELEVENLABS_PRESET_VOICES];
+}
+
+function processSimpleInputValue(
+  raw: string,
+  atts: Record<string, string>,
+  ctx: ActionContext
+): TSerial {
+  let value: TSerial = raw;
+  const type = atts.type ?? "string";
+  const fallback = atts.default ?? atts.fallback ?? "";
+
+  // Default Fallback
+  if (isBlank(value)) {
+    value = fallback;
+  }
+
+  // Parse Expression (using existing evalExpr)
+  if (atts.parse) {
+    value = evalExpr(
+      castToString(atts.parse),
+      { ...ctx.scope, input: value },
+      {},
+      ctx.rng
+    );
+    if (isBlank(value)) {
+      value = fallback;
+    }
+  }
+
+  // Pattern Validation
+  if (atts.pattern) {
+    const pattern = castToString(atts.pattern);
+    console.log(pattern);
+    if (!new RegExp(pattern).test(castToString(value))) {
+      value = fallback; // If not valid, make blank to be filled in by defaults later
+    }
+  }
+
+  // Type Casting
+  if (type) {
+    value = castToTypeEnhanced(value, type);
+  }
+
+  return value;
 }

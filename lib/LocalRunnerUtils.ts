@@ -90,7 +90,11 @@ export async function renderNext(
   sources: StorySource,
   options: RunnerOptions,
   provider: StoryServiceProvider
-) {
+): Promise<{
+  seam: SeamType;
+  ops: OP[];
+  addr: string | null;
+}> {
   if (input !== null) {
     console.log(chalk.greenBright(`${CAROT}${input}`));
     if (!session.input) {
@@ -99,7 +103,7 @@ export async function renderNext(
       session.input.body = input;
     }
   }
-  const { ops, seam, info } = await advanceStory(
+  const { ops, seam, info, addr } = await advanceStory(
     provider,
     sources,
     session,
@@ -144,7 +148,7 @@ export async function renderNext(
         : "Unknown error";
     console.log(chalk.red.bold(`ERROR: ${msg}`));
   }
-  return { seam, ops };
+  return { seam, ops, addr };
 }
 
 type RenderResult = Awaited<ReturnType<typeof renderNext>>;
@@ -179,7 +183,14 @@ export async function renderUntilBlocking(
   if (after) {
     await after(first);
   }
-  return continueUntilBlocking(first, session, sources, options, provider, after);
+  return continueUntilBlocking(
+    first,
+    session,
+    sources,
+    options,
+    provider,
+    after
+  );
 }
 
 export async function runUntilComplete(
@@ -209,7 +220,7 @@ export async function runUntilComplete(
     if (next === SeamType.ERROR || next === SeamType.FINISH) {
       return next;
     }
-    const input = next === SeamType.INPUT ? info.inputs.shift() ?? "" : null;
+    const input = next === SeamType.INPUT ? (info.inputs.shift() ?? "") : null;
     const resp = await renderUntilBlocking(
       input,
       info.session,

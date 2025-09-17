@@ -57,3 +57,13 @@ export function getParser(
   );
   return parser;
 }
+
+export function ensureArray(a: any): any[] {
+  if (Array.isArray(a)) {
+    return a;
+  }
+  if (a === null || a === undefined || isNaN(a)) {
+    return [];
+  }
+  return [a];
+}

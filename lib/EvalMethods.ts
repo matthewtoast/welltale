@@ -62,6 +62,7 @@ export const arrayHelpers: Record<string, (...args: any[]) => P | P[]> = {
   flattenDeep: (a: A, depth?: P) =>
     flatDeep(toArr(a) as any[], depth == null ? 1 / 0 : num(depth) | 0),
   includes: (a: A, v: A) => toArr(a).some((x) => eq(x, v)),
+  contains: (a: A, v: A) => toArr(a).some((x) => eq(x, v)),
   indexOf: (a: A, v: A) => {
     const t = toArr(a);
     for (let i = 0; i < t.length; i++) if (eq(t[i], v)) return i;

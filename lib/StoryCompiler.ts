@@ -141,7 +141,7 @@ export async function compileStory(
         node.atts.prompt ??
         node.atts.description ??
         (await marshallText(node, ctx));
-      const { id } = await ctx.provider.generateVoice(text);
+      const { id } = await ctx.provider.generateVoice(text, {});
       voices.push({
         id,
         ref: node.atts.id.trim(),

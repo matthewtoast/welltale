@@ -24,7 +24,11 @@ import { generatePredictableKey, parameterize } from "./TextHelpers";
 
 type Model = (typeof LLM_SLUGS)[number];
 
-export type GenerateTextCompletionOptions = {
+export type BaseGenerateOptions = {
+  disableCache?: boolean;
+};
+
+export type GenerateTextCompletionOptions = BaseGenerateOptions & {
   models: NonEmpty<Model>;
   useWebSearch: boolean;
 };
@@ -46,14 +50,29 @@ export interface StoryServiceProvider {
     schema: Record<string, TSerial>,
     options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>>;
-  generateSound(prompt: string, durationMs: number): Promise<{ url: string }>;
-  generateMusic(prompt: string, durationMs: number): Promise<{ url: string }>;
+  generateSound(
+    prompt: string,
+    durationMs: number,
+    options: BaseGenerateOptions
+  ): Promise<{ url: string }>;
+  generateMusic(
+    prompt: string,
+    durationMs: number,
+    options: BaseGenerateOptions
+  ): Promise<{ url: string }>;
   generateSpeech(
     spec: SpeechSpec,
-    voices: VoiceSpec[]
+    voices: VoiceSpec[],
+    options: BaseGenerateOptions
   ): Promise<{ url: string }>;
-  generateVoice(prompt: string): Promise<{ id: string }>;
-  generateChat(messages: AIChatMessage[]): Promise<AIChatMessage>;
+  generateVoice(
+    prompt: string,
+    options: BaseGenerateOptions
+  ): Promise<{ id: string }>;
+  generateChat(
+    messages: AIChatMessage[],
+    options: BaseGenerateOptions
+  ): Promise<AIChatMessage>;
 }
 
 export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
@@ -73,7 +92,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     prompt: string,
     options: GenerateTextCompletionOptions
   ): Promise<string> {
-    const useCache = !this.options.disableCache;
+    const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${JSON.stringify(options.models)}:${parameterize(prompt)}`;
     if (this.options.verbose) {
       console.info(chalk.gray(`Generate Text ~> ${idemp}`));
@@ -107,7 +126,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     schema: Record<string, TSerial>,
     options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>> {
-    const useCache = !this.options.disableCache;
+    const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${JSON.stringify(options.models)}:${prompt}:${JSON.stringify(schema)}:${options.useWebSearch}`;
     if (this.options.verbose) {
       console.info(chalk.gray(`Generate JSON ~> ${idemp}`));
@@ -145,9 +164,10 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
 
   async generateSound(
     prompt: string,
-    durationMs: number
+    durationMs: number,
+    options: BaseGenerateOptions
   ): Promise<{ url: string }> {
-    const useCache = !this.options.disableCache;
+    const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${prompt}:${durationMs}`;
     if (this.options.verbose) {
       console.info(chalk.gray(`Generate Sound ~> ${idemp}`));
@@ -175,9 +195,10 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
 
   async generateMusic(
     prompt: string,
-    durationMs: number
+    durationMs: number,
+    options: BaseGenerateOptions
   ): Promise<{ url: string }> {
-    const useCache = !this.options.disableCache;
+    const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${prompt}:${durationMs}`;
     if (this.options.verbose) {
       console.info(chalk.gray(`Generate Music ~> ${idemp}`));
@@ -205,9 +226,10 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
 
   async generateSpeech(
     spec: SpeechSpec,
-    voices: VoiceSpec[]
+    voices: VoiceSpec[],
+    options: BaseGenerateOptions
   ): Promise<{ url: string }> {
-    const useCache = !this.options.disableCache;
+    const useCache = !this.options.disableCache && !options.disableCache;
     const voiceId = autoFindVoice(spec, voices);
     const idemp = `${spec.speaker}:${spec.voice}:${JSON.stringify(spec.tags)}:${parameterize(spec.body)}:${voiceId}:${voices.length}`;
     if (this.options.verbose) {
@@ -234,8 +256,11 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     return { url };
   }
 
-  async generateVoice(prompt: string): Promise<{ id: string }> {
-    const useCache = !this.options.disableCache;
+  async generateVoice(
+    prompt: string,
+    options: BaseGenerateOptions
+  ): Promise<{ id: string }> {
+    const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = prompt;
     if (this.options.verbose) {
       console.info(chalk.gray(`Generate Voice ~> ${idemp}`));
@@ -261,8 +286,11 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     return { id: res.voiceId };
   }
 
-  async generateChat(messages: AIChatMessage[]): Promise<AIChatMessage> {
-    const useCache = !this.options.disableCache;
+  async generateChat(
+    messages: AIChatMessage[],
+    options: BaseGenerateOptions
+  ): Promise<AIChatMessage> {
+    const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = JSON.stringify(messages);
     if (this.options.verbose) {
       console.info(chalk.gray(`Generate Chat ~> ${idemp}`));

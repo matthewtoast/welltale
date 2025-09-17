@@ -173,39 +173,55 @@ async function testBlockOrder() {
 
   const inputs = ["input1", "invalid1", "invalid2", "Xylophone"];
   const { ops, seam } = await runTestStory(xmlContent, inputs);
-  
-  const eventOps = ops.filter(op => op.type === "play-event");
-  const textEvents = eventOps.filter(op => op.event && op.event.body);
-  const textBodies = textEvents.map(e => e.event.body.trim());
-  
+
+  const eventOps = ops.filter((op) => op.type === "play-event");
+  const textEvents = eventOps.filter((op) => op.event && op.event.body);
+  const textBodies = textEvents.map((e) => e.event.body.trim());
+
   const expectedOrder = [
-    "A", "B", "C", "D", "E", "F", "G", "H", "I bar", "J", 
-    "K\nL", "M eminem", "N nono", "O - shouldn't show blank var foo declared in block: ()",
-    "P - input should appear here = (input1)", "Q 2", "S", "U",
-    "V - inner scope text with its own inner var", "W - but there should not be a 'v' variable here: ()",
-    "... Say a word beginning with the letter \"x\".",
-    "... Say a word beginning with the letter \"x\".",
-    "... Say a word beginning with the letter \"x\".",
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I bar",
+    "J",
+    "K\nL",
+    "M eminem",
+    "N nono",
+    "O - shouldn't show blank var foo declared in block: ()",
+    "P - input should appear here = (input1)",
+    "Q 2",
+    "S",
+    "U",
+    "V - inner scope text with its own inner var",
+    "W - but there should not be a 'v' variable here: ()",
+    '... Say a word beginning with the letter "x".',
+    '... Say a word beginning with the letter "x".',
+    '... Say a word beginning with the letter "x".',
     'X - input finally started with x = "Xylophone"',
     "Y",
     "Z - Basic when tests:\nNumber is greater than 3!",
     "AA\nOuter when is true",
     "BB\nThe value is 5 and string is hello.",
     "CC\nVariable is empty!\nString is not empty!",
-    "DD"
+    "DD",
   ];
-  
+
   expect(textBodies.length, expectedOrder.length);
-  
+
   for (let i = 0; i < expectedOrder.length; i++) {
     expect(textBodies[i], expectedOrder[i]);
   }
-  
-  const inputOps = ops.filter(op => op.type === "get-input");
+
+  const inputOps = ops.filter((op) => op.type === "get-input");
   expect(inputOps.length, 4);
-  
+
   expect(seam, "finish");
-  
+
   console.log("✓ block-order.test.ts passed");
 }
 
