@@ -108,7 +108,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>> {
     const useCache = !this.options.disableCache;
-    const idemp = `${JSON.stringify(options.models)}:${prompt}:${schema}:${options.useWebSearch}`;
+    const idemp = `${JSON.stringify(options.models)}:${prompt}:${JSON.stringify(schema)}:${options.useWebSearch}`;
     if (this.options.verbose) {
       console.info(chalk.gray(`Generate JSON ~> ${idemp}`));
     }
