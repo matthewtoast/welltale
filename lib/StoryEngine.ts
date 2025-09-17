@@ -56,6 +56,7 @@ import { renderTemplate } from "./Template";
 
 export const PLAYER_ID = "USER";
 export const HOST_ID = "HOST";
+const OUTRO_RETURN_ADDR = "__outro:return__";
 
 export function createDefaultSession(
   id: string,
@@ -77,6 +78,7 @@ export function createDefaultSession(
     cache: {},
     flowTarget: null,
     checkpoints: [],
+    outroDone: false,
   };
 }
 
@@ -177,6 +179,7 @@ export async function advanceStory(
 
   // The origin (if present) is the node the author wants to treat as the de-facto beginning of playback
   const origin = findNodes(root, (node) => node.type === "origin")[0] ?? root;
+  const outro = findNodes(root, (node) => node.type === "outro")[0] ?? null;
 
   // Check for resume first (takes precedence over intro)
   if (session.resume) {
@@ -224,6 +227,12 @@ export async function advanceStory(
   let iterations = 0;
 
   while (true) {
+    if (session.address === OUTRO_RETURN_ADDR) {
+      session.address = null;
+      out.push({ type: "story-end" });
+      return done(SeamType.FINISH, {});
+    }
+
     let node: StoryNode | null =
       findNodes(root, (node) => node.addr === session.address)[0] ?? null;
 
@@ -338,6 +347,16 @@ export async function advanceStory(
           session.loops += 1;
           session.address = null;
         } else {
+          if (outro && !session.outroDone) {
+            session.outroDone = true;
+            session.stack.push({
+              returnAddress: OUTRO_RETURN_ADDR,
+              scope: {},
+              blockType: "outro",
+            });
+            session.address = outro.addr;
+            continue;
+          }
           out.push({ type: "story-end" });
         }
       }
@@ -852,6 +871,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    match: (node: StoryNode) => node.type === "outro",
+    exec: async (ctx) => {
+      const next = nextNode(ctx.node, ctx.root, true);
+      return { ops: [], next };
+    },
+  },
+  {
     // Resume nodes are processed only when explicitly resuming, otherwise skipped
     match: (node: StoryNode) => node.type === "resume",
     exec: async (ctx) => {
@@ -1225,6 +1251,7 @@ function isStackContainerType(t: string): boolean {
     t === "scope" ||
     t === "intro" ||
     t === "resume" ||
+    t === "outro" ||
     t === "error"
   );
 }
@@ -1258,6 +1285,7 @@ export function wouldEscapeCurrentBlock(
       node.type === "scope" ||
       node.type === "intro" ||
       node.type === "resume" ||
+      node.type === "outro" ||
       node.type === "error"
     ) {
       blockAncestor = node;

@@ -42,11 +42,14 @@ export const StoryCheckpointSchema = z.object({
   time: z.number(),
   state: z.record(z.any()),
   meta: z.record(z.any()),
+  outroDone: z.boolean().optional(),
   stack: z.array(
     z.object({
       returnAddress: z.string(),
       scope: z.record(z.any()),
-      blockType: z.enum(["scope", "yield", "intro", "resume"]).optional(),
+      blockType: z
+        .enum(["scope", "yield", "intro", "resume", "outro"])
+        .optional(),
     })
   ),
   events: z.array(StoryEventSchema),
@@ -68,11 +71,14 @@ export const StorySessionSchema = z.object({
     }),
     z.null(),
   ]),
+  outroDone: z.boolean().default(false),
   stack: z.array(
     z.object({
       returnAddress: z.string(),
       scope: z.record(z.any()),
-      blockType: z.enum(["scope", "yield", "intro", "resume"]).optional(),
+      blockType: z
+        .enum(["scope", "yield", "intro", "resume", "outro"])
+        .optional(),
     })
   ),
   state: z.record(z.any()),
