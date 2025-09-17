@@ -227,7 +227,10 @@ export function autoFindVoice(
   if (bestMatch) {
     return bestMatch.id;
   }
-  if (spec.speaker.toLowerCase() === HOST_ID) {
+  if (
+    spec.speaker.toLowerCase() === HOST_ID.toLowerCase() ||
+    spec.voice.toLowerCase() === HOST_ID.toLowerCase()
+  ) {
     return NEUTRAL_VOICE;
   }
   return voices[0] ? voices[0].id : NEUTRAL_VOICE;
