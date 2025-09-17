@@ -346,6 +346,7 @@ export async function advanceStory(
         if (session.loops < options.loop) {
           session.loops += 1;
           session.address = null;
+          session.outroDone = false;
         } else {
           if (outro && !session.outroDone) {
             session.outroDone = true;
@@ -873,8 +874,17 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   {
     match: (node: StoryNode) => node.type === "outro",
     exec: async (ctx) => {
-      const next = nextNode(ctx.node, ctx.root, true);
-      return { ops: [], next };
+      const inOutroContext = ctx.session.stack.some(
+        (frame) => frame.blockType === "outro"
+      );
+      if (inOutroContext) {
+        const next =
+          ctx.node.kids.length > 0
+            ? { node: ctx.node.kids[0] }
+            : nextNode(ctx.node, ctx.root, false);
+        return { ops: [], next };
+      }
+      return { ops: [], next: nextNode(ctx.node, ctx.root, false) };
     },
   },
   {
