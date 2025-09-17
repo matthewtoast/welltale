@@ -116,6 +116,7 @@ export interface ActionContext extends BaseActionContext {
 
 export enum SeamType {
   INPUT = "input", // Client is expected to send user input in next call
+  MEDIA = "media", // Server produced media to render
   GRANT = "grant", // Client should call again to grant OK to next batch of work
   ERROR = "error", // Error was encountered, could not continue
   FINISH = "finish", // Story was completed
@@ -344,10 +345,16 @@ export async function advanceStory(
 
     if (out.length > 0) {
       const type = out[out.length - 1].type;
-      if (type === "get-input") {
-        return done(SeamType.INPUT, {});
-      } else if (type === "story-end") {
-        return done(SeamType.FINISH, {});
+      switch (type) {
+        case "get-input":
+          return done(SeamType.INPUT, {});
+        case "story-end":
+          return done(SeamType.FINISH, {});
+        // Let the client start playing the media right away when available
+        case "play-event":
+        case "play-media":
+          return done(SeamType.MEDIA, {});
+        default: // no-op
       }
     }
   }

@@ -166,6 +166,7 @@ export async function runUntilComplete(
   }) => Promise<void>
 ) {
   if (seam === SeamType.ERROR || seam === SeamType.FINISH) {
+    // Terminate early (do not recurse)
     return seam;
   }
   const resp = await renderNext(
@@ -178,5 +179,6 @@ export async function runUntilComplete(
   if (thunk) {
     await thunk({ ...resp, session: info.session });
   }
+  // Contine if seam was GRANT, INPUT, or MEDIA
   return runUntilComplete(info, resp.seam);
 }
