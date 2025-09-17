@@ -7,6 +7,7 @@ import {
 } from "@elevenlabs/elevenlabs-js/api";
 import { inferGenderFromName } from "./DialogHelpers";
 import { NEUTRAL_VOICE } from "./ElevenLabsVoices";
+import { HOST_ID } from "./StoryEngine";
 import { VoiceSpec } from "./StoryTypes";
 
 const DEFAULT_OUTPUT_FORMAT = "mp3_44100_128" as const;
@@ -223,5 +224,11 @@ export function autoFindVoice(
       bestMatch = voice;
     }
   }
-  return bestMatch ? bestMatch.id : voices[0] ? voices[0].id : NEUTRAL_VOICE;
+  if (bestMatch) {
+    return bestMatch.id;
+  }
+  if (spec.speaker.toLowerCase() === HOST_ID) {
+    return NEUTRAL_VOICE;
+  }
+  return voices[0] ? voices[0].id : NEUTRAL_VOICE;
 }

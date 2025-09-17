@@ -35,5 +35,5 @@ expect(
     },
     ELEVENLABS_PRESET_VOICES
   ),
-  "pNInz6obpgDQGcFmaJgB"
+  "21m00Tcm4TlvDq8ikWAM"
 );

@@ -71,7 +71,7 @@
   <sound prompt="the din of a public park in an office area of a city - birds chirping, car traffic, distant conversation" duration="4000" />
 
   <p from="Clyde">
-    I'm happy to see you again agent {{playerName}}. [pause] You look good. [awkward] Well... Look, let me just cut to the chase.
+    I'm happy to see you again {{playerName}}. [pause] You look good. [awkward] Well... Look, let me just cut to the chase.
     [businesslike] We need your help on a pretty tight turnaround.
     I admit, I hesitated to call you because, well... [awkward] maybe the call wouldn't be welcome. [deep breath]
     But, due to the nature of this job, I can only ask someone I have complete trust in. [confident] And, at the end of the day, that's you.
