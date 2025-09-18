@@ -18,6 +18,7 @@
     Before we begin, what's your first name and gender?
   </p>
   <input
+    scope="global"
     playerName.description="The player's first name"
     playerName.default="Blake"
     playerGender.description="The player's gender"

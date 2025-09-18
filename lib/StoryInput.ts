@@ -7,10 +7,12 @@ import { parseFieldGroups, parseFieldGroupsNested } from "./InputHelpers";
 import { BaseActionContext, normalizeModels } from "./StoryEngine";
 import { isBlank } from "./TextHelpers";
 
+export const SPECIAL_INPUT_FIELD_ATTS = ["models", "key", "scope"];
+
 function tryParseEnum(value: TSerial, enumString: string): string | null {
   const options = enumString.split("|").map((s) => s.trim());
   const normalized = castToString(value).toLowerCase().trim();
-  
+
   // Try exact match first
   const match = options.find((opt) => opt.toLowerCase() === normalized);
   if (match) return match;
@@ -24,7 +26,7 @@ function tryParseEnum(value: TSerial, enumString: string): string | null {
       return opt;
     }
   }
-  
+
   return null;
 }
 
@@ -33,7 +35,9 @@ async function extractWithLLM(
   atts: Record<string, string>,
   ctx: BaseActionContext
 ): Promise<Record<string, TSerial>> {
-  const schema = parseFieldGroupsNested(omit(atts, "models"));
+  const schema = parseFieldGroupsNested(
+    omit(atts, ...SPECIAL_INPUT_FIELD_ATTS)
+  );
   const enhanced = await ctx.provider.generateJson(
     dedent`
       Extract structured data from the input.
@@ -49,8 +53,7 @@ async function extractWithLLM(
       models: normalizeModels(ctx.options, atts.models),
     }
   );
-  
-  
+
   return enhanced;
 }
 
@@ -60,7 +63,13 @@ export async function extractInput(
   ctx: BaseActionContext
 ): Promise<Record<string, TSerial>> {
   const out: Record<string, TSerial> = {};
-  const groups = parseFieldGroups(omit(atts, "models", "key"));
+
+  if (Object.keys(atts).length < 1) {
+    out["input"] = raw.trim();
+    return out;
+  }
+
+  const groups = parseFieldGroups(omit(atts, ...SPECIAL_INPUT_FIELD_ATTS));
   // The case of <input key="foo" />
   if (Object.keys(groups).length < 1 && atts.key) {
     groups[atts.key] = { type: "string" };

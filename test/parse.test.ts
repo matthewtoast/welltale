@@ -175,6 +175,7 @@ async function test() {
       doGenerateSpeech: false,
       doGenerateAudio: false,
       maxCheckpoints: 20,
+      inputRetryMax: 3,
       models: DEFAULT_LLM_SLUGS,
     },
   };

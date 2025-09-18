@@ -80,6 +80,7 @@ export async function runTestStory(
     ream: 100,
     loop: 0,
     maxCheckpoints: 20,
+    inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
     doGenerateSpeech: false,
     doGenerateAudio: false,

@@ -87,6 +87,8 @@ export const StorySessionSchema = z.object({
   cache: z.record(z.any()),
   flowTarget: z.string().nullable().optional(),
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
+  inputTries: z.record(z.number()).default({}),
+  inputLast: z.string().nullable().default(null),
 });
 
 export const LLM_SLUGS = [
@@ -121,6 +123,7 @@ export const StoryOptionsSchema = z.object({
   doGenerateSpeech: z.boolean(),
   doGenerateAudio: z.boolean(),
   maxCheckpoints: z.number().default(20),
+  inputRetryMax: z.number().default(3),
   models: z
     .tuple([LLMSlugSchema, LLMSlugSchema])
     .rest(LLMSlugSchema)

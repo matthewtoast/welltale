@@ -74,6 +74,8 @@ export function createDefaultSession(
     flowTarget: null,
     checkpoints: [],
     outroDone: false,
+    inputTries: {},
+    inputLast: null,
   };
 }
 
@@ -93,6 +95,7 @@ export type OP =
       type: "play-event";
       event: StoryEvent;
     } & PlayMediaOptions)
+  | { type: "story-error"; reason: string }
   | { type: "story-end" };
 
 export interface BaseActionContext {
@@ -287,6 +290,13 @@ export async function advanceStory(
     const result = await handler.exec(ctx);
     out.push(...result.ops);
 
+    if (out.length > 0) {
+      const recent = out[out.length - 1];
+      if (recent.type === "story-error") {
+        return done(SeamType.ERROR, node.addr, { reason: recent.reason });
+      }
+    }
+
     if (options.verbose) {
       console.info(
         `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${result.next?.node.addr} ${JSON.stringify(result.ops)}`
@@ -354,17 +364,18 @@ export async function advanceStory(
     }
 
     if (out.length > 0) {
-      const type = out[out.length - 1].type;
-      switch (type) {
+      const last = out[out.length - 1];
+      switch (last.type) {
         case "get-input":
           return done(SeamType.INPUT, node.addr, {});
         case "story-end":
           return done(SeamType.FINISH, node.addr, {});
-        // Let the client start playing the media right away when available
+        case "story-error":
+          return done(SeamType.ERROR, node.addr, { reason: last.reason });
         case "play-event":
         case "play-media":
           return done(SeamType.MEDIA, node.addr, {});
-        default: // no-op
+        default:
       }
     }
   }
@@ -1057,10 +1068,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const nextAfter = nextNode(ctx.node, ctx.root, false);
       const atts = await renderAtts(ctx.node.atts, ctx);
+      const tim = parseNumberOrNull(atts.timeLimit ?? atts.for);
+      const attrMax = parseNumberOrNull(atts.retryMax);
+      const max = Math.max(1, attrMax ?? ctx.options.inputRetryMax);
+      if (ctx.session.inputLast && ctx.session.inputLast !== ctx.node.addr) {
+        ctx.session.inputTries = {};
+      }
+      ctx.session.inputLast = ctx.node.addr;
       const inp = ctx.session.input;
 
       if (!inp) {
-        // Auto-checkpoint before yielding for input
         makeCheckpoint(ctx.session, ctx.options, ctx.events);
         ctx.events.length = 0;
       }
@@ -1073,7 +1090,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           console.info("<input>", raw);
         }
 
-        // We might have received JSON as input; this is just an affordance for automations
         const parsed = safeJsonParse(raw);
         if (parsed && typeof parsed === "object") {
           Object.assign(extracted, parsed as Record<string, TSerial>);
@@ -1082,11 +1098,45 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           Object.assign(extracted, enhanced);
         }
 
-        // Always make original input available as local and global
+        const invalid =
+          isEmpty(extracted) ||
+          Object.values(extracted).some((val) => val === null);
+
+        if (invalid) {
+          ctx.session.input = null;
+          const prev = ctx.session.inputTries[ctx.node.addr] ?? 0;
+          const cnt = prev + 1;
+          ctx.session.inputTries[ctx.node.addr] = cnt;
+          if (cnt >= max) {
+            const msg = `Input ${ctx.node.addr} failed after ${cnt} attempts`;
+            return {
+              ops: [
+                {
+                  type: "story-error",
+                  reason: msg,
+                },
+              ],
+              next: null,
+            };
+          }
+          const fallback = searchForNode(ctx.root, atts.catch);
+          if (fallback) {
+            return { ops: [], next: fallback };
+          }
+          return {
+            ops: [
+              {
+                type: "get-input",
+                timeLimit: tim,
+              },
+            ],
+            next: { node: ctx.node },
+          };
+        }
+
         ctx.scope["input"] = raw;
         ctx.session.state["input"] = raw;
 
-        // Extracted fields go in local scope only
         for (const key in extracted) {
           ctx.scope[key] = extracted[key];
           if (atts.scope === "global") {
@@ -1094,8 +1144,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           }
         }
 
+        ctx.session.inputTries[ctx.node.addr] = 0;
         ctx.session.input = null;
-        // We received input and processed, so proceed to next node now
         return { ops: [], next: nextAfter ?? null };
       }
 
@@ -1103,10 +1153,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [
           {
             type: "get-input",
-            timeLimit: parseNumberOrNull(atts.timeLimit ?? atts.for),
+            timeLimit: tim,
           },
         ],
-        // We remain at this node while we get input
         next: { node: ctx.node },
       };
     },

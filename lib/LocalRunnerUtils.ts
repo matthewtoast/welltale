@@ -107,6 +107,9 @@ export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
       case "story-end":
         console.log(chalk.magenta.italic("[end]"));
         return;
+      case "story-error":
+        console.log(chalk.red.italic(`[error] ${op.reason}`));
+        return;
       case "play-media":
         if (options.doPlayMedia) {
           await playMedia(op);
@@ -128,7 +131,9 @@ export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
 
 function logError(info: Record<string, string>) {
   const msg =
-    info.error && typeof info.error === "string" ? info.error : "Unknown error";
+    (info.reason && typeof info.reason === "string" && info.reason) ||
+    (info.error && typeof info.error === "string" && info.error) ||
+    "Unknown error";
   console.log(chalk.red.bold(`ERROR: ${msg}`));
 }
 

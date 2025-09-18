@@ -19,12 +19,13 @@ const baseContext: BaseActionContext = {
     doGenerateSpeech: false,
     doGenerateAudio: false,
     maxCheckpoints: 20,
+    inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
   },
 };
 
 async function test() {
-  expect(await extractInput("Bob", {}, baseContext), {});
+  expect(await extractInput("Bob", { input: "Bob" }, baseContext), {});
 
   expect(await extractInput("Bob", { key: "name" }, baseContext), {
     name: "Bob",
@@ -50,6 +51,24 @@ async function test() {
       baseContext
     ),
     { name: "Anonymous" }
+  );
+
+  expect(
+    await extractInput(
+      "   ",
+      { "name.type": "string", "name.default": "Anonymous" },
+      baseContext
+    ),
+    { name: "Anonymous" }
+  );
+
+  expect(
+    await extractInput(
+      "",
+      { "code.type": "string" },
+      baseContext
+    ),
+    { code: "" }
   );
 
   expect(
@@ -80,7 +99,7 @@ async function test() {
       { "name.type": "string", "age.type": "number" },
       baseContext
     ),
-    { "name": "Mock name", "age": "Mock age" } // MockStoryServiceProvider returns proper object with field names
+    { name: "Mock name", age: "Mock age" } // MockStoryServiceProvider returns proper object with field names
   );
 
   expect(
@@ -89,7 +108,7 @@ async function test() {
       { "name.type": "string", "name.description": "the user's first name" },
       baseContext
     ),
-    { "name": "Mock name" }
+    { name: "Mock name" }
   );
 
   expect(
@@ -107,7 +126,7 @@ async function test() {
       { "age.type": "number", "age.range": "18..65" },
       baseContext
     ),
-    { "age": "Mock age" }
+    { age: "Mock age" }
   );
 
   expect(
@@ -116,12 +135,12 @@ async function test() {
       { "hobbies.type": "array<string>" },
       baseContext
     ),
-    { "hobbies": "Mock hobbies" }
+    { hobbies: "Mock hobbies" }
   );
 
   expect(
     await extractInput("some data", { "data.type": "object" }, baseContext),
-    { "data": "Mock data" }
+    { data: "Mock data" }
   );
 
   const contextWithScope = {
@@ -139,12 +158,12 @@ async function test() {
 
   expect(
     await extractInput("data", { "items.type": "Array<String>" }, baseContext),
-    { "items": "Mock items" }
+    { items: "Mock items" }
   );
 
   expect(
     await extractInput("data", { "items.type": "STRING[]" }, baseContext),
-    { "items": "Mock items" }
+    { items: "Mock items" }
   );
 
   expect(await extractInput("test", { "value.type": "STRING" }, baseContext), {
@@ -158,34 +177,76 @@ async function test() {
   });
 
   // Test enum parsing - exact match
-  expect(await extractInput("warrior", { "class.enum": "warrior|mage|rogue" }, baseContext), {
-    class: "warrior",
-  });
+  expect(
+    await extractInput(
+      "warrior",
+      { "class.enum": "warrior|mage|rogue" },
+      baseContext
+    ),
+    {
+      class: "warrior",
+    }
+  );
 
   // Test enum parsing - case insensitive
-  expect(await extractInput("MAGE", { "class.enum": "warrior|mage|rogue" }, baseContext), {
-    class: "mage",
-  });
+  expect(
+    await extractInput(
+      "MAGE",
+      { "class.enum": "warrior|mage|rogue" },
+      baseContext
+    ),
+    {
+      class: "mage",
+    }
+  );
 
   // Test enum parsing - partial match
-  expect(await extractInput("war", { "class.enum": "warrior|mage|rogue" }, baseContext), {
-    class: "warrior",
-  });
+  expect(
+    await extractInput(
+      "war",
+      { "class.enum": "warrior|mage|rogue" },
+      baseContext
+    ),
+    {
+      class: "warrior",
+    }
+  );
 
   // Test enum parsing via type field
-  expect(await extractInput("rogue", { "class.type": "warrior|mage|rogue" }, baseContext), {
-    class: "rogue",
-  });
+  expect(
+    await extractInput(
+      "rogue",
+      { "class.type": "warrior|mage|rogue" },
+      baseContext
+    ),
+    {
+      class: "rogue",
+    }
+  );
 
   // Test enum parsing failure - should fall back to LLM
-  expect(await extractInput("paladin", { "class.enum": "warrior|mage|rogue" }, baseContext), {
-    "class": "Mock class",
-  });
+  expect(
+    await extractInput(
+      "paladin",
+      { "class.enum": "warrior|mage|rogue" },
+      baseContext
+    ),
+    {
+      class: "Mock class",
+    }
+  );
 
   // Test enum with range - should use LLM (complex validation)
-  expect(await extractInput("warrior", { "class.enum": "warrior|mage|rogue", "class.range": "1..3" }, baseContext), {
-    "class": "Mock class",
-  });
+  expect(
+    await extractInput(
+      "warrior",
+      { "class.enum": "warrior|mage|rogue", "class.range": "1..3" },
+      baseContext
+    ),
+    {
+      class: "Mock class",
+    }
+  );
 }
 
 test();

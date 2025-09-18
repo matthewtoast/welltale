@@ -130,6 +130,7 @@ async function runRepl() {
     ream: 100,
     loop: 0,
     maxCheckpoints: 20,
+    inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
     doGenerateSpeech: argv.doGenerateSpeech,
     doGenerateAudio: argv.doGenerateAudio,
