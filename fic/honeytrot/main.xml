@@ -3,16 +3,17 @@
 <!-- <compile:voice id="warner" descriptino="middle aged male, nasally and pinched, nerdy, well-enunciated with pedantic undertones" /> -->
 
 <intro>
-  <music duration="10000" fadeAt="75000" fadeDuration="2500">
+  <music duration="10000" fadeAt="4000" fadeDuration="6000" background="true">
     1990s spy thriller intro music, electronic, pulsing notes reminiscent of information flowing through circuit boards
   </music>
+  <sleep duration="5000" />
   <p>
     You're playing Honeytrot, by Matthew Trost.
   </p>
-  <yield to="get-name" />
+  <jump to="get-name" />
 </intro>
 
-<block id="get-name">
+<div id="get-name">
   <p>
     Before we begin, what's your first name and gender?
   </p>
@@ -22,14 +23,15 @@
     playerGender.description="The player's gender"
     playerGender.type="man|woman"
     playerGender.default="man" />
-</block>
+  <jump to="" />
+</div>
 
 <resume>
   <p>
     Welcome back to Honeytrot.
   </p>
   <if cond="blank(playerName)">
-    <yield to="get-name" />
+    <jump to="get-name" />
   </if>
 </resume>
 
@@ -73,15 +75,18 @@
 </sec>
 
 <sec id="jacobson-meeting">
-  <sound prompt="the din of a public park in an office area of a city - birds chirping, car traffic, distant conversation" duration="4000" />
+  <sound prompt="the din of a public park in an office area of a city - birds chirping, car traffic, distant conversation" duration="10000" background="true" fadeAt="2000" />
+  <sleep duration="2000" />
 
   <p from="Clyde">
-    I'm happy to see you again {{playerName}}. [pause] You look good. [awkward] Well... Look, let me just cut to the chase.
+    I'm happy to see you again {{playerName}}. [pause] You look good.
+    [awkward] Well... Look, let me just cut to the chase.
     [businesslike] We need your help on a pretty tight turnaround.
   </p>
   <p from="Clyde">
-    I admit, I hesitated to call you because, well... [awkward] maybe the call wouldn't be welcome. [deep breath]
-    But, due to the nature of this job, I can only ask someone I have complete trust in. [confident] And, at the end of the day, that's you.
+    I admit, I hesitated to call you because, well... [awkward] maybe the call wouldn't be welcome.
+    But, due to the nature of this job, I can only ask someone I have complete trust in.
+    [confident] And, at the end of the day, that's you.
   </p>
   <p from="Clyde">
     The target is a 42-year-old white male named Wesley Tidus.
@@ -89,33 +94,32 @@
     Occupation: computer systems analyst at Funtronics. Yes, the toy company.
   </p>
   <p from="Clyde">
-    Now, we've only had two days to surveil him - like I told you, tight turnaround - but the picture we get is a man dedicated to his work.
-    He's a lifelong bachelor, but he doesn't socialize - not as far as we can tell. He's up at 5am, asleep by 9pm every day. You can set a clock to this guy's routine.
+    Now, we've only had two days to surveil him, but the picture we get is a man dedicated to his work.
+    He lives in a studio apartment, orders delivery 6 or more nights a week, and seems to enjoy the company of toy prototypes more than people.
   </p>
   <p from="Clyde">
-    The only sign he's interested in a life outside of work is from garbage analysis.
-    Long story short, one interesting item we found was a registration receipt for a video matchmaking service.
-    That's where you come in. Any questions so far?
+    Although he doesn't socialize, we did find one sign of normal human life - when we did the usual garbage analysis.
+    What we found was a $49.99 receipt for registration in a service called LoveCassette. It's a video matchmaking service.
+    That's where you come in.
   </p>
   <p from="Clyde">
-    Tidus is one of the few non-researchers to have access to the high-security R&D wing at Funtronics' main building.
-    Part of the security process involves passing through a state-of-the-art voice identity checkpoint.
+    As we speak, LoveCassette's scheduling system is being updated to show that Mr. Tidus has a date with a {{playerGender}} named {{playerName}}, tonight at 7pm.
+    I know it's not much time to prepare, but - like I said, tight turnaround.
   </p>
   <p from="Clyde">
-    To pass the voice analysis system, Tidus has to say the passphrase, "My name is Wesley Tidus. My voice is my passport. Verify me."
+    The mission will be simple. We're going to outfit you with a wire, and you're to get Tidus talking.
+    The wire will be connected to a radio uplink at a nearby control van. Aphid will be recording the whole conversation.
   </p>
+  <p from="Clyde">
+    What we need is a recording of Tidus saying each of nine different designated words.
+    We'll provide you with the list.
+    How you get him to say each word will be up to your talent and discretion. But we need him to clearly say all nine.
+  </p>
+  <p from="Clyde">
+    That's the basics. Now, what questions of yours can I answer to make sure this mission is successful?
+  <p>
 
   <!-- <while cond="true" />
-    <llm:classify key="resp"
-        whats_in_trash="wants info about other items found in Tidus' trash"
-        our_relationship="wants to know about their personal history with Jacobson"
-      >
-      The player and an NPC named Jacobson are talking about another NPC named Wesley Tidus.
-      Here is the player's most recent input: "{{input}}"
-      Find the best classification for what the player is saying in essence.
-    </llm:classify>
-    <if cond="includes(resp, '')">
-    </if>
+    <input />
   </while> -->
-
 </sec>

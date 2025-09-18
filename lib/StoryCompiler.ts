@@ -11,6 +11,7 @@ import { cleanSplit, isBlank } from "./TextHelpers";
 
 const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
+type ParseSeverity = "warning" | "error" | "fatal";
 
 export const toAttrs = (el: Element): Record<string, string> => {
   const out: Record<string, string> = {};
@@ -40,12 +41,25 @@ const fromDom = (n: Node): BaseNode =>
         }
       : { type: `#${n.nodeName}`, atts: {}, kids: [], text: "" };
 
-export const parseXmlFragment = (frag: string): BaseNode => {
+export function parseXmlFragment(
+  frag: string,
+  collect?: (severity: ParseSeverity, message: string) => void
+): BaseNode {
+  const parser = collect
+    ? new DOMParser({
+        locator: {},
+        errorHandler: {
+          warning: (msg: string) => collect("warning", msg),
+          error: (msg: string) => collect("error", msg),
+          fatalError: (msg: string) => collect("fatal", msg),
+        },
+      })
+    : new DOMParser();
   const xml = `<root>${frag}</root>`;
-  const doc = new DOMParser().parseFromString(xml, "text/xml");
+  const doc = parser.parseFromString(xml, "text/xml");
   const root = doc.documentElement;
   return fromDom(root);
-};
+}
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
   node: T,
@@ -66,11 +80,11 @@ export type CompileOptions = {
   verbose?: boolean;
 };
 
-export async function compileStory(
-  ctx: BaseActionContext,
+function buildStoryRoot(
   cartridge: StoryCartridge,
-  options: CompileOptions
-): Promise<StorySource> {
+  verbose: boolean | undefined,
+  collect?: (path: string, severity: ParseSeverity, message: string) => void
+): StoryNode {
   const root: StoryNode = {
     addr: "0",
     type: "root",
@@ -78,7 +92,6 @@ export async function compileStory(
     kids: [],
     text: "",
   };
-
   function isMain(p: string) {
     return (
       p === "main.xml" || p.endsWith("/main.xml") || p.endsWith("\\main.xml")
@@ -92,12 +105,15 @@ export async function compileStory(
   for (let i = 0; i < keys.length; i++) {
     const path = keys[i];
     const content = cartridge[path].toString("utf-8");
-    if (options.verbose) {
+    if (verbose) {
       console.info("Parsing", path);
     }
-    const section = parseXmlFragment(content);
-
-    // Move each child of the section's top node to root, remapping addresses
+    const section = parseXmlFragment(
+      content,
+      collect
+        ? (severity, message) => collect(path, severity, message)
+        : undefined
+    );
     const mappedKids = section.kids.map((child, idx) => {
       const childIndex = currentIndex + idx;
       return walkMap(
@@ -111,10 +127,18 @@ export async function compileStory(
         childIndex
       );
     });
-
     root.kids.push(...mappedKids);
     currentIndex += section.kids.length;
   }
+  return root;
+}
+
+export async function compileStory(
+  ctx: BaseActionContext,
+  cartridge: StoryCartridge,
+  options: CompileOptions
+): Promise<StorySource> {
+  const root = buildStoryRoot(cartridge, options.verbose);
 
   const meta: Record<string, string> = {};
   findNodes(root, (node) => node.type === "meta").forEach((node) => {

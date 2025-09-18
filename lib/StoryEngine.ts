@@ -1,6 +1,4 @@
-import chalk from "chalk";
 import dedent from "dedent";
-
 import { parseNumberOrNull } from "lib/MathHelpers";
 import { PRNG } from "lib/RandHelpers";
 import {
@@ -23,10 +21,11 @@ import {
   isTruthy,
 } from "./EvalCasting";
 import { ensureArray, evalExpr } from "./EvalUtils";
-import { fetch, isValidUrl, toHttpMethod } from "./HTTPHelpers";
-import { parseFieldGroups, parseFieldGroupsNested } from "./InputHelpers";
+import { isValidUrl, toHttpMethod } from "./HTTPHelpers";
+import { parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { AIChatMessage } from "./OpenRouterUtils";
+import { extractInput } from "./StoryInput";
 import {
   cloneNode,
   DESCENDABLE_TAGS,
@@ -171,7 +170,7 @@ export async function advanceStory(
   const voices = source.voices;
 
   if (calls++ < 1 && options.verbose) {
-    console.info(chalk.gray(dumpTree(root)));
+    console.info(dumpTree(root));
   }
 
   // The origin (if present) is the node the author wants to treat as the de-facto beginning of playback
@@ -222,7 +221,7 @@ export async function advanceStory(
     return { ops: out, session, seam, addr, info };
   }
 
-  const eventHandlers = findNodes(root, (node) => node.type === "event");
+  const handlers = findNodes(root, (node) => node.type === "event");
 
   const visits: Record<string, number> = {};
   let iterations = 0;
@@ -282,14 +281,6 @@ export async function advanceStory(
         tags: cleanSplit(atts.tags, ","),
         time: Date.now(),
       });
-
-      // const inputHandlers = eventHandlers.filter(
-      //   (e) => e.atts.type === "input"
-      // );
-      // for (let i = 0; i < inputHandlers.length; i++) {
-      //   const atts = await renderAtts(inputHandlers[i].atts, ctx);
-      //   // TODO: run inner content if event matches.
-      // }
     }
 
     const handler = ACTION_HANDLERS.find((h) => h.match(node))!;
@@ -298,9 +289,7 @@ export async function advanceStory(
 
     if (options.verbose) {
       console.info(
-        chalk.gray(
-          `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${result.next?.node.addr} ${JSON.stringify(result.ops)}`
-        )
+        `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${result.next?.node.addr} ${JSON.stringify(result.ops)}`
       );
     }
 
@@ -581,7 +570,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let raw = "";
       let fmt = (atts.format ?? "json").toLowerCase();
       if (!isBlank(url) && isValidUrl(url)) {
-        const { data, statusCode, contentType } = await fetch({
+        const { data, statusCode, contentType } = await ctx.provider.fetchUrl({
           url,
           method: toHttpMethod(atts.method ?? "GET"),
         });
@@ -1081,7 +1070,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const extracted: Record<string, TSerial> = {};
 
         if (ctx.options.verbose) {
-          console.info(chalk.gray("<input>", raw));
+          console.info("<input>", raw);
         }
 
         // We might have received JSON as input; this is just an affordance for automations
@@ -1089,46 +1078,20 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         if (parsed && typeof parsed === "object") {
           Object.assign(extracted, parsed as Record<string, TSerial>);
         } else {
-          const groups = parseFieldGroups(omit(atts, "models", "key"));
-          const keys = Object.keys(groups);
-          if (keys.length > 0) {
-            // In the simple case we receive a single word input, skip the LLM call and parse
-            if (!raw.match(/\s/) && keys.length === 1) {
-              const key = keys[0]!;
-              const value = processSimpleInputValue(raw, groups[key], ctx);
-              extracted[key] = value;
-            } else {
-              const enhanced = await ctx.provider.generateJson(
-                dedent`
-                  Extract structured data from the input.
-                  <input>${raw}</input>
-                  Example:
-                  If the input is "my name is Bob and I'm 24", and the schema is {"name.type": "string", "name.description": "the user's name", "age.type": "number"}, your output should be: {"name": "Bob", "age": 25}.
-                  Normalize and return JSON per the schema.
-                `,
-                omit(atts, "models"),
-                {
-                  disableCache: true,
-                  useWebSearch: false, // Can't think of a good reason to use web search for input
-                  models: normalizeModels(ctx.options, atts.models),
-                }
-              );
-              Object.assign(extracted, enhanced);
-            }
-          }
+          const enhanced = await extractInput(raw, atts, ctx);
+          Object.assign(extracted, enhanced);
         }
 
-        // Make original input available in state - local scope and global
+        // Always make original input available as local and global
         ctx.scope["input"] = raw;
         ctx.session.state["input"] = raw;
-        if (!isBlank(atts.key)) {
-          ctx.scope[atts.key] = raw;
-          ctx.session.state[atts.key] = raw;
-        }
+
+        // Extracted fields go in local scope only
         for (const key in extracted) {
           ctx.scope[key] = extracted[key];
-          // MAYBE: Do we also want to hoist the key into global state as well
-          // ctx.session.state[key] = extracted[key];
+          if (atts.scope === "global") {
+            ctx.session.state[key] = extracted[key];
+          }
         }
 
         ctx.session.input = null;
@@ -1443,7 +1406,12 @@ export async function renderAtts(
   const out: Record<string, string> = {};
   for (const key in atts) {
     if (typeof atts[key] === "string") {
-      out[key] = await renderText(atts[key], ctx);
+      // Don't apply text rendering to .type attributes as they contain enum specs
+      if (key.endsWith(".type")) {
+        out[key] = atts[key];
+      } else {
+        out[key] = await renderText(atts[key], ctx);
+      }
     }
   }
   return out;
@@ -1451,48 +1419,4 @@ export async function renderAtts(
 
 export function userVoicesAndPresetVoices(userVoices: VoiceSpec[]) {
   return [...userVoices, ...ELEVENLABS_PRESET_VOICES];
-}
-
-function processSimpleInputValue(
-  raw: string,
-  atts: Record<string, string>,
-  ctx: ActionContext
-): TSerial {
-  let value: TSerial = raw;
-  const type = atts.type ?? "string";
-  const fallback = atts.default ?? atts.fallback ?? "";
-
-  // Default Fallback
-  if (isBlank(value)) {
-    value = fallback;
-  }
-
-  // Parse Expression (using existing evalExpr)
-  if (atts.parse) {
-    value = evalExpr(
-      castToString(atts.parse),
-      { ...ctx.scope, input: value },
-      {},
-      ctx.rng
-    );
-    if (isBlank(value)) {
-      value = fallback;
-    }
-  }
-
-  // Pattern Validation
-  if (atts.pattern) {
-    const pattern = castToString(atts.pattern);
-    console.log(pattern);
-    if (!new RegExp(pattern).test(castToString(value))) {
-      value = fallback; // If not valid, make blank to be filled in by defaults later
-    }
-  }
-
-  // Type Casting
-  if (type) {
-    value = castToTypeEnhanced(value, type);
-  }
-
-  return value;
 }

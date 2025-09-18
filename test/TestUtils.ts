@@ -1,10 +1,11 @@
-import { isDeepStrictEqual } from "util";
+import { RunnerOptions } from "lib/LocalRunnerUtils";
 import { PRNG } from "lib/RandHelpers";
+import { renderUntilBlocking } from "lib/RunnerCore";
 import { compileStory } from "lib/StoryCompiler";
+import { createDefaultSession, OP, SeamType } from "lib/StoryEngine";
 import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { createDefaultSession, SeamType, OP } from "lib/StoryEngine";
-import { runUntilComplete, RunnerOptions } from "lib/LocalRunnerUtils";
-import { DEFAULT_LLM_SLUGS, StorySession } from "lib/StoryTypes";
+import { DEFAULT_LLM_SLUGS, StorySession, StorySource } from "lib/StoryTypes";
+import { isDeepStrictEqual } from "util";
 
 export function expect(a: unknown, b: unknown) {
   const msg = `${JSON.stringify(a)} === ${JSON.stringify(b)}`;
@@ -25,11 +26,47 @@ export function createTestCartridge(xml: string, file: string = "main.xml") {
   return { [file]: xml };
 }
 
+async function runTestUntilComplete(
+  info: {
+    options: RunnerOptions;
+    provider: MockStoryServiceProvider;
+    session: StorySession;
+    sources: StorySource;
+    seed: string;
+    inputs: string[];
+  },
+  collectedOps: OP[],
+  seam: SeamType = SeamType.GRANT
+): Promise<{ seam: SeamType }> {
+  let next = seam;
+  const runOptions: RunnerOptions = { ...info.options, seed: info.seed };
+  
+  while (true) {
+    if (next === SeamType.ERROR || next === SeamType.FINISH) {
+      return { seam: next };
+    }
+    const input = next === SeamType.INPUT ? (info.inputs.shift() ?? "") : null;
+    
+    // Use renderUntilBlocking directly and collect ops from result
+    const result = await renderUntilBlocking(
+      input,
+      info.session,
+      info.sources,
+      runOptions,
+      info.provider
+    );
+    
+    // Collect the ops without actually rendering them
+    collectedOps.push(...result.ops);
+    
+    next = result.seam;
+  }
+}
+
 export async function runTestStory(
   xml: string | Record<string, string>,
   inputs: string[] = [],
-  opt?: Partial<RunnerOptions>,
-  sessionOpt?: {
+  testOptions?: {
     resume?: boolean;
     turn?: number;
     address?: string;
@@ -47,7 +84,6 @@ export async function runTestStory(
     doGenerateSpeech: false,
     doGenerateAudio: false,
     doPlayMedia: false,
-    ...opt,
   };
   const rng = new PRNG(options.seed);
   const sources = await compileStory(
@@ -56,25 +92,36 @@ export async function runTestStory(
     { doCompileVoices: false }
   );
   const session = createDefaultSession(`test-session-${Date.now()}`);
-  if (sessionOpt) {
-    if (sessionOpt.resume !== undefined) session.resume = sessionOpt.resume;
-    if (sessionOpt.turn !== undefined) session.turn = sessionOpt.turn;
-    if (sessionOpt.address !== undefined) session.address = sessionOpt.address;
+  if (testOptions) {
+    if (testOptions.resume !== undefined) session.resume = testOptions.resume;
+    if (testOptions.turn !== undefined) session.turn = testOptions.turn;
+    if (testOptions.address !== undefined)
+      session.address = testOptions.address;
   }
-  const ops: OP[] = [];
-  const seam = await runUntilComplete(
-    {
-      options,
-      provider,
-      session,
-      sources,
-      seed: options.seed,
-      inputs,
-    },
-    SeamType.GRANT,
-    async (resp) => {
-      ops.push(...resp.ops);
-    }
-  );
-  return { ops, seam, session };
+  
+  // Collect ops during the run
+  const collectedOps: OP[] = [];
+  
+  // Suppress console output for tests
+  const originalLog = console.log;
+  console.log = () => {};
+  
+  try {
+    const outcome = await runTestUntilComplete(
+      {
+        options,
+        provider,
+        session,
+        sources,
+        seed: options.seed,
+        inputs,
+      },
+      collectedOps,
+      SeamType.GRANT
+    );
+    
+    return { ops: collectedOps, seam: outcome.seam, session };
+  } finally {
+    console.log = originalLog;
+  }
 }

@@ -1,6 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import chalk from "chalk";
-import { map } from "lodash";
+import { mapValues } from "lodash";
 import { OpenAI } from "openai";
 import { NonEmpty, TSerial } from "typings";
 import { Cache } from "./Cache";
@@ -11,6 +10,7 @@ import {
   generateSpeechClip,
   generateVoiceFromPrompt,
 } from "./ElevenLabsUtils";
+import { fetch, FetchOptions } from "./HTTPHelpers";
 import { safeJsonParse } from "./JSONHelpers";
 import {
   AIChatMessage,
@@ -73,6 +73,9 @@ export interface StoryServiceProvider {
     messages: AIChatMessage[],
     options: BaseGenerateOptions
   ): Promise<AIChatMessage>;
+  fetchUrl(
+    options: FetchOptions
+  ): Promise<{ statusCode: number; data: string; contentType: string }>;
 }
 
 export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
@@ -95,7 +98,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${JSON.stringify(options.models)}:${parameterize(prompt)}`;
     if (this.options.verbose) {
-      console.info(chalk.gray(`Generate Text ~> ${idemp}`));
+      console.info(`Generate Text ~> ${idemp}`);
     }
     const key = generatePredictableKey("text", idemp, "txt");
     if (useCache) {
@@ -129,7 +132,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${JSON.stringify(options.models)}:${prompt}:${JSON.stringify(schema)}:${options.useWebSearch}`;
     if (this.options.verbose) {
-      console.info(chalk.gray(`Generate JSON ~> ${idemp}`));
+      console.info(`Generate JSON ~> ${idemp}`);
     }
     const key = generatePredictableKey("json", idemp, "json");
     if (useCache) {
@@ -170,7 +173,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${prompt}:${durationMs}`;
     if (this.options.verbose) {
-      console.info(chalk.gray(`Generate Sound ~> ${idemp}`));
+      console.info(`Generate Sound ~> ${idemp}`);
     }
     const key = generatePredictableKey("sfx", idemp, "mp3");
     if (useCache) {
@@ -201,7 +204,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${prompt}:${durationMs}`;
     if (this.options.verbose) {
-      console.info(chalk.gray(`Generate Music ~> ${idemp}`));
+      console.info(`Generate Music ~> ${idemp}`);
     }
     const key = generatePredictableKey("music", idemp, "mp3");
     if (useCache) {
@@ -233,7 +236,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const voiceId = autoFindVoice(spec, voices);
     const idemp = `${spec.speaker}:${spec.voice}:${JSON.stringify(spec.tags)}:${parameterize(spec.body)}:${voiceId}:${voices.length}`;
     if (this.options.verbose) {
-      console.info(chalk.gray(`Generate Speech ~> ${idemp}`));
+      console.info(`Generate Speech ~> ${idemp}`);
     }
     const key = generatePredictableKey("vox", idemp, "mp3");
     if (useCache) {
@@ -263,7 +266,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = prompt;
     if (this.options.verbose) {
-      console.info(chalk.gray(`Generate Voice ~> ${idemp}`));
+      console.info(`Generate Voice ~> ${idemp}`);
     }
     const key = generatePredictableKey("voice", idemp, "txt");
     if (useCache) {
@@ -293,7 +296,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = JSON.stringify(messages);
     if (this.options.verbose) {
-      console.info(chalk.gray(`Generate Chat ~> ${idemp}`));
+      console.info(`Generate Chat ~> ${idemp}`);
     }
     const key = generatePredictableKey("chat", idemp, "json");
     if (useCache) {
@@ -315,6 +318,15 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       await this.config.cache.set(key, buffer, "application/json");
     }
     return responseMessage;
+  }
+
+  async fetchUrl(
+    options: FetchOptions
+  ): Promise<{ statusCode: number; data: string; contentType: string }> {
+    if (this.options.verbose) {
+      console.info(`Fetch URL ~> ${options.url}`);
+    }
+    return fetch(options);
   }
 }
 
@@ -342,7 +354,7 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
   ): Promise<Record<string, TSerial>> {
     return (
       safeJsonParse(extractBracketContent(prompt)) ??
-      map(schema, (value, key) => `Mock ${key}`)
+      mapValues(schema, (value, key) => `Mock ${key}`)
     );
   }
 
@@ -380,5 +392,23 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     const mockResponse =
       extractBracketContent(lastMessage?.body ?? "") ?? "Mock chat response";
     return { role: "assistant", body: mockResponse };
+  }
+
+  async fetchUrl(
+    options: FetchOptions
+  ): Promise<{ statusCode: number; data: string; contentType: string }> {
+    const url = extractBracketContent(options.url);
+    if (url) {
+      return {
+        statusCode: 200,
+        data: url,
+        contentType: "text/html",
+      };
+    }
+    return {
+      statusCode: 200,
+      data: `Mock response for URL: ${options.url}`,
+      contentType: "text/html",
+    };
   }
 }

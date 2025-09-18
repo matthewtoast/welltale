@@ -28,11 +28,6 @@ import {
   RunnerOptions,
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
-import {
-  createLoopError,
-  createLoopGuard,
-  isLoopError,
-} from "../lib/LoopGuard";
 
 async function runRepl() {
   loadEnv();
@@ -53,24 +48,24 @@ async function runRepl() {
       description: "Verbose logging",
       default: true,
     })
-    .option("doPlayAudio", {
+    .option("doPlayMedia", {
       type: "boolean",
       description: "Play audio files true/false",
-      default: false,
+      default: true,
     })
     .option("doGenerateSpeech", {
       type: "boolean",
       description: "Generate speech audio",
-      default: false,
+      default: true,
     })
     .option("doGenerateAudio", {
       type: "boolean",
       description: "Generate other audio",
-      default: false,
+      default: true,
     })
     .option("doCompileVoices", {
       type: "boolean",
-      description: "Generate other audio",
+      description: "Compile voices",
       default: false,
     })
     .option("cartridgeDir", {
@@ -102,26 +97,6 @@ async function runRepl() {
       type: "string",
       default: join(homedir(), ".welltale", "cache"),
       description: "Directory for caching generated content",
-    })
-    .option("loopShortLimit", {
-      type: "number",
-      description: "Short-cycle loop limit before stopping",
-      default: 10,
-    })
-    .option("loopShortWindowMs", {
-      type: "number",
-      description: "Short-cycle loop window in milliseconds",
-      default: 2000,
-    })
-    .option("loopLongLimit", {
-      type: "number",
-      description: "Long-cycle loop limit before stopping",
-      default: 200,
-    })
-    .option("loopLongWindowMs", {
-      type: "number",
-      description: "Long-cycle loop window in milliseconds",
-      default: 300000,
     })
     .parserConfiguration({
       "camel-case-expansion": true,
@@ -158,7 +133,7 @@ async function runRepl() {
     models: DEFAULT_LLM_SLUGS,
     doGenerateSpeech: argv.doGenerateSpeech,
     doGenerateAudio: argv.doGenerateAudio,
-    doPlayMedia: argv.doPlayAudio,
+    doPlayMedia: argv.doPlayMedia,
   };
 
   console.info(
@@ -193,55 +168,14 @@ async function runRepl() {
   const save = () => saveSessionToDisk(session, argv.sessionPath);
   const optionsWithSeed: RunnerOptions = { ...runnerOptions, seed };
 
-  const loopGuard = createLoopGuard({
-    short:
-      argv.loopShortLimit > 0 && argv.loopShortWindowMs > 0
-        ? { limit: argv.loopShortLimit, windowMs: argv.loopShortWindowMs }
-        : undefined,
-    long:
-      argv.loopLongLimit > 0 && argv.loopLongWindowMs > 0
-        ? { limit: argv.loopLongLimit, windowMs: argv.loopLongWindowMs }
-        : undefined,
-  });
-
-  type RenderResponse = Awaited<ReturnType<typeof renderUntilBlocking>>;
-
-  const enforceLoop = (result: RenderResponse) => {
-    const decision = loopGuard.record(result);
-    if (decision.stop) {
-      throw createLoopError(decision);
-    }
-  };
-
-  const afterEach = async (result: RenderResponse) => {
-    save();
-    enforceLoop(result);
-  };
-
-  const logLoopStop = (err: Error) => {
-    const detail = isLoopError(err) ? err.loop : undefined;
-    const label = detail?.kind ? `${detail.kind} loop` : "loop";
-    console.warn(chalk.yellow(`Loop guard stopped playback (${label}): ${err.message}`));
-  };
-
-  let resp: RenderResponse;
-
-  try {
-    resp = await renderUntilBlocking(
-      null,
-      session,
-      sources,
-      optionsWithSeed,
-      provider,
-      afterEach
-    );
-  } catch (err) {
-    if (isLoopError(err)) {
-      logLoopStop(err);
-      return;
-    }
-    throw err;
-  }
+  let resp = await renderUntilBlocking(
+    null,
+    session,
+    sources,
+    optionsWithSeed,
+    provider
+  );
+  save();
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -281,9 +215,9 @@ async function runRepl() {
             session,
             sources,
             optionsWithSeed,
-            provider,
-            afterEach
+            provider
           );
+          save();
         } else {
           rl.prompt();
           return;
@@ -294,16 +228,11 @@ async function runRepl() {
           session,
           sources,
           optionsWithSeed,
-          provider,
-          afterEach
+          provider
         );
+        save();
       }
     } catch (err) {
-      if (isLoopError(err)) {
-        logLoopStop(err);
-        rl.close();
-        return;
-      }
       console.error(chalk.red(err));
       rl.prompt();
       return;

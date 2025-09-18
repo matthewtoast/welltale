@@ -1,5 +1,4 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import chalk from "chalk";
 import { loadDirRecursive } from "lib/FileUtils";
 import { LocalCache } from "lib/LocalCache";
 import {
@@ -9,12 +8,12 @@ import {
 } from "lib/LocalRunnerUtils";
 import { PRNG } from "lib/RandHelpers";
 import { CompileOptions, compileStory } from "lib/StoryCompiler";
+import { SeamType } from "lib/StoryEngine";
 import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
 } from "lib/StoryServiceProvider";
 import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
-import { SeamType } from "lib/StoryEngine";
 import { railsTimestamp } from "lib/TextHelpers";
 import { last } from "lodash";
 import OpenAI from "openai";
@@ -23,7 +22,6 @@ import { join } from "path";
 import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { createLoopError, createLoopGuard, isLoopError } from "lib/LoopGuard";
 
 async function runAutorun() {
   const argv = await yargs(hideBin(process.argv))
@@ -43,7 +41,7 @@ async function runAutorun() {
       description: "Use mock service provider for service calls",
       default: false,
     })
-    .option("doPlayAudio", {
+    .option("doPlayMedia", {
       type: "boolean",
       description: "Play audio files true/false",
       default: false,
@@ -98,26 +96,6 @@ async function runAutorun() {
       default: join(homedir(), ".welltale", "cache"),
       description: "Directory for caching generated content",
     })
-    .option("loopShortLimit", {
-      type: "number",
-      default: 10,
-      description: "Short-cycle loop limit before autorun halts",
-    })
-    .option("loopShortWindowMs", {
-      type: "number",
-      default: 2000,
-      description: "Short-cycle loop window in milliseconds",
-    })
-    .option("loopLongLimit", {
-      type: "number",
-      default: 200,
-      description: "Long-cycle loop limit before autorun halts",
-    })
-    .option("loopLongWindowMs", {
-      type: "number",
-      default: 300000,
-      description: "Long-cycle loop window in milliseconds",
-    })
     .option("sessionResume", {
       type: "boolean",
       default: false,
@@ -155,7 +133,7 @@ async function runAutorun() {
     maxCheckpoints: 20,
     doGenerateSpeech: argv.doGenerateSpeech,
     doGenerateAudio: argv.doGenerateAudio,
-    doPlayMedia: argv.doPlayAudio,
+    doPlayMedia: argv.doPlayMedia,
     models: DEFAULT_LLM_SLUGS,
   };
 
@@ -163,12 +141,10 @@ async function runAutorun() {
     doCompileVoices: false,
   };
 
-  console.info(
-    chalk.gray(
-      `Auto-running game...`,
-      JSON.stringify({ options: runnerOptions, inputs: argv.inputs }, null, 2)
-    )
-  );
+  console.info(`Auto-running game...`, {
+    options: runnerOptions,
+    inputs: argv.inputs,
+  });
 
   const provider = argv.mock
     ? new MockStoryServiceProvider()
@@ -194,52 +170,18 @@ async function runAutorun() {
     compileOptions
   );
 
-  const loopGuard = createLoopGuard({
-    short:
-      argv.loopShortLimit > 0 && argv.loopShortWindowMs > 0
-        ? { limit: argv.loopShortLimit, windowMs: argv.loopShortWindowMs }
-        : undefined,
-    long:
-      argv.loopLongLimit > 0 && argv.loopLongWindowMs > 0
-        ? { limit: argv.loopLongLimit, windowMs: argv.loopLongWindowMs }
-        : undefined,
-  });
-
-  const enforceLoop = (resp: {
-    seam: SeamType;
-    addr: string | null;
-  }) => {
-    const decision = loopGuard.record(resp);
-    if (decision.stop) {
-      throw createLoopError(decision);
-    }
-  };
-
-  try {
-    return await runUntilComplete(
-      {
-        options: runnerOptions,
-        provider,
-        session,
-        sources,
-        seed,
-        inputs: argv.inputs!.map((i) => i + ""),
-      },
-      SeamType.GRANT,
-      async (resp) => {
-        enforceLoop({ seam: resp.seam, addr: resp.addr ?? null });
-      }
-    );
-  } catch (err) {
-    if (isLoopError(err)) {
-      const detail = err.loop.kind ? `${err.loop.kind} loop` : "loop";
-      console.warn(
-        chalk.yellow(`Loop guard stopped autorun (${detail}): ${err.message}`)
-      );
-      return SeamType.ERROR;
-    }
-    throw err;
-  }
+  const result = await runUntilComplete(
+    {
+      options: runnerOptions,
+      provider,
+      session,
+      sources,
+      seed,
+      inputs: argv.inputs!.map((i) => i + ""),
+    },
+    SeamType.GRANT
+  );
+  return result.seam;
 }
 
 runAutorun();
