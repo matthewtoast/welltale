@@ -4,7 +4,12 @@ import { OP, SeamType } from "./StoryEngine";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import { StorySession, StorySource } from "./StoryTypes";
 
-export type CommandResult = { handled: boolean; seam?: SeamType; ops?: OP[] };
+export type CommandResult = {
+  handled: boolean;
+  seam?: SeamType;
+  ops?: OP[];
+  addr?: string | null;
+};
 
 export async function handleCommand(
   raw: string,
@@ -39,7 +44,7 @@ export async function handleCommand(
       ctx.provider
     );
     ctx.save();
-    return { handled: true, seam: r.seam, ops: r.ops };
+    return { handled: true, seam: r.seam, ops: r.ops, addr: r.addr };
   }
   if (cmd === "checkpoints") {
     if (ctx.session.checkpoints.length === 0) {

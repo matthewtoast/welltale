@@ -207,6 +207,7 @@ export async function runUntilComplete(
     ops: OP[];
     seam: SeamType;
     session: StorySession;
+    addr: string | null;
   }) => Promise<void>
 ) {
   let next = seam;

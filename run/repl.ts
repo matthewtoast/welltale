@@ -29,6 +29,11 @@ import {
   RunnerOptions,
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
+import {
+  createLoopError,
+  createLoopGuard,
+  isLoopError,
+} from "../lib/LoopGuard";
 
 async function runRepl() {
   loadEnv();
@@ -98,6 +103,26 @@ async function runRepl() {
       type: "string",
       default: join(homedir(), ".welltale", "cache"),
       description: "Directory for caching generated content",
+    })
+    .option("loopShortLimit", {
+      type: "number",
+      description: "Short-cycle loop limit before stopping",
+      default: 10,
+    })
+    .option("loopShortWindowMs", {
+      type: "number",
+      description: "Short-cycle loop window in milliseconds",
+      default: 2000,
+    })
+    .option("loopLongLimit", {
+      type: "number",
+      description: "Long-cycle loop limit before stopping",
+      default: 200,
+    })
+    .option("loopLongWindowMs", {
+      type: "number",
+      description: "Long-cycle loop window in milliseconds",
+      default: 300000,
     })
     .parserConfiguration({
       "camel-case-expansion": true,
@@ -169,14 +194,55 @@ async function runRepl() {
   const save = () => saveSessionToDisk(session, argv.sessionPath);
   const optionsWithSeed: RunnerOptions = { ...runnerOptions, seed };
 
-  let resp = await renderUntilBlocking(
-    null,
-    session,
-    sources,
-    optionsWithSeed,
-    provider,
-    save
-  );
+  const loopGuard = createLoopGuard({
+    short:
+      argv.loopShortLimit > 0 && argv.loopShortWindowMs > 0
+        ? { limit: argv.loopShortLimit, windowMs: argv.loopShortWindowMs }
+        : undefined,
+    long:
+      argv.loopLongLimit > 0 && argv.loopLongWindowMs > 0
+        ? { limit: argv.loopLongLimit, windowMs: argv.loopLongWindowMs }
+        : undefined,
+  });
+
+  type RenderResponse = Awaited<ReturnType<typeof renderUntilBlocking>>;
+
+  const enforceLoop = (result: RenderResponse) => {
+    const decision = loopGuard.record(result);
+    if (decision.stop) {
+      throw createLoopError(decision);
+    }
+  };
+
+  const afterEach = async (result: RenderResponse) => {
+    save();
+    enforceLoop(result);
+  };
+
+  const logLoopStop = (err: Error) => {
+    const detail = isLoopError(err) ? err.loop : undefined;
+    const label = detail?.kind ? `${detail.kind} loop` : "loop";
+    console.warn(chalk.yellow(`Loop guard stopped playback (${label}): ${err.message}`));
+  };
+
+  let resp: RenderResponse;
+
+  try {
+    resp = await renderUntilBlocking(
+      null,
+      session,
+      sources,
+      optionsWithSeed,
+      provider,
+      afterEach
+    );
+  } catch (err) {
+    if (isLoopError(err)) {
+      logLoopStop(err);
+      return;
+    }
+    throw err;
+  }
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -195,46 +261,55 @@ async function runRepl() {
 
   rl.on("line", async (raw) => {
     const fixed = raw.trim();
-    if (fixed.startsWith("/")) {
-      const r = await handleCommand(fixed, {
-        session,
-        sources,
-        options: runnerOptions,
-        provider,
-        seed,
-        save,
-      });
-      if (!r.handled) {
-        console.warn("Unknown command");
-        rl.prompt();
-        return;
-      }
-      if (r.seam) {
-        resp = await continueUntilBlocking(
-          { seam: r.seam, ops: r.ops ?? [] },
+    try {
+      if (fixed.startsWith("/")) {
+        const r = await handleCommand(fixed, {
           session,
           sources,
-          optionsWithSeed,
+          options: runnerOptions,
           provider,
-          save
-        );
+          seed,
+          save,
+        });
+        if (!r.handled) {
+          console.warn("Unknown command");
+          rl.prompt();
+          return;
+        }
+        if (r.seam) {
+          const initial = { seam: r.seam, ops: r.ops ?? [], addr: r.addr ?? null };
+          enforceLoop(initial);
+          resp = await continueUntilBlocking(
+            initial,
+            session,
+            sources,
+            optionsWithSeed,
+            provider,
+            afterEach
+          );
+        } else {
+          rl.prompt();
+          return;
+        }
       } else {
-        rl.prompt();
-        return;
-      }
-    } else {
-      try {
         resp = await renderUntilBlocking(
           fixed,
           session,
           sources,
           optionsWithSeed,
           provider,
-          save
+          afterEach
         );
-      } catch (err) {
-        console.error(chalk.red(err));
       }
+    } catch (err) {
+      if (isLoopError(err)) {
+        logLoopStop(err);
+        rl.close();
+        return;
+      }
+      console.error(chalk.red(err));
+      rl.prompt();
+      return;
     }
 
     if (resp.seam === SeamType.INPUT) {
