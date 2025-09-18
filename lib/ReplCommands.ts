@@ -1,5 +1,5 @@
 import { revertSession } from "./CheckpointUtils";
-import { renderNext, RunnerOptions } from "./LocalRunnerUtils";
+import { renderUntilBlocking, RunnerOptions } from "./LocalRunnerUtils";
 import { OP, SeamType } from "./StoryEngine";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import { StorySession, StorySource } from "./StoryTypes";
@@ -36,7 +36,7 @@ export async function handleCommand(
       console.warn("Invalid revert index");
       return { handled: true };
     }
-    const r = await renderNext(
+    const r = await renderUntilBlocking(
       null,
       ctx.session,
       ctx.sources,

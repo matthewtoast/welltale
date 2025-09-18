@@ -16,6 +16,12 @@ export type RenderResultCore = {
   info: Record<string, string>;
 };
 
+export type RenderFrame = RenderResultCore;
+
+export type RenderPlan = RenderResultCore & {
+  frames: RenderFrame[];
+};
+
 export async function renderNext(
   input: string | null,
   session: StorySession,
@@ -39,24 +45,6 @@ export async function renderNext(
   return { seam, ops, addr, info };
 }
 
-export async function continueUntilBlocking(
-  resp: RenderResultCore,
-  session: StorySession,
-  sources: StorySource,
-  options: RunnerCoreOptions,
-  provider: StoryServiceProvider,
-  after?: (resp: RenderResultCore) => Promise<void> | void
-) {
-  let next = resp;
-  while (next.seam === SeamType.MEDIA || next.seam === SeamType.GRANT) {
-    next = await renderNext(null, session, sources, options, provider);
-    if (after) {
-      await after(next);
-    }
-  }
-  return next;
-}
-
 export async function renderUntilBlocking(
   input: string | null,
   session: StorySession,
@@ -64,12 +52,24 @@ export async function renderUntilBlocking(
   options: RunnerCoreOptions,
   provider: StoryServiceProvider,
   after?: (resp: RenderResultCore) => Promise<void> | void
-) {
-  const first = await renderNext(input, session, sources, options, provider);
+) : Promise<RenderPlan> {
+  const collected: OP[] = [];
+  const frames: RenderFrame[] = [];
+  let current = await renderNext(input, session, sources, options, provider);
+  collected.push(...current.ops);
+  frames.push(current);
   if (after) {
-    await after(first);
+    await after(current);
   }
-  return continueUntilBlocking(first, session, sources, options, provider, after);
+  while (current.seam === SeamType.MEDIA || current.seam === SeamType.GRANT) {
+    current = await renderNext(null, session, sources, options, provider);
+    collected.push(...current.ops);
+    frames.push(current);
+    if (after) {
+      await after(current);
+    }
+  }
+  return { ...current, ops: collected, frames };
 }
 
 export async function runUntilComplete(

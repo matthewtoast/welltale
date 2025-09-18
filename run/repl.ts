@@ -23,7 +23,6 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import {
   CAROT,
-  continueUntilBlocking,
   loadSessionFromDisk,
   renderUntilBlocking,
   RunnerOptions,
@@ -277,10 +276,8 @@ async function runRepl() {
           return;
         }
         if (r.seam) {
-          const initial = { seam: r.seam, ops: r.ops ?? [], addr: r.addr ?? null };
-          enforceLoop(initial);
-          resp = await continueUntilBlocking(
-            initial,
+          resp = await renderUntilBlocking(
+            null,
             session,
             sources,
             optionsWithSeed,

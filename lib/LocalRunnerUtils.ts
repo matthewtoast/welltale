@@ -20,7 +20,12 @@ import {
   railsTimestamp,
 } from "lib/TextHelpers";
 
-import { RunnerCoreOptions, renderNext as coreRenderNext } from "./RunnerCore";
+import {
+  RenderPlan,
+  RunnerCoreOptions,
+  renderNext as coreRenderNext,
+  renderUntilBlocking as coreRenderUntilBlocking,
+} from "./RunnerCore";
 import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
 import { play, playWait } from "./LocalAudioUtils";
 
@@ -153,24 +158,6 @@ export async function renderNext(
 
 export type RenderResult = Awaited<ReturnType<typeof renderNext>>;
 
-export async function continueUntilBlocking(
-  resp: RenderResult,
-  session: StorySession,
-  sources: StorySource,
-  options: RunnerOptions,
-  provider: StoryServiceProvider,
-  after?: (resp: RenderResult) => Promise<void> | void
-) {
-  let next = resp;
-  while (next.seam === SeamType.MEDIA || next.seam === SeamType.GRANT) {
-    next = await renderNext(null, session, sources, options, provider);
-    if (after) {
-      await after(next);
-    }
-  }
-  return next;
-}
-
 export async function renderUntilBlocking(
   input: string | null,
   session: StorySession,
@@ -179,18 +166,34 @@ export async function renderUntilBlocking(
   provider: StoryServiceProvider,
   after?: (resp: RenderResult) => Promise<void> | void
 ) {
-  const first = await renderNext(input, session, sources, options, provider);
-  if (after) {
-    await after(first);
+  if (input !== null) {
+    console.log(chalk.greenBright(`${CAROT}${input}`));
   }
-  return continueUntilBlocking(
-    first,
+  const plan = await coreRenderUntilBlocking(
+    input,
     session,
     sources,
-    options,
-    provider,
-    after
+    toCoreOptions(options),
+    provider
   );
+  await renderPlan(plan, options, after);
+  return { seam: plan.seam, ops: plan.ops, addr: plan.addr };
+}
+
+async function renderPlan(
+  plan: RenderPlan,
+  options: RunnerOptions,
+  after?: (resp: RenderResult) => Promise<void> | void
+) {
+  for (const frame of plan.frames) {
+    await renderOps(frame.ops, options);
+    if (frame.seam === SeamType.ERROR) {
+      logError(frame.info);
+    }
+    if (after) {
+      await after({ seam: frame.seam, ops: frame.ops, addr: frame.addr });
+    }
+  }
 }
 
 export async function runUntilComplete(
@@ -212,24 +215,22 @@ export async function runUntilComplete(
 ) {
   let next = seam;
   const runOptions: RunnerOptions = { ...info.options, seed: info.seed };
-  const after = thunk
-    ? async (resp: RenderResult) => {
-        await thunk({ ...resp, session: info.session });
-      }
-    : undefined;
   while (true) {
     if (next === SeamType.ERROR || next === SeamType.FINISH) {
       return next;
     }
     const input = next === SeamType.INPUT ? info.inputs.shift() ?? "" : null;
-    const resp = await renderUntilBlocking(
+    const plan = await coreRenderUntilBlocking(
       input,
       info.session,
       info.sources,
-      runOptions,
-      info.provider,
-      after
+      toCoreOptions(runOptions),
+      info.provider
     );
-    next = resp.seam;
+    await renderPlan(plan, runOptions);
+    if (thunk) {
+      await thunk({ ...plan, session: info.session });
+    }
+    next = plan.seam;
   }
 }
