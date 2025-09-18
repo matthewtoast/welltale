@@ -314,14 +314,23 @@ export async function advanceStory(
         session.stack.length > 0 &&
         wouldEscapeCurrentBlock(node, result.next.node, root)
       ) {
-        // Don't pop if the top frame is a yield - we need to keep it for the block to process
         const topFrame = session.stack[session.stack.length - 1];
-        if (topFrame.blockType !== "yield") {
-          // Pop from callstack instead of using the next node
-          const { returnAddress } = session.stack.pop()!;
-          session.address = returnAddress;
-        } else {
+        if (topFrame.blockType === "yield") {
           session.address = result.next.node.addr;
+        } else {
+          const frame = session.stack.pop()!;
+          if (
+            frame.blockType === "intro" ||
+            frame.blockType === "resume"
+          ) {
+            if (node.type === "jump") {
+              session.address = result.next.node.addr;
+            } else {
+              session.address = frame.returnAddress;
+            }
+          } else {
+            session.address = frame.returnAddress;
+          }
         }
       } else {
         session.address = result.next.node.addr;

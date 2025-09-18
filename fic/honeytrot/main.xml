@@ -24,7 +24,7 @@
     playerGender.description="The player's gender"
     playerGender.type="man|woman"
     playerGender.default="man" />
-  <jump to="" />
+  <jump to="origin" />
 </div>
 
 <resume>
@@ -36,7 +36,7 @@
   </if>
 </resume>
 
-<origin>
+<origin id="origin">
   <p>
     It’s 1994.
     After the Cold War ended, you, like so many others who worked in intelligence, returned to civilian life.
@@ -113,8 +113,8 @@
   </p>
   <p from="Clyde">
     What we need is a recording of Tidus saying each of nine different designated words.
-    We'll provide you with the list.
-    How you get him to say each word will be up to your talent and discretion. But we need him to clearly say all nine.
+    We'll provide you with the list of the nine words he needs to say.
+    How you get him to say each word will be up to your talent and discretion. But we need him to clearly say all nine words.
   </p>
   <p from="Clyde">
     That's the basics. Now, what questions of yours can I answer to make sure this mission is successful?
