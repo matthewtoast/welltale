@@ -1,14 +1,14 @@
 import chalk from "chalk";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname } from "path";
+
 import { sleep } from "lib/AsyncHelpers";
 import { loadEnv } from "lib/DotEnv";
 import { safeJsonParse } from "lib/JSONHelpers";
 import {
-  advanceStory,
   createDefaultSession,
   HOST_ID,
   OP,
-  PLAYER_ID,
   PlayMediaOptions,
   SeamType,
 } from "lib/StoryEngine";
@@ -19,9 +19,10 @@ import {
   mimeTypeFromUrl,
   railsTimestamp,
 } from "lib/TextHelpers";
-import { dirname } from "path";
-import { play, playWait } from "./LocalAudioUtils";
+
+import { RunnerCoreOptions, renderNext as coreRenderNext } from "./RunnerCore";
 import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
+import { play, playWait } from "./LocalAudioUtils";
 
 export const CAROT = "> ";
 
@@ -84,74 +85,73 @@ export async function playMedia({
   }
 }
 
+function toCoreOptions(options: RunnerOptions): RunnerCoreOptions {
+  const { doPlayMedia, ...rest } = options;
+  return rest;
+}
+
+async function renderOps(ops: OP[], options: RunnerOptions) {
+  for (let i = 0; i < ops.length; i++) {
+    const op = ops[i];
+    switch (op.type) {
+      case "get-input":
+        break;
+      case "play-event":
+        console.log(
+          chalk.cyan.bold(`${op.event.from || HOST_ID}:`) +
+            " " +
+            chalk.cyan(`${op.event.body}`)
+        );
+        if (options.doPlayMedia) {
+          await playMedia(op);
+        }
+        break;
+      case "story-end":
+        console.log(chalk.magenta.italic("[end]"));
+        return;
+      case "play-media":
+        if (options.doPlayMedia) {
+          await playMedia(op);
+        }
+        break;
+      case "sleep":
+        console.log(chalk.yellow.italic(`[wait ${op.duration} ms]`));
+        await sleep(op.duration);
+        break;
+    }
+  }
+}
+
+function logError(info: Record<string, string>) {
+  const msg = info.error && typeof info.error === "string" ? info.error : "Unknown error";
+  console.log(chalk.red.bold(`ERROR: ${msg}`));
+}
+
 export async function renderNext(
   input: string | null,
   session: StorySession,
   sources: StorySource,
   options: RunnerOptions,
   provider: StoryServiceProvider
-): Promise<{
-  seam: SeamType;
-  ops: OP[];
-  addr: string | null;
-}> {
+): Promise<{ seam: SeamType; ops: OP[]; addr: string | null }> {
   if (input !== null) {
     console.log(chalk.greenBright(`${CAROT}${input}`));
-    if (!session.input) {
-      session.input = { atts: {}, body: input, from: PLAYER_ID };
-    } else {
-      session.input.body = input;
-    }
   }
-  const { ops, seam, info, addr } = await advanceStory(
-    provider,
-    sources,
+  const result = await coreRenderNext(
+    input,
     session,
-    options
+    sources,
+    toCoreOptions(options),
+    provider
   );
-  async function render() {
-    for (let i = 0; i < ops.length; i++) {
-      const op = ops[i];
-      switch (op.type) {
-        case "get-input":
-          break;
-        case "play-event":
-          console.log(
-            chalk.cyan.bold(`${op.event.from || HOST_ID}:`) +
-              " " +
-              chalk.cyan(`${op.event.body}`)
-          );
-          if (options.doPlayMedia) {
-            await playMedia(op);
-          }
-          break;
-        case "story-end":
-          console.log(chalk.magenta.italic("[end]"));
-          return "halt";
-        case "play-media":
-          if (options.doPlayMedia) {
-            await playMedia(op);
-          }
-          break;
-        case "sleep":
-          console.log(chalk.yellow.italic(`[wait ${op.duration} ms]`));
-          await sleep(op.duration);
-          break;
-      }
-    }
+  await renderOps(result.ops, options);
+  if (result.seam === SeamType.ERROR) {
+    logError(result.info);
   }
-  await render();
-  if (seam === SeamType.ERROR) {
-    const msg =
-      typeof info?.error === "string" && info.error
-        ? info.error
-        : "Unknown error";
-    console.log(chalk.red.bold(`ERROR: ${msg}`));
-  }
-  return { seam, ops, addr };
+  return { seam: result.seam, ops: result.ops, addr: result.addr };
 }
 
-type RenderResult = Awaited<ReturnType<typeof renderNext>>;
+export type RenderResult = Awaited<ReturnType<typeof renderNext>>;
 
 export async function continueUntilBlocking(
   resp: RenderResult,
@@ -211,7 +211,7 @@ export async function runUntilComplete(
   }) => Promise<void>
 ) {
   let next = seam;
-  const runOptions = { ...info.options, seed: info.seed };
+  const runOptions: RunnerOptions = { ...info.options, seed: info.seed };
   const after = thunk
     ? async (resp: RenderResult) => {
         await thunk({ ...resp, session: info.session });
@@ -221,7 +221,7 @@ export async function runUntilComplete(
     if (next === SeamType.ERROR || next === SeamType.FINISH) {
       return next;
     }
-    const input = next === SeamType.INPUT ? (info.inputs.shift() ?? "") : null;
+    const input = next === SeamType.INPUT ? info.inputs.shift() ?? "" : null;
     const resp = await renderUntilBlocking(
       input,
       info.session,
