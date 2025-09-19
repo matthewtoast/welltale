@@ -21,11 +21,11 @@ import {
 } from "lib/TextHelpers";
 
 import { play, playWait } from "./LocalAudioUtils";
-import { createSkipHandle } from "./SkipSignal";
 import {
   renderUntilBlocking as coreRenderUntilBlocking,
   RenderResult,
 } from "./RunnerCore";
+import { createSkipHandle } from "./SkipSignal";
 import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
 
 export const CAROT = "> ";
@@ -65,13 +65,10 @@ export type RunnerOptions = StoryOptions & {
   doPlayMedia: boolean;
 };
 
-export async function playMedia({
-  media,
-  background,
-  volume,
-  fadeAtMs,
-  fadeDurationMs,
-}: PlayMediaOptions, signal?: AbortSignal) {
+export async function playMedia(
+  { media, background, volume, fadeAtMs, fadeDurationMs }: PlayMediaOptions,
+  signal?: AbortSignal
+) {
   if (isBlank(media)) {
     return;
   }
@@ -89,7 +86,9 @@ export async function playMedia({
   }
 }
 
-async function runWithSkip<T>(fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
+async function runWithSkip<T>(
+  fn: (signal: AbortSignal) => Promise<T>
+): Promise<T> {
   const h = createSkipHandle();
   const p = fn(h.signal);
   return p.finally(() => h.release());
@@ -123,6 +122,11 @@ export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
         return;
       case "play-media":
         if (options.doPlayMedia) {
+          console.log(
+            chalk.blueBright.italic(
+              `[play ${op.media}]${op.background ? " (background)" : ""}`
+            )
+          );
           if (op.background) {
             await playMedia(op);
           } else {
