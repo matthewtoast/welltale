@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
+import { cwd } from "process";
 import { Cache } from "./Cache";
+
+export const DEFAULT_CACHE_DIR = join(cwd(), "tmp", "cache");
 
 export class LocalCache implements Cache {
   constructor(private cacheDir: string) {

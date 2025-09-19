@@ -25,6 +25,7 @@ import {
   renderUntilBlocking as coreRenderUntilBlocking,
   RenderResult,
 } from "./RunnerCore";
+import { createStoryStream } from "./StoryStream";
 import { createSkipHandle } from "./SkipSignal";
 import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
 
@@ -182,6 +183,58 @@ export async function renderUntilBlocking(
   }
 
   return result;
+}
+
+export async function renderWithPrefetch(
+  input: string | null,
+  session: StorySession,
+  sources: StorySource,
+  options: RunnerOptions,
+  provider: StoryServiceProvider
+): Promise<RenderResult> {
+  if (input !== null) {
+    console.log(chalk.greenBright(`${CAROT}${input}`));
+  }
+  const stream = createStoryStream({
+    session,
+    sources,
+    options,
+    provider,
+  });
+  stream.push(input);
+  const ops: OP[] = [];
+  let last: RenderResult | null = null;
+  while (true) {
+    const next = await stream.take();
+    if (!next) {
+      break;
+    }
+    if (next.ops.length > 0) {
+      ops.push(...next.ops);
+      await terminalRenderOps(next.ops, options);
+    }
+    last = next;
+    if (
+      next.seam === SeamType.MEDIA ||
+      next.seam === SeamType.GRANT
+    ) {
+      continue;
+    }
+    if (next.seam === SeamType.ERROR) {
+      logError(next.info);
+    }
+    break;
+  }
+  stream.close();
+  if (!last) {
+    return {
+      seam: SeamType.GRANT,
+      ops,
+      addr: null,
+      info: {},
+    };
+  }
+  return { ...last, ops };
 }
 
 export async function runUntilComplete(

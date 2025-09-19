@@ -1,6 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { loadDirRecursive } from "lib/FileUtils";
-import { LocalCache } from "lib/LocalCache";
+import { DEFAULT_CACHE_DIR, LocalCache } from "lib/LocalCache";
 import {
   loadSessionFromDisk,
   RunnerOptions,
@@ -17,7 +17,6 @@ import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 import { railsTimestamp } from "lib/TextHelpers";
 import { last } from "lodash";
 import OpenAI from "openai";
-import { homedir } from "os";
 import { join } from "path";
 import { cwd } from "process";
 import yargs from "yargs";
@@ -93,8 +92,7 @@ async function runAutorun() {
     })
     .option("cacheDir", {
       type: "string",
-      default: join(homedir(), ".welltale", "cache"),
-      description: "Directory for caching generated content",
+      default: DEFAULT_CACHE_DIR,
     })
     .option("sessionResume", {
       type: "boolean",

@@ -3,10 +3,10 @@
 <!-- <compile:voice id="warner" descriptino="middle aged male, nasally and pinched, nerdy, well-enunciated with pedantic undertones" /> -->
 
 <intro>
-  <music duration="10000" fadeAt="4000" fadeDuration="6000" background="true">
+  <!-- <music duration="10000" fadeAt="4000" fadeDuration="6000" background="true">
     1990s spy thriller intro music, electronic, pulsing notes reminiscent of information flowing through circuit boards
   </music>
-  <sleep duration="5000" />
+  <sleep duration="5000" /> -->
   <p>
     You're playing Honeytrot, by Matthew Trost.
   </p>
@@ -40,9 +40,9 @@
   <p>
     It’s 1994.
     After the Cold War ended, you, like so many others who worked in intelligence, returned to civilian life.
-    You said goodbye to the secrecy, the bureaucracy, and - most of all - the unshakeable feeling that you were just a pawn.
-    But the secret world, the world of espionage, continued just the same. You were content leaving it all behind...
-    Until you received the phone call. The voice on the line was someone you hadn't heard for years.
+    You said goodbye to the secrecy, the bureaucracy, and the unshakeable feeling that you were just a pawn.
+    But the secret world, the world of espionage, continued on. You were content leaving it all behind... until you received the phone call.
+    The voice on the line was someone you hadn't heard from for years.
   </p>
   <jump to="jacobson-phone-call" />
 </origin>
@@ -51,9 +51,9 @@
   <sound prompt="an early 1990s digital telephone ringing twice, then being quickly picked up and the 'answer' button pressed" duration="4000" />
 
   <p from="Clyde">
-    {{playerName}}. [hesitant] It's great to hear your voice.
-    [awkward] Listen, there's... something at work I really need your input on.
-    [serious] I'm wondering if you can meet me for lunch - today - to discuss. The usual spot, near my office.
+    {{playerName}}. [hesitant] It's good to hear your voice.
+    [awkward] Listen, there's... something I need your help with.
+    [serious] I need you to meet me - today. The usual spot, near my office.
     I know you said you were walking away for good, but...
   </p>
 
@@ -68,8 +68,7 @@
   </if>
 
   <p from="Clyde">
-    Thanks, {{playerName}}. I'll owe you a favor.
-    See you soon.
+    Great. I'll owe you a favor, {{playerName}}. Talk soon.
   </p>
 
   <jump to="jacobson-meeting" />
@@ -82,30 +81,29 @@
   <p from="Clyde">
     I'm happy to see you again {{playerName}}. [pause] You look good.
     [awkward] Well... Look, let me just cut to the chase.
-    [businesslike] We need your help on a pretty tight turnaround.
+    [businesslike] We need your help on a tight turnaround.
   </p>
   <p from="Clyde">
-    I admit, I hesitated to call you because, well... [awkward] maybe the call wouldn't be welcome.
-    But, due to the nature of this job, I can only ask someone I have complete trust in.
-    [confident] And, at the end of the day, that's you.
+    I hesitated to call you because [awkward] maybe the call wouldn't be welcome.
+    But this is a job where I can only ask someone I have complete trust in.
+    [confident] At the end of the day, that's you.
   </p>
   <p from="Clyde">
-    The target is a 42-year-old white male named Wesley Tidus.
-    Martial status: Single, never married.
-    Occupation: computer systems analyst at Funtronics. Yes, the toy company.
+    So. The target is a 42-year-old white male named Wesley Tidus.
+    Marital status: Single, never married. Occupation: computer systems analyst at Funtronics, the toy company.
   </p>
   <p from="Clyde">
-    Now, we've only had two days to surveil him, but the picture we get is a man dedicated to his work.
-    He lives in a studio apartment, orders delivery 6 or more nights a week, and seems to enjoy the company of toy prototypes more than people.
+    We've only had two days to surveil him, but the picture we get is a man dedicated to his work.
+    He lives in a studio apartment, orders delivery 6 nights a week, and enjoys the company of toy prototypes more than people.
   </p>
   <p from="Clyde">
-    Although he doesn't socialize, we did find one sign of normal human life - when we did the usual garbage analysis.
-    What we found was a $49.99 receipt for registration in a service called LoveCassette. It's a video matchmaking service.
+    Although he doesn't socialize, we did find something interesting in the garbage analysis.
+    It was a $49.99 receipt for registration in a service called LoveCassette. It's a video matchmaking service.
     That's where you come in.
   </p>
   <p from="Clyde">
     As we speak, LoveCassette's scheduling system is being updated to show that Mr. Tidus has a date with a {{playerGender}} named {{playerName}}, tonight at 7pm.
-    I know it's not much time to prepare, but - like I said, tight turnaround.
+    I think you understand.
   </p>
   <p from="Clyde">
     The mission will be simple. We're going to outfit you with a wire, and you're to get Tidus talking.
@@ -117,8 +115,8 @@
     How you get him to say each word will be up to your talent and discretion. But we need him to clearly say all nine words.
   </p>
   <p from="Clyde">
-    That's the basics. Now, what questions of yours can I answer to make sure this mission is successful?
-  <p>
+    That's the basics. Now, what questions do you have?
+  </p>
 
   <!-- <while cond="true" />
     <input />

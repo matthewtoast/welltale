@@ -2,7 +2,7 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
 import { loadEnv } from "lib/DotEnv";
 import { loadDirRecursive } from "lib/FileUtils";
-import { LocalCache } from "lib/LocalCache";
+import { DEFAULT_CACHE_DIR, LocalCache } from "lib/LocalCache";
 import { PRNG } from "lib/RandHelpers";
 import { handleCommand } from "lib/ReplCommands";
 import { CompileOptions, compileStory } from "lib/StoryCompiler";
@@ -15,7 +15,6 @@ import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 import { railsTimestamp } from "lib/TextHelpers";
 import { last } from "lodash";
 import OpenAI from "openai";
-import { homedir } from "os";
 import { join } from "path";
 import { cwd } from "process";
 import readline from "readline";
@@ -25,6 +24,7 @@ import {
   CAROT,
   loadSessionFromDisk,
   renderUntilBlocking,
+  renderWithPrefetch,
   RunnerOptions,
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
@@ -64,6 +64,11 @@ async function runRepl() {
       description: "Generate other audio",
       default: true,
     })
+    .option("prefetch", {
+      type: "boolean",
+      description: "Prefetch media while playing",
+      default: false,
+    })
     .option("doCompileVoices", {
       type: "boolean",
       description: "Compile voices",
@@ -96,7 +101,7 @@ async function runRepl() {
     })
     .option("cacheDir", {
       type: "string",
-      default: join(homedir(), ".welltale", "cache"),
+      default: DEFAULT_CACHE_DIR,
       description: "Directory for caching generated content",
     })
     .parserConfiguration({
@@ -117,6 +122,8 @@ async function runRepl() {
   }
 
   const seed = argv.seed;
+  const usePrefetch = argv.prefetch;
+  const runRender = usePrefetch ? renderWithPrefetch : renderUntilBlocking;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
@@ -191,13 +198,7 @@ async function runRepl() {
   const save = () => saveSessionToDisk(session, argv.sessionPath);
   const optionsWithSeed: RunnerOptions = { ...runnerOptions, seed };
 
-  let resp = await renderUntilBlocking(
-    null,
-    session,
-    sources,
-    optionsWithSeed,
-    provider
-  );
+  let resp = await runRender(null, session, sources, optionsWithSeed, provider);
   save();
 
   if (resp.seam !== SeamType.INPUT) {
@@ -231,7 +232,7 @@ async function runRepl() {
           return;
         }
         if (r.seam) {
-          resp = await renderUntilBlocking(
+          resp = await runRender(
             null,
             session,
             sources,
@@ -245,7 +246,7 @@ async function runRepl() {
           return;
         }
       } else {
-        resp = await renderUntilBlocking(
+        resp = await runRender(
           fixed,
           session,
           sources,
