@@ -20,7 +20,6 @@ const buildArgs = (
   if (o.fadeOutDur) {
     const st = o.fadeOutAt ?? 0.01;
     filters.push(`afade=t=out:st=${st}:d=${o.fadeOutDur}`);
-    // Stop after fade completes rather than doing full file
     args.push("-t", String(st + o.fadeOutDur));
   }
   if (filters.length) args.push("-af", filters.join(","));
@@ -28,21 +27,33 @@ const buildArgs = (
   return args;
 };
 
-export const playWait = async (
+export async function playWait(
   src: string,
-  o: { volume?: number; fadeOutAt?: number; fadeOutDur?: number } = {}
-): Promise<void> => {
+  o: { volume?: number; fadeOutAt?: number; fadeOutDur?: number } = {},
+  signal?: AbortSignal
+): Promise<void> {
   if (!hasFfplay) return;
+  if (signal?.aborted) return;
   const child = spawn("ffplay", buildArgs(src, { ...o }), {
     stdio: "ignore",
   });
+  const onAbort = () => {
+    child.kill("SIGINT");
+  };
+  if (signal) signal.addEventListener("abort", onAbort, { once: true });
   await new Promise<void>((res, rej) => {
-    child.once("error", rej);
-    child.once("exit", () => res());
+    child.once("error", (err) => {
+      if (signal) signal.removeEventListener("abort", onAbort);
+      rej(err);
+    });
+    child.once("exit", () => {
+      if (signal) signal.removeEventListener("abort", onAbort);
+      res();
+    });
   });
-};
+}
 
-export const play = (
+export function play(
   src: string,
   o: {
     volume?: number;
@@ -50,10 +61,10 @@ export const play = (
     fadeOutAt?: number;
     fadeOutDur?: number;
   } = {}
-): Ctrl => {
+): Ctrl {
   if (!hasFfplay) return { pid: -1, stop: () => {} };
   const child: ChildProcess = spawn("ffplay", buildArgs(src, o), {
     stdio: "ignore",
   });
   return { pid: child.pid ?? -1, stop: () => child.kill("SIGINT") };
-};
+}

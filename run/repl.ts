@@ -28,6 +28,7 @@ import {
   RunnerOptions,
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
+import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
 
 async function runRepl() {
   loadEnv();
@@ -141,6 +142,27 @@ async function runRepl() {
     chalk.gray(`Starting REPL...`, JSON.stringify(runnerOptions, null, 2))
   );
 
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: chalk.greenBright(CAROT),
+  });
+
+  rl.on("close", () => process.exit(0));
+
+  let awaitingInput = false;
+  process.stdin.setEncoding("utf8");
+  if (process.stdin.isTTY) {
+    process.stdin.resume();
+  }
+
+  process.stdin.on("data", (chunk) => {
+    const text = typeof chunk === "string" ? chunk : chunk.toString();
+    if (!isSkipActive()) return;
+    if (!text.includes("\n") && !text.includes("\r")) return;
+    triggerSkip();
+  });
+
   const provider = argv.mock
     ? new MockStoryServiceProvider()
     : new DefaultStoryServiceProvider(
@@ -178,22 +200,19 @@ async function runRepl() {
   );
   save();
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: chalk.greenBright(CAROT),
-  });
-
-  rl.on("close", () => process.exit(0));
-
   if (resp.seam !== SeamType.INPUT) {
     rl.close();
     return;
   }
 
+  awaitingInput = true;
   rl.prompt();
 
   rl.on("line", async (raw) => {
+    if (!awaitingInput) {
+      return;
+    }
+    awaitingInput = false;
     const fixed = raw.trim();
     try {
       if (fixed.startsWith("/")) {
@@ -207,6 +226,7 @@ async function runRepl() {
         });
         if (!r.handled) {
           console.warn("Unknown command");
+          awaitingInput = true;
           rl.prompt();
           return;
         }
@@ -220,6 +240,7 @@ async function runRepl() {
           );
           save();
         } else {
+          awaitingInput = true;
           rl.prompt();
           return;
         }
@@ -235,11 +256,13 @@ async function runRepl() {
       }
     } catch (err) {
       console.error(chalk.red(err));
+      awaitingInput = true;
       rl.prompt();
       return;
     }
 
     if (resp.seam === SeamType.INPUT) {
+      awaitingInput = true;
       rl.prompt();
       return;
     }

@@ -21,6 +21,7 @@ import {
 } from "lib/TextHelpers";
 
 import { play, playWait } from "./LocalAudioUtils";
+import { createSkipHandle } from "./SkipSignal";
 import {
   renderUntilBlocking as coreRenderUntilBlocking,
   RenderResult,
@@ -70,7 +71,7 @@ export async function playMedia({
   volume,
   fadeAtMs,
   fadeDurationMs,
-}: PlayMediaOptions) {
+}: PlayMediaOptions, signal?: AbortSignal) {
   if (isBlank(media)) {
     return;
   }
@@ -83,9 +84,15 @@ export async function playMedia({
     if (background) {
       play(media, options);
     } else {
-      await playWait(media, options);
+      await playWait(media, options, signal);
     }
   }
+}
+
+async function runWithSkip<T>(fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const h = createSkipHandle();
+  const p = fn(h.signal);
+  return p.finally(() => h.release());
 }
 
 export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
@@ -101,7 +108,11 @@ export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
             chalk.cyan(`${op.event.body}`)
         );
         if (options.doPlayMedia) {
-          await playMedia(op);
+          if (op.background) {
+            await playMedia(op);
+          } else {
+            await runWithSkip((signal) => playMedia(op, signal));
+          }
         }
         break;
       case "story-end":
@@ -112,13 +123,17 @@ export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
         return;
       case "play-media":
         if (options.doPlayMedia) {
-          await playMedia(op);
+          if (op.background) {
+            await playMedia(op);
+          } else {
+            await runWithSkip((signal) => playMedia(op, signal));
+          }
         }
         break;
       case "sleep":
         if (options.doPlayMedia) {
           console.log(chalk.yellow.italic(`[wait ${op.duration} ms]`));
-          await sleep(op.duration);
+          await runWithSkip((signal) => sleep(op.duration, signal));
         } else {
           console.log(
             chalk.yellow.italic(`[wait ${op.duration} ms] (skipped)`)

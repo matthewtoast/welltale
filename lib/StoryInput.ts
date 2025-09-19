@@ -48,7 +48,6 @@ async function extractWithLLM(
     `,
     schema,
     {
-      disableCache: true,
       useWebSearch: false,
       models: normalizeModels(ctx.options, atts.models),
     }
