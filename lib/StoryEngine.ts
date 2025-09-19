@@ -319,10 +319,7 @@ export async function advanceStory(
           session.address = result.next.node.addr;
         } else {
           const frame = session.stack.pop()!;
-          if (
-            frame.blockType === "intro" ||
-            frame.blockType === "resume"
-          ) {
+          if (frame.blockType === "intro" || frame.blockType === "resume") {
             if (node.type === "jump") {
               session.address = result.next.node.addr;
             } else {
@@ -420,10 +417,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
-      const schemaAll = parseFieldGroupsNested(publicAtts(atts));
+      const schemaAll = parseFieldGroupsNested(
+        omit(publicAtts(atts), "key", "web")
+      );
       const schema: Record<string, TSerial> = {};
       for (const k in schemaAll) {
-        if (k === "key" || k === "web") continue;
         schema[k] = schemaAll[k];
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
@@ -446,14 +444,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
-      const cleaned = omit(publicAtts(atts), "key");
+      const labels = omit(publicAtts(atts), "key", "web");
       const useWebSearch = isTruthy(atts.web) ? true : false;
       const models = normalizeModels(ctx.options, atts.models);
       const out = await ctx.provider.generateJson(
         dedent`
           Classify the input into 0 or more labels based on the best fit per each label's description.
           <input>${prompt}</input>
-          <labels>${JSON.stringify(cleaned, null, 2)}</labels>
+          <labels>${JSON.stringify(labels, null, 2)}</labels>
           Return only the winning labels. Return multiple labels only if multiple are relevant.
         `,
         { labels: "array<string> - Classification labels for the input" },
@@ -469,10 +467,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
-      const cleaned = publicAtts(atts);
+      const cleaned = omit(publicAtts(atts), "key", " web");
       const schema: Record<string, TSerial> = {};
       for (const k in cleaned) {
-        if (k === "key" || k === "web") continue;
         if (!k.includes(".")) schema[k] = "number";
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
@@ -496,10 +493,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
-      const schemaAll = parseFieldGroupsNested(publicAtts(atts));
+      const schemaAll = parseFieldGroupsNested(
+        omit(publicAtts(atts), "key", "web")
+      );
       const schema: Record<string, TSerial> = {};
       for (const k in schemaAll) {
-        if (k === "key" || k === "web") continue;
         schema[k] = schemaAll[k];
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
@@ -524,14 +522,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const next = nextNode(ctx.node, ctx.root, false);
       const atts = await renderAtts(ctx.node.atts, ctx);
       const assistant =
-        atts.npc ?? atts.ai ?? atts.assistant ?? atts.from ?? HOST_ID;
+        atts.npc ??
+        atts.ai ??
+        atts.assistant ??
+        atts.from ??
+        atts.with ??
+        HOST_ID;
       const user = atts.user ?? atts.player ?? PLAYER_ID;
       const message = atts.message ?? atts.input;
       if (isBlank(assistant) || isBlank(user) || isBlank(message)) {
         return { ops, next };
       }
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
-      // Checkpoints *should* be in sequential order
+      // Checkpoints *should* be in sequential order from oldest to newest
       const events = ctx.session.checkpoints.flatMap((cp) =>
         cp.events.filter((ev) => {
           return (
@@ -549,36 +552,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           return { role: "user" as const, body: ev.body };
         }),
       ];
-      const response = await ctx.provider.generateChat(messages, {});
-      const event: StoryEvent = {
-        body: snorm(response.body),
-        from: assistant,
-        to: [user],
-        obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
-        tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
-        time: Date.now(),
-      };
-      const { url } = ctx.options.doGenerateSpeech
-        ? await ctx.provider.generateSpeech(
-            {
-              speaker: event.from,
-              voice: atts.voice ?? event.from,
-              tags: event.tags,
-              body: event.body,
-            },
-            userVoicesAndPresetVoices(ctx.voices),
-            {}
-          )
-        : { url: "" };
-      ops.push({
-        type: "play-event",
-        media: url,
-        event,
-        fadeAtMs: null,
-        fadeDurationMs: null,
-        background: false,
-        volume: parseNumberOrNull(atts.volume),
-      });
+      const response = await ctx.provider.generateChat(messages.slice(-20), {});
+      const key = atts.key ?? "dialog";
+      setState(ctx.scope, key, snorm(response.body));
       return { ops, next };
     },
   },

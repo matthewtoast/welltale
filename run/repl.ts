@@ -23,7 +23,6 @@ import { hideBin } from "yargs/helpers";
 import {
   CAROT,
   loadSessionFromDisk,
-  renderUntilBlocking,
   renderWithPrefetch,
   RunnerOptions,
   saveSessionToDisk,
@@ -63,11 +62,6 @@ async function runRepl() {
       type: "boolean",
       description: "Generate other audio",
       default: true,
-    })
-    .option("prefetch", {
-      type: "boolean",
-      description: "Prefetch media while playing",
-      default: false,
     })
     .option("doCompileVoices", {
       type: "boolean",
@@ -122,8 +116,6 @@ async function runRepl() {
   }
 
   const seed = argv.seed;
-  const usePrefetch = argv.prefetch;
-  const runRender = usePrefetch ? renderWithPrefetch : renderUntilBlocking;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
@@ -198,7 +190,13 @@ async function runRepl() {
   const save = () => saveSessionToDisk(session, argv.sessionPath);
   const optionsWithSeed: RunnerOptions = { ...runnerOptions, seed };
 
-  let resp = await runRender(null, session, sources, optionsWithSeed, provider);
+  let resp = await renderWithPrefetch(
+    null,
+    session,
+    sources,
+    optionsWithSeed,
+    provider
+  );
   save();
 
   if (resp.seam !== SeamType.INPUT) {
@@ -232,7 +230,7 @@ async function runRepl() {
           return;
         }
         if (r.seam) {
-          resp = await runRender(
+          resp = await renderWithPrefetch(
             null,
             session,
             sources,
@@ -246,7 +244,7 @@ async function runRepl() {
           return;
         }
       } else {
-        resp = await runRender(
+        resp = await renderWithPrefetch(
           fixed,
           session,
           sources,

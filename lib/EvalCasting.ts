@@ -89,6 +89,9 @@ export function castToTypeEnhanced(value: TSerial, type?: string): TSerial {
   if (!type || type === "string") return castToString(value);
   if (type === "number") return castToNumber(value);
   if (type === "boolean") return castToBoolean(value);
+  if (type === "int" || type === "integer") {
+    return Math.round(castToNumber(value));
+  }
 
   // Handle enums (e.g., "elf|dwarf|human")
   if (type.includes("|")) {

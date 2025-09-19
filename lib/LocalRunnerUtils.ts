@@ -21,10 +21,7 @@ import {
 } from "lib/TextHelpers";
 
 import { play, playWait } from "./LocalAudioUtils";
-import {
-  renderUntilBlocking as coreRenderUntilBlocking,
-  RenderResult,
-} from "./RunnerCore";
+import { RenderResult } from "./RunnerCore";
 import { createStoryStream } from "./StoryStream";
 import { createSkipHandle } from "./SkipSignal";
 import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
@@ -164,25 +161,13 @@ export async function renderUntilBlocking(
   options: RunnerOptions,
   provider: StoryServiceProvider
 ): Promise<RenderResult> {
-  if (input !== null) {
-    console.log(chalk.greenBright(`${CAROT}${input}`));
-  }
-
-  const result = await coreRenderUntilBlocking(
+  return renderWithPrefetch(
     input,
     session,
     sources,
     options,
     provider
   );
-
-  await terminalRenderOps(result.ops, options);
-
-  if (result.seam === SeamType.ERROR) {
-    logError(result.info);
-  }
-
-  return result;
 }
 
 export async function renderWithPrefetch(

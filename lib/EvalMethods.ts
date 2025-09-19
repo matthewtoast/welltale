@@ -1010,6 +1010,10 @@ const createTimestamp = (
   );
 };
 
+export const dateNow = {
+  current: () => new Date(),
+};
+
 export const dateHelpers: Record<string, (...args: any[]) => P> = {
   now: () => Date.now(),
   today: () => Math.floor(Date.now() / MS_PER_DAY),
@@ -1022,13 +1026,14 @@ export const dateHelpers: Record<string, (...args: any[]) => P> = {
     minute?: P,
     second?: P
   ) => {
-    if (year == null) return Date.now();
-    const y = num(year);
-    const m = month == null ? 1 : num(month);
-    const d = day == null ? 1 : num(day);
-    const h = hour == null ? 0 : num(hour);
-    const min = minute == null ? 0 : num(minute);
-    const s = second == null ? 0 : num(second);
+    if (typeof year === "undefined") return Date.now();
+    const current = dateNow.current();
+    const y = year == null ? current.getUTCFullYear() : num(year);
+    const m = month == null ? current.getUTCMonth() + 1 : num(month);
+    const d = day == null ? current.getUTCDate() : num(day);
+    const h = hour == null ? current.getUTCHours() : num(hour);
+    const min = minute == null ? current.getUTCMinutes() : num(minute);
+    const s = second == null ? current.getUTCSeconds() : num(second);
     return createTimestamp(y, m, d, h, min, s);
   },
 
