@@ -35,6 +35,7 @@ import {
   TEXT_CONTENT_TAGS,
   walkTree,
 } from "./StoryNodeHelpers";
+import { extractBlocks } from "./InjectHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   DEFAULT_LLM_SLUGS,
@@ -584,6 +585,86 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const key = atts.key ?? "data";
       setState(ctx.scope, key, val);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "inject",
+    exec: async (ctx) => {
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const url = atts.src ?? atts.href ?? atts.url;
+      let raw = "";
+      if (!isBlank(url) && isValidUrl(url)) {
+        const { data, statusCode } = await ctx.provider.fetchUrl({
+          url,
+          method: toHttpMethod(atts.method ?? "GET"),
+        });
+        if (statusCode >= 200 && statusCode <= 299) {
+          raw = data;
+        }
+      }
+      if (isBlank(raw)) {
+        raw = await renderText(await marshallText(ctx.node, ctx, ""), ctx);
+      }
+      if (isBlank(raw)) {
+        console.warn("inject missing content");
+        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      }
+      const blocks = extractBlocks(raw);
+      if (blocks.length === 0) {
+        console.warn("inject produced no readable blocks");
+        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      }
+      const from = atts.from ?? atts.speaker ?? atts.label ?? HOST_ID;
+      const to = atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID];
+      const obs = atts.obs ? cleanSplit(atts.obs, ",") : [];
+      const tags = atts.tags ? cleanSplit(atts.tags, ",") : [];
+      const volume = parseNumberOrNull(atts.volume);
+      const fadeAt = parseNumberOrNull(atts.fadeAt);
+      const fadeDuration = parseNumberOrNull(atts.fadeDuration);
+      const background = castToBoolean(atts.background);
+      const ops: OP[] = [];
+      for (let i = 0; i < blocks.length; i++) {
+        const body = snorm(blocks[i]);
+        if (isBlank(body)) {
+          continue;
+        }
+        const event: StoryEvent = {
+          body,
+          from,
+          to,
+          obs,
+          tags,
+          time: Date.now(),
+        };
+        const media = ctx.options.doGenerateSpeech
+          ? await ctx.provider.generateSpeech(
+              {
+                speaker: event.from,
+                voice: atts.voice ?? event.from,
+                tags: event.tags,
+                body: event.body,
+                pronunciations: ctx.source.pronunciations,
+              },
+              userVoicesAndPresetVoices(ctx.source.voices),
+              {}
+            )
+          : { url: "" };
+        ops.push({
+          type: "play-event",
+          media: media.url,
+          event,
+          volume,
+          fadeAtMs: fadeAt,
+          fadeDurationMs: fadeDuration,
+          background,
+        });
+        recordEvent(ctx.events, event);
+      }
+      if (ops.length === 0) {
+        console.warn("inject generated no events");
+        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      }
+      return { ops, next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
   {
