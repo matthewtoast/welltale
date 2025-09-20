@@ -1,9 +1,17 @@
+import { DOMParser } from "@xmldom/xmldom";
 import { evalExpr } from "./EvalUtils";
 import { BaseActionContext, renderAtts } from "./StoryEngine";
 import { StoryNode } from "./StoryTypes";
-import { isBlank } from "./TextHelpers";
+import { isBlank, snorm, smoosh } from "./TextHelpers";
 
 export const TEXT_TAG = "#text";
+
+export type BaseNode = {
+  type: string;
+  atts: Record<string, string>;
+  kids: BaseNode[];
+  text: string;
+};
 
 export const TEXT_CONTENT_TAGS = [
   TEXT_TAG,
@@ -42,6 +50,146 @@ export const DESCENDABLE_TAGS = [
   "details",
   "summary",
 ];
+
+const BLOCK_ELEMENTS = new Set([
+  "p",
+  "li",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "blockquote",
+  "pre",
+  "figcaption",
+  "dt",
+  "dd",
+]);
+
+const SKIP_ELEMENTS = new Set([
+  "script",
+  "style",
+  "noscript",
+  "nav",
+  "header",
+  "footer",
+  "svg",
+  "iframe",
+]);
+
+const LINE_ELEMENTS = new Set(["br", "hr"]);
+
+const TEXT_NODE = 3;
+const ELEMENT_NODE = 1;
+
+export type ParseSeverity = "warning" | "error" | "fatal";
+
+export const toAttrs = (el: Element): Record<string, string> => {
+  const out: Record<string, string> = {};
+  const a = el.attributes;
+  for (let i = 0; a && i < a.length; i++) {
+    const item = a.item(i);
+    if (item) out[item.name] = item.value;
+  }
+  return out;
+};
+
+const fromDom = (n: Node): BaseNode =>
+  n.nodeType === TEXT_NODE
+    ? { type: TEXT_TAG, atts: {}, kids: [], text: n.nodeValue ?? "" }
+    : n.nodeType === ELEMENT_NODE
+      ? {
+          type: (n as Element).tagName,
+          atts: toAttrs(n as Element),
+          kids: Array.from(n.childNodes)
+            .map((c) => fromDom(c))
+            .filter(
+              (child) =>
+                child.type !== TEXT_TAG ||
+                (child.text && child.text.trim() !== "")
+            ),
+          text: "",
+        }
+      : { type: `#${n.nodeName}`, atts: {}, kids: [], text: "" };
+
+export function parseXmlFragment(
+  frag: string,
+  collect?: (severity: ParseSeverity, message: string) => void
+): BaseNode {
+  const parser = collect
+    ? new DOMParser({
+        locator: {},
+        errorHandler: {
+          warning: (msg: string) => collect("warning", msg),
+          error: (msg: string) => collect("error", msg),
+          fatalError: (msg: string) => collect("fatal", msg),
+        },
+      })
+    : new DOMParser();
+  const xml = `<root>${frag}</root>`;
+  const doc = parser.parseFromString(xml, "text/xml");
+  const root = doc.documentElement;
+  return fromDom(root);
+}
+
+function textFromNode(node: BaseNode): string {
+  if (node.type === TEXT_TAG) {
+    return node.text;
+  }
+  if (SKIP_ELEMENTS.has(node.type)) {
+    return "";
+  }
+  if (LINE_ELEMENTS.has(node.type)) {
+    return "\n";
+  }
+  let out = "";
+  for (let i = 0; i < node.kids.length; i++) {
+    out += textFromNode(node.kids[i]);
+  }
+  return out;
+}
+
+function collectBlockNodes(node: BaseNode, acc: string[]): void {
+  if (node.type === TEXT_TAG) {
+    return;
+  }
+  if (SKIP_ELEMENTS.has(node.type)) {
+    return;
+  }
+  if (BLOCK_ELEMENTS.has(node.type)) {
+    const raw = textFromNode(node);
+    const normalized = snorm(raw);
+    if (normalized) {
+      acc.push(normalized);
+    }
+    return;
+  }
+  for (let i = 0; i < node.kids.length; i++) {
+    collectBlockNodes(node.kids[i], acc);
+  }
+}
+
+export function extractBlocks(html: string): string[] {
+  const trimmed = html.trim();
+  if (!trimmed) {
+    return [];
+  }
+  const root = parseXmlFragment(trimmed);
+  const acc: string[] = [];
+  for (let i = 0; i < root.kids.length; i++) {
+    const child = root.kids[i];
+    if (child.type === TEXT_TAG) {
+      const normalized = snorm(child.text);
+      if (normalized) {
+        acc.push(normalized);
+      }
+      continue;
+    }
+    collectBlockNodes(child, acc);
+  }
+  return acc.map((entry) => smoosh(entry));
+}
 
 export function walkTree<T>(
   node: StoryNode,
@@ -136,13 +284,6 @@ export function assignAddrs(node: StoryNode) {
   }
   walk(node, start);
 }
-
-export type BaseNode = {
-  type: string; // the tag name, e.g. p, block, #text, whatever
-  atts: Record<string, string>; // the element attributes
-  kids: BaseNode[]; // its children (can be empty array)
-  text: string; // its text value (can be empty string)
-};
 
 export function dumpTree(node: BaseNode | null, indent = ""): string {
   if (!node) {

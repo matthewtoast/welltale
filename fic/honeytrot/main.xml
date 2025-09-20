@@ -8,9 +8,6 @@
   <set attr="voice" value="Clyde" />
 </macro>
 
-<var name="location" value="San Francisco" />
-<var name="year" value="1994" type="number" />
-
 <intro>
   <music duration="10000" fadeAt="4000" fadeDuration="6000" background="true">
     1990s spy thriller intro music, electronic, pulsing notes reminiscent of information flowing through circuit boards
@@ -46,6 +43,8 @@
 </resume>
 
 <origin id="origin">
+  <var name="location" value="San Francisco" />
+  <var name="year" value="1994" type="number" />
   <p>
     The year is {{year}}.
   </p>
@@ -68,50 +67,48 @@
   <sound prompt="the din of a public park in an office area of a city - birds chirping, car traffic, distant conversation" duration="10000" background="true" fadeAt="2000" />
   <sleep duration="2000" />
 
-  <affix from="Jacobson" voice="Arnold">
-    <p>
-      It's good to see you again, {{playerName}}. You look good.
-    </p>
-    <p>
-      There's something I need your help with.
-      This is a job where I can only ask someone who I have complete trust in.
-      And at the end of the day, that's you.
-    </p>
-    <p>
-      The target of this operation is a 42-year-old white male named Stephen Tidus.
-      Marital status: Single - never married.
-      Sexual orientation: {$ playerGender == "man" ? "gay" : "straight" $}.
-      Occupation: computerized robotics systems analyst at Funtronics, the toy company.
-    </p>
-    <p>
-      We've only had two days to surveil him, but the picture we get is a man dedicated to his work.
-      He lives in a studio apartment. He orders delivery 6 nights a week.
-      And he seems to enjoy the company of toy prototypes more than people.
-    </p>
-    <p>
-      Although he doesn't socialize, we did find something interesting in his garbage.
-      It was a $49.99 receipt for registration in a service called LoveCassette.
-      LoveCassette is a video matchmaking service. That's where you come in.
-    </p>
-    <p>
-      As we speak, LoveCassette's scheduling system is being updated to show that Mr. Tidus has a date with a {{playerGender}} named {{playerName}}, tonight at 7pm.
-    </p>
-    <p>
-      Your mission will be simple. First, we're going to outfit you with a wire. Then, on your date, you're to get Tidus talking.
-      The wire will be connected to a radio uplink at a nearby control van.
-      I'll be on-site, and we'll be recording the whole conversation.
-    </p>
-    <p>
-      What we need is a recording of Tidus saying each of nine different designated words.
-      How you get him to say each word will be up to your talent and discretion.
-      But we need him to clearly say all nine words.
-    </p>
-    <p>
-      What questions do you have so far?
-    </p>
-  </affix>
+  <jacobson>
+    It's good to see you again, {{playerName}}. You look good.
+  </jacobson>
+  <jacobson>
+    There's something I need your help with.
+    This is a job where I can only ask someone who I have complete trust in.
+    And at the end of the day, that's you.
+  </jacobson>
+  <jacobson>
+    The target of this operation is a 42-year-old white male named Stephen Tidus.
+    Marital status: Single - never married.
+    Sexual orientation: {$ playerGender == "man" ? "gay" : "straight" $}.
+    Occupation: computerized robotics systems analyst at Funtronics, the toy company.
+  </jacobson>
+  <jacobson>
+    We've only had two days to surveil him, but the picture we get is a man dedicated to his work.
+    He lives in a studio apartment. He orders delivery 6 nights a week.
+    And he seems to enjoy the company of toy prototypes more than people.
+  </jacobson>
+  <jacobson>
+    Although he doesn't socialize, we did find something interesting in his garbage.
+    It was a $49.99 receipt for registration in a service called LoveCassette.
+    LoveCassette is a video matchmaking service. That's where you come in.
+  </jacobson>
+  <jacobson>
+    As we speak, LoveCassette's scheduling system is being updated to show that Mr. Tidus has a date with a {{playerGender}} named {{playerName}}, tonight at 7pm.
+  </jacobson>
+  <jacobson>
+    Your mission will be simple. First, we're going to outfit you with a wire. Then, on your date, you're to get Tidus talking.
+    The wire will be connected to a radio uplink at a nearby control van.
+    I'll be on-site, and we'll be recording the whole conversation.
+  </jacobson>
+  <jacobson>
+    What we need is a recording of Tidus saying each of nine different designated words.
+    How you get him to say each word will be up to your talent and discretion.
+    But we need him to clearly say all nine words.
+  </jacobson>
+  <jacobson>
+    What questions do you have so far?
+  </jacobson>
 
-  <while cond="true" />
+  <!-- <while cond="true" />
     <input />
 
     <var name="time" value="{$ timestamp(year, 6, 20) $}" />
@@ -154,9 +151,5 @@
     <jacobson>
       {{output_from_jacobson}}
     </jacobson>
-  </while>
-
-  <affix from="Jacobson" voice="Arnold">
-
-  </affix>
+  </while> -->
 </sec>

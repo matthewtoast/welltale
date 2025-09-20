@@ -1,12 +1,13 @@
-import { DOMParser } from "@xmldom/xmldom";
 import { BaseActionContext } from "./StoryEngine";
 import { applyMacros, collectMacros } from "./StoryMacro";
+import type { ParseSeverity } from "./StoryNodeHelpers";
 import {
   assignAddrs,
   BaseNode,
   cloneNode,
   findNodes,
   marshallText,
+  parseXmlFragment,
   walkTree,
 } from "./StoryNodeHelpers";
 import {
@@ -17,9 +18,7 @@ import {
 } from "./StoryTypes";
 import { cleanSplit, isBlank } from "./TextHelpers";
 
-const TEXT_NODE = 3;
-const ELEMENT_NODE = 1;
-type ParseSeverity = "warning" | "error" | "fatal";
+export { parseXmlFragment } from "./StoryNodeHelpers";
 
 export function processModuleIncludes(root: StoryNode): void {
   const modules = findNodes(root, (node) => node.type === "module").filter(
@@ -33,89 +32,6 @@ export function processModuleIncludes(root: StoryNode): void {
     }
     return null;
   });
-}
-
-function expandAffix(nodes: BaseNode[]): BaseNode[] {
-  const out: BaseNode[] = [];
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
-    if (node.type === "affix") {
-      const kids = expandAffix(node.kids);
-      const filter = node.atts.tag?.trim();
-      for (let j = 0; j < kids.length; j++) {
-        const kid = kids[j];
-        const merged =
-          filter && kid.type !== filter
-            ? { ...kid.atts }
-            : { ...node.atts, ...kid.atts };
-        if (filter) {
-          delete merged.tag;
-        }
-        out.push({
-          type: kid.type,
-          atts: kid.type === "#text" ? { ...kid.atts } : merged,
-          kids: kid.kids,
-          text: kid.text,
-        });
-      }
-      continue;
-    }
-    out.push({
-      type: node.type,
-      atts: { ...node.atts },
-      kids: expandAffix(node.kids),
-      text: node.text,
-    });
-  }
-  return out;
-}
-
-export const toAttrs = (el: Element): Record<string, string> => {
-  const out: Record<string, string> = {};
-  const a = el.attributes;
-  for (let i = 0; a && i < a.length; i++) {
-    const item = a.item(i);
-    if (item) out[item.name] = item.value;
-  }
-  return out;
-};
-
-const fromDom = (n: Node): BaseNode =>
-  n.nodeType === TEXT_NODE
-    ? { type: "#text", atts: {}, kids: [], text: n.nodeValue ?? "" }
-    : n.nodeType === ELEMENT_NODE
-      ? {
-          type: (n as Element).tagName,
-          atts: toAttrs(n as Element),
-          kids: Array.from(n.childNodes)
-            .map((c, i) => fromDom(c))
-            .filter(
-              (child) =>
-                child.type !== "#text" ||
-                (child.text && child.text.trim() !== "")
-            ),
-          text: "",
-        }
-      : { type: `#${n.nodeName}`, atts: {}, kids: [], text: "" };
-
-export function parseXmlFragment(
-  frag: string,
-  collect?: (severity: ParseSeverity, message: string) => void
-): BaseNode {
-  const parser = collect
-    ? new DOMParser({
-        locator: {},
-        errorHandler: {
-          warning: (msg: string) => collect("warning", msg),
-          error: (msg: string) => collect("error", msg),
-          fatalError: (msg: string) => collect("fatal", msg),
-        },
-      })
-    : new DOMParser();
-  const xml = `<root>${frag}</root>`;
-  const doc = parser.parseFromString(xml, "text/xml");
-  const root = doc.documentElement;
-  return fromDom(root);
 }
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
@@ -173,8 +89,7 @@ function buildStoryRoot(
         ? (severity, message) => collect(path, severity, message)
         : undefined
     );
-    const expanded = expandAffix(section.kids);
-    const { nodes, macros } = collectMacros(expanded, "macro");
+    const { nodes, macros } = collectMacros(section.kids, "macro");
     collectedMacros.push(...macros);
     accumulatedNodes.push(...nodes);
   }
