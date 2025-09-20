@@ -29,6 +29,7 @@ import { extractInput } from "./StoryInput";
 import {
   DESCENDABLE_TAGS,
   dumpTree,
+  extractReadableBlocks,
   findNodes,
   marshallText,
   searchForNode,
@@ -159,6 +160,20 @@ export async function advanceStory(
     findNodes(source.root, (node) => node.type === "origin")[0] ?? source.root;
   const outro =
     findNodes(source.root, (node) => node.type === "outro")[0] ?? null;
+
+  if (session.turn === 1 && !session.resume) {
+    await execNodes(
+      source.root.kids.filter((node) =>
+        ["var", "code", "script", "data"].includes(node.type)
+      ),
+      provider,
+      source,
+      session,
+      options,
+      rng,
+      origin
+    );
+  }
 
   // Check for resume first (takes precedence over intro)
   if (session.resume) {
@@ -540,6 +555,37 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    match: (node: StoryNode) => node.type === "var",
+    exec: async (ctx) => {
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
+      let rollup = (await marshallText(ctx.node, ctx)).trim();
+      const value = await renderText(
+        !isBlank(rollup) ? rollup : atts.value,
+        ctx
+      );
+      setState(ctx.scope, key, castToTypeEnhanced(value, atts.type));
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.source.root, false),
+      };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "code" || node.type === "script",
+    exec: async (ctx) => {
+      const text = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const lines = cleanSplitRegex(text, /[;\n]/);
+      lines.forEach((line) => {
+        evalExpr(line, ctx.scope, {}, ctx.rng);
+      });
+      return {
+        ops: [],
+        next: nextNode(ctx.node, ctx.source.root, false),
+      };
+    },
+  },
+  {
     match: (node: StoryNode) => node.type === "data",
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
@@ -767,54 +813,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "var",
-    exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
-      let rollup = (await marshallText(ctx.node, ctx)).trim();
-      const value = await renderText(
-        !isBlank(rollup) ? rollup : atts.value,
-        ctx
-      );
-      setState(ctx.scope, key, castToTypeEnhanced(value, atts.type));
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
-      };
-    },
-  },
-  {
-    match: (node: StoryNode) => node.type.startsWith("var."),
-    exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
-      const [v, ...ops] = ctx.node.type.split(".");
-      const last = ops.pop();
-      if (last && key) {
-        const script = `${last}(${key})`;
-        setState(ctx.scope, key, evalExpr(script, ctx.scope, {}, ctx.rng));
-      }
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
-      };
-    },
-  },
-  {
-    match: (node: StoryNode) => node.type === "code" || node.type === "script",
-    exec: async (ctx) => {
-      const text = await renderText(await marshallText(ctx.node, ctx), ctx);
-      const lines = cleanSplitRegex(text, /[;\n]/);
-      lines.forEach((line) => {
-        evalExpr(line, ctx.scope, {}, ctx.rng);
-      });
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
-      };
-    },
-  },
-  {
     match: (node: StoryNode) => node.type === "sleep",
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
@@ -951,6 +949,86 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           node: blockResult.node,
         },
       };
+    },
+  },
+  {
+    match: (node: StoryNode) => node.type === "read",
+    exec: async (ctx) => {
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const url = atts.src ?? atts.href ?? atts.url;
+      let raw = "";
+      if (!isBlank(url) && isValidUrl(url)) {
+        const { data, statusCode } = await ctx.provider.fetchUrl({
+          url,
+          method: toHttpMethod(atts.method ?? "GET"),
+        });
+        if (statusCode >= 200 && statusCode <= 299) {
+          raw = data;
+        }
+      }
+      if (isBlank(raw)) {
+        raw = await renderText(await marshallText(ctx.node, ctx, ""), ctx);
+      }
+      if (isBlank(raw)) {
+        console.warn("<read> missing content");
+        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      }
+      const blocks = extractReadableBlocks(raw);
+      if (blocks.length === 0) {
+        console.warn("<read> missing readable blocks");
+        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      }
+      const from = atts.from ?? atts.speaker ?? atts.label ?? HOST_ID;
+      const to = atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID];
+      const obs = atts.obs ? cleanSplit(atts.obs, ",") : [];
+      const tags = atts.tags ? cleanSplit(atts.tags, ",") : [];
+      const volume = parseNumberOrNull(atts.volume);
+      const fadeAt = parseNumberOrNull(atts.fadeAt);
+      const fadeDuration = parseNumberOrNull(atts.fadeDuration);
+      const background = castToBoolean(atts.background);
+      const ops: OP[] = [];
+      for (let i = 0; i < blocks.length; i++) {
+        const body = snorm(blocks[i]);
+        if (isBlank(body)) {
+          continue;
+        }
+        const event: StoryEvent = {
+          body,
+          from,
+          to,
+          obs,
+          tags,
+          time: Date.now(),
+        };
+        const media = ctx.options.doGenerateSpeech
+          ? await ctx.provider.generateSpeech(
+              {
+                speaker: event.from,
+                voice: atts.voice ?? event.from,
+                tags: event.tags,
+                body: event.body,
+                pronunciations: ctx.source.pronunciations,
+              },
+              userVoicesAndPresetVoices(ctx.source.voices),
+              {}
+            )
+          : { url: "" };
+        ops.push({
+          type: "play-event",
+          media: media.url,
+          event,
+          volume,
+          fadeAtMs: fadeAt,
+          fadeDurationMs: fadeDuration,
+          background,
+        });
+        recordEvent(ctx.events, event);
+      }
+      if (ops.length === 0) {
+        console.warn("inject generated no events");
+        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      }
+      return { ops, next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
   {
@@ -1379,6 +1457,39 @@ export function createScope(session: StorySession): { [key: string]: TSerial } {
       }
     },
   });
+}
+
+async function execNodes(
+  nodes: StoryNode[],
+  provider: StoryServiceProvider,
+  source: StorySource,
+  session: StorySession,
+  options: StoryOptions,
+  rng: PRNG,
+  origin: StoryNode
+): Promise<void> {
+  const prevAddress = session.address;
+  const events: StoryEvent[] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    const handler = ACTION_HANDLERS.find((h) => h.match(node));
+    if (!handler) {
+      continue;
+    }
+    const ctx: ActionContext = {
+      options,
+      origin,
+      source,
+      node,
+      session,
+      rng,
+      provider,
+      scope: createScope(session),
+      events,
+    };
+    await handler.exec(ctx);
+  }
+  session.address = prevAddress;
 }
 
 const DDV_SEPARATOR = "|";

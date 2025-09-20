@@ -8,6 +8,9 @@
   <set attr="voice" value="Clyde" />
 </macro>
 
+<var name="location" value="San Francisco" />
+<var name="year" value="1994" type="number" />
+
 <intro>
   <music duration="10000" fadeAt="4000" fadeDuration="6000" background="true">
     1990s spy thriller intro music, electronic, pulsing notes reminiscent of information flowing through circuit boards
@@ -43,8 +46,6 @@
 </resume>
 
 <origin id="origin">
-  <var name="location" value="San Francisco" />
-  <var name="year" value="1994" type="number" />
   <p>
     The year is {{year}}.
   </p>

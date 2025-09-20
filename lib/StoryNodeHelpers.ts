@@ -2,7 +2,7 @@ import { DOMParser } from "@xmldom/xmldom";
 import { evalExpr } from "./EvalUtils";
 import { BaseActionContext, renderAtts } from "./StoryEngine";
 import { StoryNode } from "./StoryTypes";
-import { isBlank, snorm, smoosh } from "./TextHelpers";
+import { isBlank, smoosh, snorm } from "./TextHelpers";
 
 export const TEXT_TAG = "#text";
 
@@ -170,7 +170,7 @@ function collectBlockNodes(node: BaseNode, acc: string[]): void {
   }
 }
 
-export function extractBlocks(html: string): string[] {
+export function extractReadableBlocks(html: string): string[] {
   const trimmed = html.trim();
   if (!trimmed) {
     return [];
