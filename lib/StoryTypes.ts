@@ -13,7 +13,7 @@ export const StoryVoiceSchema = z.object({
 export type VoiceSpec = z.infer<typeof StoryVoiceSchema>;
 
 export type StorySource = {
-  voices: VoiceSpec[];
+  voices: Record<string, VoiceSpec>;
   root: StoryNode;
   meta: Record<string, string>;
   pronunciations: Record<string, string>;
@@ -47,7 +47,7 @@ export const StoryCheckpointSchema = z.object({
   stack: z.array(
     z.object({
       returnAddress: z.string(),
-      scope: z.record(z.any()),
+      scope: z.record(z.any()).nullable(),
       blockType: z
         .enum(["scope", "yield", "intro", "resume", "outro"])
         .optional(),
@@ -76,7 +76,7 @@ export const StorySessionSchema = z.object({
   stack: z.array(
     z.object({
       returnAddress: z.string(),
-      scope: z.record(z.any()),
+      scope: z.record(z.any()).nullable(),
       blockType: z
         .enum(["scope", "yield", "intro", "resume", "outro"])
         .optional(),
@@ -135,3 +135,18 @@ export type StoryEvent = z.infer<typeof StoryEventSchema>;
 export type StoryCheckpoint = z.infer<typeof StoryCheckpointSchema>;
 export type StorySession = z.infer<typeof StorySessionSchema>;
 export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
+
+export type StoryBaseMeta = {
+  title: string;
+  author: string;
+  description: string;
+  tags: string[];
+};
+
+export type StoryMeta = {
+  id: string;
+  publish: "draft" | "published";
+  compile: "pending" | "ready";
+  createdAt: number;
+  updatedAt: number;
+} & StoryBaseMeta;

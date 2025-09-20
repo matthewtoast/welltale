@@ -1,3 +1,4 @@
+import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { BaseActionContext } from "./StoryEngine";
 import { applyMacros, collectMacros } from "./StoryMacro";
 import type { ParseSeverity } from "./StoryNodeHelpers";
@@ -16,7 +17,7 @@ import {
   StorySource,
   VoiceSpec,
 } from "./StoryTypes";
-import { cleanSplit, isBlank } from "./TextHelpers";
+import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
 
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
@@ -130,6 +131,34 @@ export async function compileStory(
   assignAddrs(root);
 
   const meta: Record<string, string> = {};
+  const pronunciations: Record<string, string> = {};
+  const voices: Record<string, VoiceSpec> = {};
+  const outputs = {
+    meta,
+    pronunciations,
+    voices,
+    root,
+  };
+
+  const jsons = Object.keys(cartridge)
+    .filter((k) => k.endsWith(".json"))
+    .map(safeJsonParse)
+    .filter(isPresent);
+  const yamls = Object.keys(cartridge)
+    .filter((k) => k.endsWith(".yml") || k.endsWith(".yaml"))
+    .map(safeYamlParse)
+    .filter(isPresent);
+  [...jsons, ...yamls].forEach((data) => {
+    if (!data || typeof data !== "object") {
+      return;
+    }
+    ["meta", "voices", "pronunciations"].forEach((key) => {
+      if (data[key] && typeof data[key] === "object") {
+        Object.assign(outputs[key as keyof typeof outputs], data[key]);
+      }
+    });
+  });
+
   findNodes(root, (node) => node.type === "meta").forEach((node) => {
     if (!isBlank(node.atts.description)) {
       meta[node.atts.name ?? node.atts.property] = node.atts.description;
@@ -138,8 +167,6 @@ export async function compileStory(
       }
     }
   });
-
-  const pronunciations: Record<string, string> = {};
   findNodes(root, (node) => node.type === "pronunciation").forEach((node) => {
     if (!isBlank(node.atts.word) && !isBlank(node.atts.pronuncation)) {
       pronunciations[node.atts.word] = node.atts.pronuncation;
@@ -148,34 +175,42 @@ export async function compileStory(
       }
     }
   });
-
-  const voices: VoiceSpec[] = [];
-  if (options.doCompileVoices && ctx.provider) {
+  if (options.doCompileVoices) {
     const voiceNodes = findNodes(root, (node) => node.type === "voice");
     for (let i = 0; i < voiceNodes.length; i++) {
       const node = voiceNodes[i];
       if (isBlank(node.atts.id)) {
         continue;
       }
-      if (options.verbose) {
-        console.info(`Generating voice ${node.atts.id}...`);
-      }
-      const text =
+      const text = snorm(
         node.atts.prompt ??
-        node.atts.description ??
-        (await marshallText(node, ctx));
-      const { id } = await ctx.provider.generateVoice(text, {});
-      voices.push({
-        id,
-        ref: node.atts.id.trim(),
-        name: node.atts.name ?? id,
-        tags: cleanSplit(node.atts.tags, ","),
-      });
-      if (options.verbose) {
-        console.info(`Generated voice ${node.atts.id} ~> ${id}`);
+          node.atts.description ??
+          (await marshallText(node, ctx))
+      );
+      if (!isBlank(text)) {
+        if (options.verbose) {
+          console.info(`Generating voice ${node.atts.id}...`);
+        }
+        const { id } = await ctx.provider.generateVoice(text, {});
+        voices[id] = {
+          id,
+          ref: node.atts.id,
+          name: node.atts.name ?? id,
+          tags: cleanSplit(node.atts.tags, ","),
+        };
+      } else {
+        if (options.verbose) {
+          console.info(`Found <voice> ${node.atts.id}`);
+        }
+        voices[node.atts.id] = {
+          id: node.atts.id,
+          ref: node.atts.ref ?? node.atts.id,
+          name: node.atts.name ?? node.atts.id,
+          tags: cleanSplit(node.atts.tags, ","),
+        };
       }
     }
   }
 
-  return { root, voices, meta, pronunciations };
+  return outputs;
 }

@@ -1,3 +1,4 @@
+import { omit } from "lodash";
 import { revertSession } from "./CheckpointUtils";
 import { renderUntilBlocking, RunnerOptions } from "./LocalRunnerUtils";
 import { OP, SeamType } from "./StoryEngine";
@@ -24,6 +25,7 @@ export async function handleCommand(
 ): Promise<CommandResult> {
   if (!raw.startsWith("/")) return { handled: false };
   const [cmd, arg] = raw.slice(1).trim().split(/\s+/, 2);
+
   if (cmd === "revert") {
     const n =
       arg === "last" || arg === undefined
@@ -46,18 +48,27 @@ export async function handleCommand(
     ctx.save();
     return { handled: true, seam: r.seam, ops: r.ops, addr: r.addr };
   }
-  if (cmd === "checkpoints") {
-    if (ctx.session.checkpoints.length === 0) {
-      console.log("(no checkpoints)");
-      return { handled: true };
-    }
-    for (let i = 0; i < ctx.session.checkpoints.length; i++) {
-      const c = ctx.session.checkpoints[i];
-      console.log(
-        `#${i} turn=${c.turn} cycle=${c.cycle} addr=${c.addr ?? ""} events=${c.events.length}`
-      );
-    }
+
+  if (cmd === "session") {
+    console.log(
+      JSON.stringify(
+        omit(ctx.session, "state", "stack", "checkpoints"),
+        null,
+        2
+      )
+    );
     return { handled: true };
   }
+
+  if (cmd === "state") {
+    console.log(JSON.stringify(ctx.session.state, null, 2));
+    return { handled: true };
+  }
+
+  if (cmd === "checkpoints") {
+    console.log(JSON.stringify(ctx.session.checkpoints, null, 2));
+    return { handled: true };
+  }
+
   return { handled: false };
 }

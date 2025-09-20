@@ -1,3 +1,4 @@
+import { loadEnv } from "lib/DotEnv";
 import { SSTConfig } from "sst";
 import { Bucket, NextjsSite, Queue, Table } from "sst/constructs";
 
@@ -15,6 +16,8 @@ Custom domain
   `{ domainName: "www.example.com", isExternalDomain: true }` for external DNS.
 - Deploy will handle ACM cert + DNS (Route53) or output CNAME/validation records (external).
 */
+
+loadEnv();
 
 export default {
   config() {
@@ -55,30 +58,31 @@ export default {
               STORIES_BUCKET: bucket.bucketName,
               STORIES_TABLE: table.tableName,
               CACHE_BUCKET: cacheBucket.bucketName,
-              OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || "",
-              OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
-              ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY || ""
+              OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY!,
+              OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL!,
+              ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
             },
-            permissions: [bucket, table, cacheBucket]
-          }
-        }
+            permissions: [bucket, table, cacheBucket],
+          },
+        },
       });
       const site = new NextjsSite(stack, "Site", {
+        // customDomain: "",
         path: "web",
         permissions: [bucket, table],
         environment: {
           JOBS_QUEUE_URL: queue.queueUrl,
           STORIES_BUCKET: bucket.bucketName,
-          STORIES_TABLE: table.tableName
-        }
+          STORIES_TABLE: table.tableName,
+        },
       });
-      stack.addOutputs({ 
-        SiteUrl: site.url, 
-        JobsQueueUrl: queue.queueUrl, 
-        StoriesBucket: bucket.bucketName, 
+      stack.addOutputs({
+        SiteUrl: site.url,
+        JobsQueueUrl: queue.queueUrl,
+        StoriesBucket: bucket.bucketName,
         StoriesTable: table.tableName,
-        CacheBucket: cacheBucket.bucketName
+        CacheBucket: cacheBucket.bucketName,
       });
     });
-  }
+  },
 } satisfies SSTConfig;

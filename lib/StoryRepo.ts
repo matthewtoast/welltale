@@ -1,21 +1,15 @@
+import {
+  DynamoDBClient,
+  GetItemCommand,
+  PutItemCommand,
+  ScanCommand,
+} from "@aws-sdk/client-dynamodb";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { DynamoDBClient, GetItemCommand, PutItemCommand, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { Readable } from "stream";
-import { uploadBufferToS3, s3ObjectExists } from "./AWSUtils";
+import { s3ObjectExists, uploadBufferToS3 } from "./AWSUtils";
 import { toBuffer } from "./BufferUtils";
-
-export type StoryMeta = {
-  id: string;
-  title: string;
-  author: string;
-  description: string;
-  tags: string[];
-  publish: "draft" | "published";
-  compile: "pending" | "ready";
-  createdAt: number;
-  updatedAt: number;
-};
+import { StoryMeta } from "./StoryTypes";
 
 export function s3(): S3Client {
   return new S3Client({});
@@ -55,7 +49,10 @@ export async function putMeta(m: StoryMeta): Promise<StoryMeta> {
   const c = ddb();
   const t = table();
   await c.send(
-    new PutItemCommand({ TableName: t, Item: marshall(m, { removeUndefinedValues: true }) })
+    new PutItemCommand({
+      TableName: t,
+      Item: marshall(m, { removeUndefinedValues: true }),
+    })
   );
   return m;
 }
@@ -73,7 +70,14 @@ export async function putCompiled(id: string, data: unknown): Promise<void> {
   const b = bucket();
   const k = compiledKey(id);
   const buf = Buffer.from(JSON.stringify(data));
-  await uploadBufferToS3({ client: c, bucket: b, key: k, data: buf, contentType: "application/json", fallbackFileName: "compiled.json" });
+  await uploadBufferToS3({
+    client: c,
+    bucket: b,
+    key: k,
+    data: buf,
+    contentType: "application/json",
+    fallbackFileName: "compiled.json",
+  });
 }
 
 export async function getCompiled(id: string): Promise<unknown | null> {

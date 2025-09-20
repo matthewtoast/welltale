@@ -182,7 +182,7 @@ export async function advanceStory(
     if (resume) {
       session.stack.push({
         returnAddress: session.address || origin.addr,
-        scope: {},
+        scope: null,
         blockType: "resume",
       });
       session.address = resume.addr;
@@ -195,7 +195,7 @@ export async function advanceStory(
     if (intro) {
       session.stack.push({
         returnAddress: origin.addr,
-        scope: {},
+        scope: null,
         blockType: "intro",
       });
       session.address = intro.addr;
@@ -353,7 +353,7 @@ export async function advanceStory(
             session.outroDone = true;
             session.stack.push({
               returnAddress: OUTRO_RETURN_ADDR,
-              scope: {},
+              scope: null,
               blockType: "outro",
             });
             session.address = outro.addr;
@@ -682,7 +682,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               body: event.body,
               pronunciations: ctx.source.pronunciations,
             },
-            userVoicesAndPresetVoices(ctx.source.voices),
+            userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
             {}
           )
         : { url: "" };
@@ -1009,7 +1009,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                 body: event.body,
                 pronunciations: ctx.source.pronunciations,
               },
-              userVoicesAndPresetVoices(ctx.source.voices),
+              userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
               {}
             )
           : { url: "" };
@@ -1078,7 +1078,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                     tags: cleanSplit(atts.tags, ","),
                     pronunciations: ctx.source.pronunciations,
                   },
-                  userVoicesAndPresetVoices(ctx.source.voices),
+                  userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
                   {}
                 );
                 url = voice.url;
@@ -1409,37 +1409,45 @@ function setState(
 }
 
 export function createScope(session: StorySession): { [key: string]: TSerial } {
-  const globalState = session.state;
-
-  const currentScope =
-    session.stack.length > 0
-      ? session.stack[session.stack.length - 1].scope
-      : null;
+  function findWritableScope(): { [key: string]: TSerial } | null {
+    for (let i = session.stack.length - 1; i >= 0; i--) {
+      const scope = session.stack[i].scope;
+      if (scope) {
+        return scope;
+      }
+    }
+    return null;
+  }
 
   return new Proxy({} as { [key: string]: TSerial }, {
     get(target, prop: string) {
       for (let i = session.stack.length - 1; i >= 0; i--) {
         const scope = session.stack[i].scope;
-        if (prop in scope) {
+        if (scope && prop in scope) {
           return scope[prop];
         }
       }
       // Return null here instead of undefined so we can reference unknown vars in evalExpr w/o throwing
-      return globalState[prop] ?? { session }[prop] ?? null;
+      return (
+        session.state[prop] ??
+        session.meta[prop] ??
+        session[prop as keyof typeof session] ??
+        null
+      );
     },
     set(target, prop: string, value) {
-      if (currentScope) {
-        currentScope[prop] = value;
+      const scope = findWritableScope();
+      if (scope) {
+        scope[prop] = value;
       } else {
-        globalState[prop] = value;
+        session.state[prop] = value;
       }
       return true;
     },
     getOwnPropertyDescriptor(target, prop: string) {
-      // Check all scopes first
       for (let i = session.stack.length - 1; i >= 0; i--) {
         const scope = session.stack[i].scope;
-        if (prop in scope) {
+        if (scope && prop in scope) {
           return {
             configurable: true,
             enumerable: true,
@@ -1447,12 +1455,11 @@ export function createScope(session: StorySession): { [key: string]: TSerial } {
           };
         }
       }
-      // Then check global state
-      if (prop in globalState) {
+      if (prop in session.state) {
         return {
           configurable: true,
           enumerable: true,
-          value: globalState[prop],
+          value: session.state[prop],
         };
       }
     },

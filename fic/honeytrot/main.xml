@@ -17,7 +17,7 @@
   </music>
   <sleep duration="5000" />
   <p>
-    You're playing Honeytrot, by Matthew Trost.
+    You're playing {{title}}, by {{author}}.
   </p>
   <jump to="get-name" />
 </intro>
