@@ -16,6 +16,7 @@ export type StorySource = {
   voices: VoiceSpec[];
   root: StoryNode;
   meta: Record<string, string>;
+  pronunciations: Record<string, string>;
 };
 
 export type StoryNode = {

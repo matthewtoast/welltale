@@ -95,6 +95,7 @@ export const generateSpeechClip = async ({
   outputFormat = DEFAULT_OUTPUT_FORMAT as TextToSpeechConvertRequestOutputFormat,
   languageCode,
   seed,
+  pronunciations,
 }: {
   client: ElevenLabsClient;
   voiceId: string;
@@ -103,9 +104,11 @@ export const generateSpeechClip = async ({
   outputFormat?: TextToSpeechConvertRequestOutputFormat;
   languageCode?: string | null;
   seed?: number;
+  pronunciations: Record<string, string>;
 }) => {
+  const processed = applyPronunciations(text, pronunciations);
   const stream = await client.textToSpeech.convert(voiceId, {
-    text,
+    text: processed,
     modelId,
     outputFormat,
     languageCode: languageCode ?? undefined,
@@ -113,6 +116,15 @@ export const generateSpeechClip = async ({
   });
   return streamToUint8Array(stream);
 };
+
+function applyPronunciations(text: string, pronunciations: Record<string, string>) {
+  let current = text;
+  for (const [key, value] of Object.entries(pronunciations)) {
+    if (!key) continue;
+    current = current.split(key).join(value);
+  }
+  return current;
+}
 
 export const generateVoiceFromPrompt = async ({
   client,

@@ -113,6 +113,7 @@ async function go() {
       body: `${i2.charName}, the ${i2.charAge}-year-old phenom, rides onto the battlefield upon his trusty steed`,
       voice: "",
       tags: [],
+      pronunciations: {},
     },
     [{ ...i3, tags: [], name: "BaseballGuy", ref: "" }],
     {}

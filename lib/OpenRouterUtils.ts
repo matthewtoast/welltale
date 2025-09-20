@@ -115,3 +115,47 @@ export async function generateChatResponse(
   });
   return readText(r as any);
 }
+
+export type TOpenAIModerationCategory =
+  | "hate"
+  | "hate/threatening"
+  | "harassment"
+  | "harassment/threatening"
+  | "self-harm"
+  | "self-harm/intent"
+  | "self-harm/instructions"
+  | "sexual"
+  | "sexual/minors"
+  | "violence"
+  | "violence/graphic";
+
+export type TOpenAIResponsePayload<T> = {
+  id: string;
+  model: string;
+  error?: {
+    message: string;
+    type: string;
+    param: any;
+    code: any;
+  };
+} & T;
+
+export async function fetchModerations(openai: OpenAI, input: string) {
+  const result = await openai.moderations.create({ input });
+  const payload = {
+    id: result.id,
+    model: result.model,
+    results: result.results.map((item) => ({
+      categories: item.categories,
+      category_scores: item.category_scores,
+      flagged: item.flagged,
+    })),
+  } as TOpenAIResponsePayload<{
+    results: {
+      categories: Record<TOpenAIModerationCategory, boolean>;
+      category_scores: Record<TOpenAIModerationCategory, number>;
+      flagged: boolean;
+    }[];
+  }>;
+  return payload;
+}

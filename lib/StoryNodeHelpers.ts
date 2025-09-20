@@ -126,6 +126,17 @@ export function cloneNode(node: StoryNode): StoryNode {
   };
 }
 
+export function assignAddrs(node: StoryNode) {
+  const start = node.addr ?? "0";
+  function walk(curr: StoryNode, addr: string) {
+    curr.addr = addr;
+    for (let i = 0; i < curr.kids.length; i++) {
+      walk(curr.kids[i], `${addr}.${i}`);
+    }
+  }
+  walk(node, start);
+}
+
 export type BaseNode = {
   type: string; // the tag name, e.g. p, block, #text, whatever
   atts: Record<string, string>; // the element attributes

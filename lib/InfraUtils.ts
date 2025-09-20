@@ -8,7 +8,7 @@ import { S3Cache } from "./S3Cache";
 import { compileStory } from "./StoryCompiler";
 import { getMeta, putCompiled, putMeta, uploadKey } from "./StoryRepo";
 import { DefaultStoryServiceProvider } from "./StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS, StoryCartridge } from "./StoryTypes";
+import { DEFAULT_LLM_SLUGS, StoryCartridge, StoryOptions } from "./StoryTypes";
 
 const STORIES_BUCKET = process.env.STORIES_BUCKET!;
 const CACHE_BUCKET = process.env.CACHE_BUCKET!;
@@ -57,7 +57,7 @@ export async function compileStoryJob(storyId: string) {
     }
   );
 
-  const options = {
+  const options: StoryOptions = {
     verbose: false,
     seed: "seed",
     loop: 0,

@@ -38,6 +38,7 @@ export type SpeechSpec = {
   voice: string;
   body: string;
   tags: string[];
+  pronunciations: Record<string, string>;
 };
 
 export interface StoryServiceProvider {
@@ -76,6 +77,10 @@ export interface StoryServiceProvider {
   fetchUrl(
     options: FetchOptions
   ): Promise<{ statusCode: number; data: string; contentType: string }>;
+  fetchModerations(input: string): Promise<{
+    flagged: boolean;
+    reasons: Record<string, number>;
+  } | null>;
 }
 
 export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
@@ -250,6 +255,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       client: this.config.eleven,
       voiceId,
       text: spec.body,
+      pronunciations: spec.pronunciations ?? {},
     });
     const url = await this.config.cache.set(
       key,
@@ -327,6 +333,32 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       console.info(`Fetch URL ~> ${options.url}`);
     }
     return fetch(options);
+  }
+
+  async fetchModerations(input: string): Promise<{
+    flagged: boolean;
+    reasons: Record<string, number>;
+  } | null> {
+    return this.config.openai.moderations
+      .create({ input })
+      .then((result) => {
+        const item = result.results[0];
+        if (!item) {
+          return { flagged: false, reasons: {} };
+        }
+        const reasons = Object.entries(item.category_scores).reduce<Record<string, number>>(
+          (acc, [key, value]) => {
+            acc[key] = value;
+            return acc;
+          },
+          {}
+        );
+        return { flagged: item.flagged, reasons };
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch moderations", err);
+        return null;
+      });
   }
 }
 
@@ -410,5 +442,12 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
       data: `Mock response for URL: ${options.url}`,
       contentType: "text/html",
     };
+  }
+
+  async fetchModerations(_input: string): Promise<{
+    flagged: boolean;
+    reasons: Record<string, number>;
+  } | null> {
+    return { flagged: false, reasons: {} };
   }
 }

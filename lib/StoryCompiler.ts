@@ -1,7 +1,14 @@
 import { DOMParser } from "@xmldom/xmldom";
 import { BaseActionContext } from "./StoryEngine";
-import { BaseNode, findNodes, marshallText } from "./StoryNodeHelpers";
 import { applyMacros, collectMacros } from "./StoryMacro";
+import {
+  assignAddrs,
+  BaseNode,
+  cloneNode,
+  findNodes,
+  marshallText,
+  walkTree,
+} from "./StoryNodeHelpers";
 import {
   StoryCartridge,
   StoryNode,
@@ -13,6 +20,20 @@ import { cleanSplit, isBlank } from "./TextHelpers";
 const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
 type ParseSeverity = "warning" | "error" | "fatal";
+
+export function processModuleIncludes(root: StoryNode): void {
+  const modules = findNodes(root, (node) => node.type === "module").filter(
+    (mod) => !isBlank(mod.atts.id)
+  );
+  if (modules.length === 0) return;
+  walkTree(root, (node, parent, idx) => {
+    if (parent && node.type === "include" && !isBlank(node.atts.id)) {
+      const found = modules.find((mod) => mod.atts.id === node.atts.id);
+      parent.kids.splice(idx, 1, ...(found?.kids.map(cloneNode) ?? []));
+    }
+    return null;
+  });
+}
 
 function expandAffix(nodes: BaseNode[]): BaseNode[] {
   const out: BaseNode[] = [];
@@ -153,7 +174,7 @@ function buildStoryRoot(
         : undefined
     );
     const expanded = expandAffix(section.kids);
-    const { nodes, macros } = collectMacros(expanded);
+    const { nodes, macros } = collectMacros(expanded, "macro");
     collectedMacros.push(...macros);
     accumulatedNodes.push(...nodes);
   }
@@ -190,20 +211,32 @@ export async function compileStory(
     : undefined;
 
   const root = buildStoryRoot(cartridge, options.verbose, collect);
+  processModuleIncludes(root);
+  assignAddrs(root);
 
   const meta: Record<string, string> = {};
   findNodes(root, (node) => node.type === "meta").forEach((node) => {
     if (!isBlank(node.atts.description)) {
       meta[node.atts.name ?? node.atts.property] = node.atts.description;
       if (options.verbose) {
-        console.info("Found meta tag", meta);
+        console.info("Found <meta>", node.atts);
+      }
+    }
+  });
+
+  const pronunciations: Record<string, string> = {};
+  findNodes(root, (node) => node.type === "pronunciation").forEach((node) => {
+    if (!isBlank(node.atts.word) && !isBlank(node.atts.pronuncation)) {
+      pronunciations[node.atts.word] = node.atts.pronuncation;
+      if (options.verbose) {
+        console.info("Found <pronunciation>", node.atts);
       }
     }
   });
 
   const voices: VoiceSpec[] = [];
   if (options.doCompileVoices && ctx.provider) {
-    const voiceNodes = findNodes(root, (node) => node.type === "compile:voice");
+    const voiceNodes = findNodes(root, (node) => node.type === "voice");
     for (let i = 0; i < voiceNodes.length; i++) {
       const node = voiceNodes[i];
       if (isBlank(node.atts.id)) {
@@ -229,5 +262,5 @@ export async function compileStory(
     }
   }
 
-  return { root, voices, meta };
+  return { root, voices, meta, pronunciations };
 }

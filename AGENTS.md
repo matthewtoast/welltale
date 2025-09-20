@@ -1,15 +1,17 @@
 # Instructions
 
+Read README.md first.
+
 ## General
 
 - Keep code simple, minimal, and DRY
 - Keep variable names short
-- Keep code modular
+- Write modular, elegant code
 - Don't add comments
 - Ask clarifying questions before making changes
 - Use pure functions with explicit arguments
 - Prefer early return over conditional
-- Array properties should default to empty arrays, not null
+- Array properties should default to empty arrays, not `null`
 - Prefer libraries' own types over writing your own
 - Don't create classes (unless instructed)
 - When researching APIs and docs, use latest content (2025)
@@ -22,8 +24,5 @@
 - Use function declaration style (`function foo() {...}`)
 - Never use 'any' type
 - Don't add try/catch blocks
-- Don't throw; instead, log warning and return null
-
-## Swift & iOS
-
-- Use computed properties for complex data storage in SwiftData models
+- Don't throw; instead, log warning and return `null`
+- Avoid optional?: function arguments or object properties

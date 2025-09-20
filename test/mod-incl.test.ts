@@ -1,4 +1,4 @@
-import { processModuleIncludes } from "lib/StoryEngine";
+import { processModuleIncludes } from "lib/StoryCompiler";
 import { StoryNode } from "lib/StoryTypes";
 import { expect } from "./TestUtils";
 

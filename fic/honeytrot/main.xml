@@ -1,6 +1,6 @@
-<!-- <compile:voice id="host" description="a neutral American female voice, audiobook narrator, undertones of intrigue and mystery" /> -->
-<!-- <compile:voice id="jacobson" description="deep male voice, American, authoritative, military background, serious yet soft" /> -->
-<!-- <compile:voice id="warner" descriptino="middle aged male, nasally and pinched, nerdy, well-enunciated with pedantic undertones" /> -->
+<!-- <voice id="host" description="a neutral American female voice, audiobook narrator, undertones of intrigue and mystery" /> -->
+<!-- <voice id="jacobson" description="deep male voice, American, authoritative, military background, serious yet soft" /> -->
+<!-- <voice id="warner" descriptino="middle aged male, nasally and pinched, nerdy, well-enunciated with pedantic undertones" /> -->
 
 <macro match="jacobson">
   <rename to="p" />
@@ -12,10 +12,10 @@
 <var name="year" value="1994" type="number" />
 
 <intro>
-  <!-- <music duration="10000" fadeAt="4000" fadeDuration="6000" background="true">
+  <music duration="10000" fadeAt="4000" fadeDuration="6000" background="true">
     1990s spy thriller intro music, electronic, pulsing notes reminiscent of information flowing through circuit boards
   </music>
-  <sleep duration="5000" /> -->
+  <sleep duration="5000" />
   <p>
     You're playing Honeytrot, by Matthew Trost.
   </p>
@@ -132,16 +132,10 @@
       Appearance: lean, medium height, gray-blond hair, casual but professional clothing.
       Voice: calm, deliberate, slightly wry, with hints of weariness.
       Background: Once an idealistic hacker in the 1960s, you went underground after a run-in with the law. You reinvented yourself as Bishop, leading a team that tests corporate security systems.
-
-Personality: Resourceful, skeptical, loyal to your team, still haunted by past choices. You value ethics in technology and distrust authority.
-
-Skills: Hacking, cryptography, social engineering, leadership, improvisation.
-
-Weaknesses: Haunted by guilt, distrustful of institutions, vulnerable when your past resurfaces.
-
-Habits: Drinks coffee, thinks before acting, uses dry humor.
-
-Relationships: 
+      Personality: Resourceful, skeptical, loyal to your team, still haunted by past choices. You value ethics in technology and distrust authority.
+      Skills: Hacking, cryptography, social engineering, leadership, improvisation.
+      Weaknesses: Haunted by guilt, distrustful of institutions, vulnerable when your past resurfaces.
+      Habits: Drinks coffee, thinks before acting, uses dry humor.
 
       Answer in character as Bishop.
       Keep responses grounded, calm, and wry.

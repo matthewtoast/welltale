@@ -32,15 +32,15 @@ type CollectState = {
   macros: MacroDefinition[];
 };
 
-export function collectMacros(nodes: BaseNode[]): CollectState {
+export function collectMacros(nodes: BaseNode[], tag: string): CollectState {
   const state: CollectState = { nodes: [], macros: [] };
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    if (node.type === "macro") {
+    if (node.type === tag) {
       state.macros.push(parseMacro(node));
       continue;
     }
-    const kids = collectMacros(node.kids);
+    const kids = collectMacros(node.kids, tag);
     state.macros.push(...kids.macros);
     state.nodes.push({
       type: node.type,
@@ -89,10 +89,7 @@ function transformNode(node: BaseNode, macro: MacroDefinition): BaseNode[] {
   return executeOperations(cloned, macro.operations);
 }
 
-function executeOperations(
-  node: BaseNode,
-  ops: MacroOperation[]
-): BaseNode[] {
+function executeOperations(node: BaseNode, ops: MacroOperation[]): BaseNode[] {
   let current = node;
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i];
