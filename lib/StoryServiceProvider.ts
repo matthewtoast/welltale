@@ -1,7 +1,7 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { mapValues } from "lodash";
 import { OpenAI } from "openai";
-import { NonEmpty, TSerial } from "typings";
+import { NonEmpty, TSerial } from "../typings";
 import { Cache } from "./Cache";
 import {
   autoFindVoice,
@@ -346,13 +346,12 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
         if (!item) {
           return { flagged: false, reasons: {} };
         }
-        const reasons = Object.entries(item.category_scores).reduce<Record<string, number>>(
-          (acc, [key, value]) => {
-            acc[key] = value;
-            return acc;
-          },
-          {}
-        );
+        const reasons = Object.entries(item.category_scores).reduce<
+          Record<string, number>
+        >((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {});
         return { flagged: item.flagged, reasons };
       })
       .catch((err) => {

@@ -1,5 +1,5 @@
-import { NonEmpty } from "typings";
 import z from "zod";
+import { NonEmpty } from "../typings";
 
 export type StoryCartridge = Record<string, Buffer | string>;
 

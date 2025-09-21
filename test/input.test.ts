@@ -1,8 +1,8 @@
-import { PRNG } from "lib/RandHelpers";
-import { BaseActionContext } from "lib/StoryEngine";
-import { extractInput } from "lib/StoryInput";
-import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
+import { PRNG } from "./../lib/RandHelpers";
+import { BaseActionContext } from "./../lib/StoryEngine";
+import { extractInput } from "./../lib/StoryInput";
+import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 const rng = new PRNG("test");
@@ -62,14 +62,9 @@ async function test() {
     { name: "Anonymous" }
   );
 
-  expect(
-    await extractInput(
-      "",
-      { "code.type": "string" },
-      baseContext
-    ),
-    { code: "" }
-  );
+  expect(await extractInput("", { "code.type": "string" }, baseContext), {
+    code: "",
+  });
 
   expect(
     await extractInput(

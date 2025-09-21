@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCompiled, getMeta, putMeta } from "lib/StoryRepo";
-import { safeJsonParseTyped } from "lib/JSONHelpers";
-import { authenticateRequest } from "lib/api/auth";
+import { safeJsonParseTyped } from "./../../../../../lib/JSONHelpers";
+import { getCompiled, getMeta, putMeta } from "./../../../../../lib/StoryRepo";
+import { authenticateRequest } from "./../../../../../lib/api/auth";
 
 export const runtime = "nodejs";
 

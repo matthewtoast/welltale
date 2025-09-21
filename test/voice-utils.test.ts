@@ -1,5 +1,5 @@
-import { autoFindVoice } from "lib/ElevenLabsUtils";
-import { ELEVENLABS_PRESET_VOICES } from "lib/ElevenLabsVoices";
+import { autoFindVoice } from "./../lib/ElevenLabsUtils";
+import { ELEVENLABS_PRESET_VOICES } from "./../lib/ElevenLabsVoices";
 import { expect } from "./TestUtils";
 
 expect(
@@ -37,4 +37,3 @@ expect(
   ),
   "21m00Tcm4TlvDq8ikWAM"
 );
-// pNInz6obpgDQGcFmaJgB

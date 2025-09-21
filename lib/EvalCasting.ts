@@ -1,4 +1,4 @@
-import { TSerial } from "typings";
+import { TSerial } from "../typings";
 
 export function castToBoolean(v: any): boolean {
   if (typeof v === "boolean") return v;

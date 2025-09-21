@@ -1,15 +1,14 @@
-import { BaseActionContext } from "lib/StoryEngine";
+import { PRNG } from "./../lib/RandHelpers";
+import { BaseActionContext } from "./../lib/StoryEngine";
 import {
   findNodes,
   marshallText,
   searchForNode,
   walkTree,
-} from "lib/StoryNodeHelpers";
-import { StoryNode } from "lib/StoryTypes";
+} from "./../lib/StoryNodeHelpers";
+import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS, StoryNode } from "./../lib/StoryTypes";
 import { expect } from "./TestUtils";
-import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { PRNG } from "lib/RandHelpers";
-import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 
 function createTestTree(): StoryNode {
   return {
@@ -90,7 +89,7 @@ function createTestTree(): StoryNode {
 
 async function test() {
   const tree = createTestTree();
-  
+
   // Create a test context object
   const provider = new MockStoryServiceProvider();
   const options = {

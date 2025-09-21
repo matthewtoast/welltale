@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { safeJsonParseTyped } from "lib/JSONHelpers";
-import { exchangeSession } from "lib/auth/service";
+import { safeJsonParseTyped } from "./../../../../../lib/JSONHelpers";
+import { exchangeSession } from "./../../../../../lib/auth/service";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,12 @@ export async function POST(req: Request) {
     console.warn("invalid exchange body");
     return NextResponse.json({ ok: false }, { status: 400 });
   }
-  const provider = body.provider === "apple" ? "apple" : body.provider === "dev" ? "dev" : null;
+  const provider =
+    body.provider === "apple"
+      ? "apple"
+      : body.provider === "dev"
+        ? "dev"
+        : null;
   if (!provider) {
     console.warn("unsupported provider");
     return NextResponse.json({ ok: false }, { status: 400 });

@@ -1,7 +1,7 @@
-import { evalExpr } from "lib/EvalUtils";
-import { dateHelpers, dateNow } from "lib/EvalMethods";
-import { PRNG } from "lib/RandHelpers";
-import { TSerial } from "typings";
+import { TSerial } from "../typings";
+import { dateHelpers, dateNow } from "./../lib/EvalMethods";
+import { evalExpr } from "./../lib/EvalUtils";
+import { PRNG } from "./../lib/RandHelpers";
 import { expect } from "./TestUtils";
 
 type Scope = Record<string, TSerial>;
@@ -49,37 +49,37 @@ function runArrayTests() {
   const scope = createScope();
   const targets: EvalTarget[] = [
     { expr: 'includes(words, "foo")', expected: true },
-    { expr: 'includes(values, 4)', expected: false },
-    { expr: 'contains(values, 3)', expected: true },
-    { expr: 'len(values)', expected: 4 },
-    { expr: 'first(values)', expected: 1 },
-    { expr: 'last(words)', expected: "bar" },
-    { expr: 'nth(values, 2)', expected: 3 },
-    { expr: 'slice(values, 1, 3)', expected: [2, 3] },
-    { expr: 'take(values, 2)', expected: [1, 2] },
-    { expr: 'drop(values, 2)', expected: [3, 2] },
-    { expr: 'concat(values, extras)', expected: [1, 2, 3, 2, 4, 5] },
-    { expr: 'reverse(values)', expected: [2, 3, 2, 1] },
-    { expr: 'sort(values)', expected: [1, 2, 2, 3] },
-    { expr: 'sortDesc(values)', expected: [3, 2, 2, 1] },
-    { expr: 'uniq(letters)', expected: ["a", "b"] },
-    { expr: 'flatten(nested)', expected: [1, 2, [3]] },
-    { expr: 'flattenDeep(nested)', expected: [1, 2, 3] },
-    { expr: 'flattenDeep(nested, 1)', expected: [1, 2, [3]] },
-    { expr: 'indexOf(values, 3)', expected: 2 },
-    { expr: 'count(values, 2)', expected: 2 },
-    { expr: 'compact(bools)', expected: [true, true] },
-    { expr: 'sum(values)', expected: 8 },
-    { expr: 'mean(values)', expected: 2 },
-    { expr: 'median(values)', expected: 2 },
-    { expr: 'sumBy(combos, 1)', expected: 10 },
-    { expr: 'mapAdd(values, 1)', expected: [2, 3, 4, 3] },
-    { expr: 'mapSub(values, 1)', expected: [0, 1, 2, 1] },
-    { expr: 'mapMul(values, 2)', expected: [2, 4, 6, 4] },
-    { expr: 'mapDiv(values, 2)', expected: [0.5, 1, 1.5, 1] },
-    { expr: 'union(values, extras)', expected: [1, 2, 3, 4, 5] },
-    { expr: 'intersection(values, others)', expected: [2] },
-    { expr: 'difference(values, others)', expected: [1, 3] },
+    { expr: "includes(values, 4)", expected: false },
+    { expr: "contains(values, 3)", expected: true },
+    { expr: "len(values)", expected: 4 },
+    { expr: "first(values)", expected: 1 },
+    { expr: "last(words)", expected: "bar" },
+    { expr: "nth(values, 2)", expected: 3 },
+    { expr: "slice(values, 1, 3)", expected: [2, 3] },
+    { expr: "take(values, 2)", expected: [1, 2] },
+    { expr: "drop(values, 2)", expected: [3, 2] },
+    { expr: "concat(values, extras)", expected: [1, 2, 3, 2, 4, 5] },
+    { expr: "reverse(values)", expected: [2, 3, 2, 1] },
+    { expr: "sort(values)", expected: [1, 2, 2, 3] },
+    { expr: "sortDesc(values)", expected: [3, 2, 2, 1] },
+    { expr: "uniq(letters)", expected: ["a", "b"] },
+    { expr: "flatten(nested)", expected: [1, 2, [3]] },
+    { expr: "flattenDeep(nested)", expected: [1, 2, 3] },
+    { expr: "flattenDeep(nested, 1)", expected: [1, 2, [3]] },
+    { expr: "indexOf(values, 3)", expected: 2 },
+    { expr: "count(values, 2)", expected: 2 },
+    { expr: "compact(bools)", expected: [true, true] },
+    { expr: "sum(values)", expected: 8 },
+    { expr: "mean(values)", expected: 2 },
+    { expr: "median(values)", expected: 2 },
+    { expr: "sumBy(combos, 1)", expected: 10 },
+    { expr: "mapAdd(values, 1)", expected: [2, 3, 4, 3] },
+    { expr: "mapSub(values, 1)", expected: [0, 1, 2, 1] },
+    { expr: "mapMul(values, 2)", expected: [2, 4, 6, 4] },
+    { expr: "mapDiv(values, 2)", expected: [0.5, 1, 1.5, 1] },
+    { expr: "union(values, extras)", expected: [1, 2, 3, 4, 5] },
+    { expr: "intersection(values, others)", expected: [2] },
+    { expr: "difference(values, others)", expected: [1, 3] },
   ];
   for (const target of targets) evaluate(rng, scope, target);
 }
@@ -93,14 +93,14 @@ function runTernaryTests() {
     { expr: 'ok ? "yes" : "no"', expected: "yes" },
     { expr: 'ko ? "yes" : "no"', expected: "no" },
     {
-      expr: 'len(values) > len(extras) ? first(values) : last(extras)',
+      expr: "len(values) > len(extras) ? first(values) : last(extras)",
       expected: 1,
     },
     {
       expr: 'contains(words, "baz") ? first(words) : "missing"',
       expected: "missing",
     },
-    { expr: 'ok ? nth(values, 1) : nth(values, 2)', expected: 2 },
+    { expr: "ok ? nth(values, 1) : nth(values, 2)", expected: 2 },
     {
       expr: 'sum(values) > sum(extras) ? "values" : "extras"',
       expected: "extras",
@@ -118,13 +118,13 @@ function runStringTests() {
     { expr: 'lower("HELLO")', expected: "hello" },
     { expr: 'upper("hello")', expected: "HELLO" },
     { expr: 'capitalize("foo bar")', expected: "Foo bar" },
-    { expr: 'trim(title)', expected: "Foo Bar" },
+    { expr: "trim(title)", expected: "Foo Bar" },
     { expr: 'replace(phrase, "-", " ")', expected: "foo bar_baz" },
     { expr: 'includes(long, "wor")', expected: true },
     { expr: 'startsWith(long, "He")', expected: true },
     { expr: 'endsWith(tail, ".txt")', expected: true },
-    { expr: 'substring(long, 0, 5)', expected: "Hello" },
-    { expr: 'slice(long, 6)', expected: "world" },
+    { expr: "substring(long, 0, 5)", expected: "Hello" },
+    { expr: "slice(long, 6)", expected: "world" },
     { expr: 'indexOf(long, "o")', expected: 4 },
     { expr: 'lastIndexOf(long, "o")', expected: 7 },
     { expr: 'split(phrase, "-")', expected: ["foo", "bar_baz"] },
@@ -266,7 +266,14 @@ function runDateTests() {
   try {
     for (const target of targets) evaluate(rng, scope, target);
 
-    const partialValue = dateHelpers.timestamp(2024, null, null, null, null, null) as number;
+    const partialValue = dateHelpers.timestamp(
+      2024,
+      null,
+      null,
+      null,
+      null,
+      null
+    ) as number;
     const partial = new Date(partialValue);
     expect(partial.getFullYear(), 2024);
     expect(partial.getMonth(), current.getMonth());
@@ -284,7 +291,14 @@ function runDateTests() {
     expect(undefinedDate.getMinutes(), current.getMinutes());
     expect(undefinedDate.getSeconds(), current.getSeconds());
 
-    const allCurrentValue = dateHelpers.timestamp(null, null, null, null, null, null) as number;
+    const allCurrentValue = dateHelpers.timestamp(
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ) as number;
     const allCurrent = new Date(allCurrentValue);
     expect(allCurrent.getFullYear(), current.getFullYear());
     expect(allCurrent.getMonth(), current.getMonth());

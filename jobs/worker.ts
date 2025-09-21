@@ -1,6 +1,6 @@
 import type { SQSEvent } from "aws-lambda";
-import { safeJsonParseTyped } from "lib/JSONHelpers";
-import { compileStoryJob } from "lib/InfraUtils";
+import { compileStoryJob } from "./../lib/InfraUtils";
+import { safeJsonParseTyped } from "./../lib/JSONHelpers";
 
 type Job = { type: "compile"; id: string };
 

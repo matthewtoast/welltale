@@ -1,5 +1,5 @@
 import { get } from "lodash";
-import { TSerial } from "typings";
+import { TSerial } from "../typings";
 
 export type Stringify = (v: unknown) => string;
 

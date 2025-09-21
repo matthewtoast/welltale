@@ -1,17 +1,6 @@
 import dedent from "dedent";
-import { parseNumberOrNull } from "lib/MathHelpers";
-import { PRNG } from "lib/RandHelpers";
-import {
-  cleanSplit,
-  cleanSplitRegex,
-  DOLLAR,
-  enhanceText,
-  isBlank,
-  LIQUID,
-  snorm,
-} from "lib/TextHelpers";
 import { get, isEmpty, omit, set } from "lodash";
-import { NonEmpty, TSerial } from "typings";
+import { NonEmpty, TSerial } from "../typings";
 import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
 import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
 import {
@@ -24,7 +13,9 @@ import { ensureArray, evalExpr } from "./EvalUtils";
 import { isValidUrl, toHttpMethod } from "./HTTPHelpers";
 import { parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
+import { parseNumberOrNull } from "./MathHelpers";
 import { AIChatMessage } from "./OpenRouterUtils";
+import { PRNG } from "./RandHelpers";
 import { extractInput } from "./StoryInput";
 import {
   DESCENDABLE_TAGS,
@@ -47,6 +38,15 @@ import {
   VoiceSpec,
 } from "./StoryTypes";
 import { renderTemplate } from "./Template";
+import {
+  cleanSplit,
+  cleanSplitRegex,
+  DOLLAR,
+  enhanceText,
+  isBlank,
+  LIQUID,
+  snorm,
+} from "./TextHelpers";
 
 export const PLAYER_ID = "USER";
 export const HOST_ID = "HOST";

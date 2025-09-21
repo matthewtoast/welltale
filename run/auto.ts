@@ -1,26 +1,26 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import { loadDirRecursive } from "lib/FileUtils";
-import { DEFAULT_CACHE_DIR, LocalCache } from "lib/LocalCache";
-import {
-  loadSessionFromDisk,
-  RunnerOptions,
-  runUntilComplete,
-} from "lib/LocalRunnerUtils";
-import { PRNG } from "lib/RandHelpers";
-import { CompileOptions, compileStory } from "lib/StoryCompiler";
-import { SeamType } from "lib/StoryEngine";
-import {
-  DefaultStoryServiceProvider,
-  MockStoryServiceProvider,
-} from "lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
-import { railsTimestamp } from "lib/TextHelpers";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
 import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
+import { loadDirRecursive } from "./../lib/FileUtils";
+import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
+import {
+  loadSessionFromDisk,
+  RunnerOptions,
+  runUntilComplete,
+} from "./../lib/LocalRunnerUtils";
+import { PRNG } from "./../lib/RandHelpers";
+import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
+import { SeamType } from "./../lib/StoryEngine";
+import {
+  DefaultStoryServiceProvider,
+  MockStoryServiceProvider,
+} from "./../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
+import { railsTimestamp } from "./../lib/TextHelpers";
 
 async function runAutorun() {
   const argv = await yargs(hideBin(process.argv))

@@ -1,12 +1,19 @@
-import { autoFindVoice } from "lib/ElevenLabsUtils";
-import { ELEVENLABS_PRESET_VOICES } from "lib/ElevenLabsVoices";
-import { castToTypeEnhanced } from "lib/EvalCasting";
-import { evalExpr } from "lib/EvalUtils";
-import { parseFieldGroups, parseFieldGroupsNested } from "lib/InputHelpers";
-import { simplifySchema } from "lib/JSONHelpers";
-import { parseNumberOrNull } from "lib/MathHelpers";
-import { PRNG } from "lib/RandHelpers";
-import { renderText, BaseActionContext } from "lib/StoryEngine";
+import { camelCase } from "lodash";
+import zodToJsonSchema from "zod-to-json-schema";
+import { autoFindVoice } from "./../lib/ElevenLabsUtils";
+import { ELEVENLABS_PRESET_VOICES } from "./../lib/ElevenLabsVoices";
+import { castToTypeEnhanced } from "./../lib/EvalCasting";
+import { evalExpr } from "./../lib/EvalUtils";
+import {
+  parseFieldGroups,
+  parseFieldGroupsNested,
+} from "./../lib/InputHelpers";
+import { simplifySchema } from "./../lib/JSONHelpers";
+import { parseNumberOrNull } from "./../lib/MathHelpers";
+import { PRNG } from "./../lib/RandHelpers";
+import { BaseActionContext, renderText } from "./../lib/StoryEngine";
+import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
 import {
   enhanceText,
   generatePredictableKey,
@@ -15,13 +22,9 @@ import {
   parameterize,
   sha1,
   slugify,
-} from "lib/TextHelpers";
-import { parseSchemaString } from "lib/ZodHelpers";
-import { camelCase } from "lodash";
-import zodToJsonSchema from "zod-to-json-schema";
+} from "./../lib/TextHelpers";
+import { parseSchemaString } from "./../lib/ZodHelpers";
 import { expect } from "./TestUtils";
-import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 
 const rng = new PRNG("test");
 const mockProvider = new MockStoryServiceProvider();
@@ -179,14 +182,23 @@ async function test() {
       models: DEFAULT_LLM_SLUGS,
     },
   };
-  
+
   expect(
-    await renderText("Hello {{name}}", { ...baseContext, scope: { name: "World" } }),
+    await renderText("Hello {{name}}", {
+      ...baseContext,
+      scope: { name: "World" },
+    }),
     "Hello World"
   );
-  expect(await renderText("Num {{x.y}}", { ...baseContext, scope: { x: { y: 3 } } }), "Num 3");
   expect(
-    await renderText("Arr {{a.0.name}}", { ...baseContext, scope: { a: [{ name: "Z" }] } }),
+    await renderText("Num {{x.y}}", { ...baseContext, scope: { x: { y: 3 } } }),
+    "Num 3"
+  );
+  expect(
+    await renderText("Arr {{a.0.name}}", {
+      ...baseContext,
+      scope: { a: [{ name: "Z" }] },
+    }),
     "Arr Z"
   );
   expect(

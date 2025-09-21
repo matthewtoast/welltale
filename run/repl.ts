@@ -1,18 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
-import { loadEnv } from "lib/DotEnv";
-import { loadDirRecursive } from "lib/FileUtils";
-import { DEFAULT_CACHE_DIR, LocalCache } from "lib/LocalCache";
-import { PRNG } from "lib/RandHelpers";
-import { handleCommand } from "lib/ReplCommands";
-import { CompileOptions, compileStory } from "lib/StoryCompiler";
-import { SeamType } from "lib/StoryEngine";
-import {
-  DefaultStoryServiceProvider,
-  MockStoryServiceProvider,
-} from "lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
-import { railsTimestamp } from "lib/TextHelpers";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
@@ -28,6 +15,19 @@ import {
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
 import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
+import { loadEnv } from "./../lib/DotEnv";
+import { loadDirRecursive } from "./../lib/FileUtils";
+import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
+import { PRNG } from "./../lib/RandHelpers";
+import { handleCommand } from "./../lib/ReplCommands";
+import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
+import { SeamType } from "./../lib/StoryEngine";
+import {
+  DefaultStoryServiceProvider,
+  MockStoryServiceProvider,
+} from "./../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
+import { railsTimestamp } from "./../lib/TextHelpers";
 
 async function runRepl() {
   loadEnv();

@@ -1,6 +1,6 @@
 import dedent from "dedent";
 import { omit } from "lodash";
-import { TSerial } from "typings";
+import { TSerial } from "../typings";
 import { castToString, castToTypeEnhanced } from "./EvalCasting";
 import { evalExpr } from "./EvalUtils";
 import { parseFieldGroups, parseFieldGroupsNested } from "./InputHelpers";

@@ -1,6 +1,6 @@
 import dedent from "dedent";
 import OpenAI from "openai";
-import { NonEmpty, TSerial } from "typings";
+import { NonEmpty, TSerial } from "../typings";
 import { LLM_SLUGS } from "./StoryTypes";
 
 type OpenAIChatModel = (typeof LLM_SLUGS)[number];

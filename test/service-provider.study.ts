@@ -1,17 +1,17 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import dedent from "dedent";
-import { loadEnv } from "lib/DotEnv";
-import { LocalCache } from "lib/LocalCache";
-import {
-  DefaultStoryServiceProvider,
-  MockStoryServiceProvider,
-} from "lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 import OpenAI from "openai";
 import { homedir } from "os";
 import { join } from "path";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
+import { loadEnv } from "./../lib/DotEnv";
+import { LocalCache } from "./../lib/LocalCache";
+import {
+  DefaultStoryServiceProvider,
+  MockStoryServiceProvider,
+} from "./../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
 
 async function go() {
   loadEnv();

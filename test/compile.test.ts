@@ -1,8 +1,8 @@
-import { compileStory, parseXmlFragment } from "lib/StoryCompiler";
-import { PRNG } from "lib/RandHelpers";
-import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
-import { dumpTree } from "lib/StoryNodeHelpers";
-import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
+import { PRNG } from "../lib/RandHelpers";
+import { compileStory, parseXmlFragment } from "../lib/StoryCompiler";
+import { dumpTree } from "../lib/StoryNodeHelpers";
+import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 async function go() {

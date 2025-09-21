@@ -54,7 +54,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 345844002E618E56000DC6FD /* Build configuration list for PBXNativeTarget "Welltale" */;
 			buildPhases = (
-				AA5C1B2A2FA86F1800A1F003 /* Prepare Dev Session */,
 				345843EE2E618E55000DC6FD /* Sources */,
 				345843EF2E618E55000DC6FD /* Frameworks */,
 				345843F02E618E55000DC6FD /* Resources */,
@@ -116,27 +115,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		AA5C1B2A2FA86F1800A1F003 /* Prepare Dev Session */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Prepare Dev Session";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -e\nif [ \"$CONFIGURATION\" != \"Debug\" ]; then\n  exit 0\nfi\ncd \"$PROJECT_DIR/../..\"\nyarn ts ./ios/scripts/bootstrap-dev.ts\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		345843EE2E618E55000DC6FD /* Sources */ = {

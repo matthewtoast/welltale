@@ -1,8 +1,13 @@
-import { PRNG } from "lib/RandHelpers";
-import { createDefaultSession, createScope, renderText, BaseActionContext } from "lib/StoryEngine";
+import { PRNG } from "./../lib/RandHelpers";
+import {
+  BaseActionContext,
+  createDefaultSession,
+  createScope,
+  renderText,
+} from "./../lib/StoryEngine";
+import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
 import { expect } from "./TestUtils";
-import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "lib/StoryTypes";
 
 async function go() {
   const session = createDefaultSession("test", {

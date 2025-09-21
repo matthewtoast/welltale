@@ -1,6 +1,6 @@
 import { Parser } from "expr-eval";
-import { TSerial } from "typings";
 import { Primitive } from "zod";
+import { TSerial } from "../typings";
 import {
   arrayHelpers,
   createRandomHelpers,

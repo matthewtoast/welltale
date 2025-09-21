@@ -1,11 +1,15 @@
-import { RunnerOptions } from "lib/LocalRunnerUtils";
-import { PRNG } from "lib/RandHelpers";
-import { renderUntilBlocking } from "lib/RunnerCore";
-import { compileStory } from "lib/StoryCompiler";
-import { createDefaultSession, OP, SeamType } from "lib/StoryEngine";
-import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS, StorySession, StorySource } from "lib/StoryTypes";
 import { isDeepStrictEqual } from "util";
+import { RunnerOptions } from "./../lib/LocalRunnerUtils";
+import { PRNG } from "./../lib/RandHelpers";
+import { renderUntilBlocking } from "./../lib/RunnerCore";
+import { compileStory } from "./../lib/StoryCompiler";
+import { createDefaultSession, OP, SeamType } from "./../lib/StoryEngine";
+import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+import {
+  DEFAULT_LLM_SLUGS,
+  StorySession,
+  StorySource,
+} from "./../lib/StoryTypes";
 
 export function expect(a: unknown, b: unknown) {
   const msg = `${JSON.stringify(a)} === ${JSON.stringify(b)}`;
@@ -40,13 +44,13 @@ async function runTestUntilComplete(
 ): Promise<{ seam: SeamType }> {
   let next = seam;
   const runOptions: RunnerOptions = { ...info.options, seed: info.seed };
-  
+
   while (true) {
     if (next === SeamType.ERROR || next === SeamType.FINISH) {
       return { seam: next };
     }
     const input = next === SeamType.INPUT ? (info.inputs.shift() ?? "") : null;
-    
+
     // Use renderUntilBlocking directly and collect ops from result
     const result = await renderUntilBlocking(
       input,
@@ -55,10 +59,10 @@ async function runTestUntilComplete(
       runOptions,
       info.provider
     );
-    
+
     // Collect the ops without actually rendering them
     collectedOps.push(...result.ops);
-    
+
     next = result.seam;
   }
 }
@@ -99,14 +103,14 @@ export async function runTestStory(
     if (testOptions.address !== undefined)
       session.address = testOptions.address;
   }
-  
+
   // Collect ops during the run
   const collectedOps: OP[] = [];
-  
+
   // Suppress console output for tests
   const originalLog = console.log;
   console.log = () => {};
-  
+
   try {
     const outcome = await runTestUntilComplete(
       {
@@ -120,7 +124,7 @@ export async function runTestStory(
       collectedOps,
       SeamType.GRANT
     );
-    
+
     return { ops: collectedOps, seam: outcome.seam, session };
   } finally {
     console.log = originalLog;

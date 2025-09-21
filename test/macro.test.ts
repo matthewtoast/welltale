@@ -1,7 +1,7 @@
-import { compileStory } from "lib/StoryCompiler";
-import { PRNG } from "lib/RandHelpers";
-import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS, StoryNode } from "lib/StoryTypes";
+import { PRNG } from "./../lib/RandHelpers";
+import { compileStory } from "./../lib/StoryCompiler";
+import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+import { DEFAULT_LLM_SLUGS, StoryNode } from "./../lib/StoryTypes";
 import { createTestCartridge, expect } from "./TestUtils";
 
 async function compileMacroStory(xml: string): Promise<StoryNode> {
@@ -20,7 +20,9 @@ async function compileMacroStory(xml: string): Promise<StoryNode> {
   };
   const rng = new PRNG(options.seed);
   const ctx = { rng, provider, scope: {}, options };
-  const compiled = await compileStory(ctx, cartridge, { doCompileVoices: false });
+  const compiled = await compileStory(ctx, cartridge, {
+    doCompileVoices: false,
+  });
   return compiled.root;
 }
 

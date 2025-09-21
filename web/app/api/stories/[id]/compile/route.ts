@@ -1,7 +1,7 @@
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
-import { getMeta, putMeta } from "lib/StoryRepo";
 import { NextResponse } from "next/server";
-import { authenticateRequest } from "lib/api/auth";
+import { authenticateRequest } from "./../../../../../../lib/api/auth";
+import { getMeta, putMeta } from "./../../../../../../lib/StoryRepo";
 
 export const runtime = "nodejs";
 

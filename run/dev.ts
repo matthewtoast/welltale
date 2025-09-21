@@ -1,9 +1,21 @@
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
-import { fetchDevSessions } from "../lib/DevSessions";
 import { loadEnv } from "../lib/DotEnv";
 import { safeYamlParse } from "../lib/JSONHelpers";
 import { zipDir } from "../lib/ZipUtils";
+
+import { mkdir, writeFile } from "fs/promises";
+import { dirname } from "path";
+import { cleanSplit } from "./../lib/TextHelpers";
+
+loadEnv();
+
+if (!process.env.WELLTALE_API_BASE) {
+  throw new Error(`process.env.WELLTALE_API_BASE missing`);
+}
+if (!process.env.DEV_API_KEYS) {
+  throw new Error(`process.env.DEV_API_KEYS missing`);
+}
 
 type StorySpec = {
   title: string;
@@ -19,37 +31,70 @@ type UploadTicket = {
   headers: Record<string, string>;
 };
 
-async function main() {
-  loadEnv();
-  const root = join(process.cwd(), "fic");
-  const base = normalizeBase(
-    process.env.WELLTALE_API_BASE || "http://localhost:3000"
-  );
-  if (!base) {
-    console.warn("missing base url");
-    process.exitCode = 1;
-    return;
+type ApiUser = {
+  id: string;
+  provider: string;
+  email: string | null;
+  roles: string[];
+};
+
+type ExchangeResponse = {
+  ok: boolean;
+  token: string;
+  user: ApiUser;
+};
+
+async function exchange(base: string, key: string): Promise<DevSession | null> {
+  const res = await fetch(`${base}/api/auth/exchange`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "dev", token: key }),
+  }).catch(() => null);
+  if (!res) return null;
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => null)) as ExchangeResponse | null;
+  if (!data) return null;
+  if (!data.ok) return null;
+  if (!data.token) return null;
+  if (!data.user) return null;
+  const roles = Array.isArray(data.user.roles)
+    ? data.user.roles.filter((role) => typeof role === "string")
+    : [];
+  const user: ApiUser = {
+    id: data.user.id,
+    provider: data.user.provider,
+    email:
+      typeof data.user.email === "string" && data.user.email.length > 0
+        ? data.user.email
+        : null,
+    roles,
+  };
+  return { token: data.token, user };
+}
+
+type DevSession = {
+  token: string;
+  user: ApiUser;
+};
+
+async function fetchDevSessions(
+  baseUrl: string,
+  devKeys: string[]
+): Promise<DevSession[]> {
+  if (devKeys.length === 0) return [];
+  const results: DevSession[] = [];
+  for (const key of devKeys) {
+    const token = await exchange(baseUrl, key);
+    if (token) results.push(token);
   }
-  const sessions = await fetchDevSessions(base);
-  const sessionToken = sessions.length > 0 ? sessions[0].token : null;
-  if (!sessionToken) {
-    console.warn("missing session token");
-  }
-  const dirs = await listDirs(root);
-  let ok = true;
-  for (const id of dirs) {
-    const dir = join(root, id);
-    const result = await syncStory(base, id, dir, sessionToken);
-    if (!result && ok) ok = false;
-  }
-  if (!ok) process.exitCode = 1;
+  return results;
 }
 
 async function syncStory(
   base: string,
   id: string,
   dir: string,
-  token: string | null
+  token: string
 ): Promise<boolean> {
   const spec = await loadStorySpec(dir);
   if (!spec) {
@@ -125,7 +170,7 @@ async function saveMeta(
   base: string,
   id: string,
   spec: StorySpec,
-  token: string | null
+  token: string
 ): Promise<boolean> {
   const payload = JSON.stringify(spec);
   const res = await safeRequest(
@@ -145,7 +190,7 @@ async function saveMeta(
 async function requestUpload(
   base: string,
   id: string,
-  token: string | null
+  token: string
 ): Promise<UploadTicket | null> {
   const res = await safeRequest(
     `${base}/api/stories/${id}/upload/sign`,
@@ -188,7 +233,7 @@ async function uploadZip(ticket: UploadTicket, zip: Buffer): Promise<boolean> {
 async function finalizeUpload(
   base: string,
   id: string,
-  token: string | null
+  token: string
 ): Promise<boolean> {
   const res = await safeRequest(
     `${base}/api/stories/${id}/upload/complete`,
@@ -202,7 +247,7 @@ async function finalizeUpload(
   return true;
 }
 
-function normalizeBase(input: string): string {
+function normalizeBaseUrl(input: string): string {
   if (!input) return "";
   if (input.endsWith("/")) return input.slice(0, -1);
   return input;
@@ -218,6 +263,64 @@ async function safeRequest(
   const res = await fetch(url, { ...init, headers }).catch(() => null as any);
   if (!res) return null;
   return res;
+}
+
+const safeConfigValue = (value: string | null | undefined): string => {
+  if (!value) return "";
+  const escaped = value.replace(/"/g, '\\"');
+  return `"${escaped}"`;
+};
+
+async function main() {
+  loadEnv();
+
+  const rootDir = join(process.cwd());
+  const ficDir = join(rootDir, "fic");
+  const iosDir = join(rootDir, "ios", "Welltale");
+
+  const apiBaseUrl = normalizeBaseUrl(process.env.WELLTALE_API_BASE!);
+
+  // 1. TODO: start dev server & wait until running
+
+  // 2. Fetch actual sessions using our local dev API keys
+  const devSessions = await fetchDevSessions(
+    apiBaseUrl,
+    cleanSplit(process.env.DEV_API_KEYS!, ",")
+  );
+  if (devSessions.length < 1) {
+    throw new Error("unable to load dev sessions");
+  }
+  const { user: sessionUser, token: sessionToken } = devSessions[0];
+
+  // 3. Sync locally defined stories to dev web database using API
+  const cartridgeDirs = await listDirs(ficDir);
+  for (const storyId of cartridgeDirs) {
+    const storyDirPath = join(rootDir, storyId);
+    await syncStory(apiBaseUrl, storyId, storyDirPath, sessionToken);
+  }
+
+  // 4. Update iOS configuration so app can start up with requisite keys
+  const configPath = join(
+    iosDir,
+    "Configurations",
+    "Generated",
+    "DevSession.xcconfig"
+  );
+  await mkdir(dirname(configPath), { recursive: true }).catch(() => {});
+  const lines = [
+    `DEV_SESSION_TOKEN = ${safeConfigValue(sessionToken)}`,
+    `DEV_SESSION_USER_ID = ${safeConfigValue(sessionUser.id)}`,
+    `DEV_SESSION_USER_PROVIDER = ${safeConfigValue(sessionUser.provider)}`,
+    `DEV_SESSION_USER_EMAIL = ${safeConfigValue(sessionUser.email)}`,
+    `DEV_SESSION_USER_ROLES = ${safeConfigValue(sessionUser.roles?.join(","))}`,
+    `INFOPLIST_KEY_DevSessionToken = $(DEV_SESSION_TOKEN)`,
+    `INFOPLIST_KEY_DevSessionUserId = $(DEV_SESSION_USER_ID)`,
+    `INFOPLIST_KEY_DevSessionUserProvider = $(DEV_SESSION_USER_PROVIDER)`,
+    `INFOPLIST_KEY_DevSessionUserEmail = $(DEV_SESSION_USER_EMAIL)`,
+    `INFOPLIST_KEY_DevSessionUserRoles = $(DEV_SESSION_USER_ROLES)`,
+  ];
+  const content = lines.join("\n") + "\n";
+  await writeFile(configPath, content, "utf8");
 }
 
 main();

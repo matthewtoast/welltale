@@ -1,6 +1,6 @@
-import { loadEnv } from "lib/DotEnv";
 import { SSTConfig } from "sst";
 import { Bucket, NextjsSite, Queue, Table } from "sst/constructs";
+import { loadEnv } from "./lib/DotEnv";
 
 /*
 AWS credentials

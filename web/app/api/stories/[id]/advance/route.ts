@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { getCompiled } from "lib/StoryRepo";
-import { safeJsonParseTyped } from "lib/JSONHelpers";
-import { advanceStory } from "lib/StoryEngine";
-import { StoryOptions, StorySession, StorySource } from "lib/StoryTypes";
-import { MockStoryServiceProvider } from "lib/StoryServiceProvider";
-import { authenticateRequest } from "lib/api/auth";
+import { safeJsonParseTyped } from "./../../../../../../lib/JSONHelpers";
+import { advanceStory } from "./../../../../../../lib/StoryEngine";
+import { getCompiled } from "./../../../../../../lib/StoryRepo";
+import { MockStoryServiceProvider } from "./../../../../../../lib/StoryServiceProvider";
+import {
+  StoryOptions,
+  StorySession,
+  StorySource,
+} from "./../../../../../../lib/StoryTypes";
+import { authenticateRequest } from "./../../../../../../lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -24,6 +28,11 @@ export async function POST(req: Request, ctx: { params: { id: string } }) {
   if (!b) return NextResponse.json({ ok: false }, { status: 400 });
   const provider = new MockStoryServiceProvider();
   const src = comp as StorySource;
-  const { ops, session, seam, info } = await advanceStory(provider, src, b.session, b.options);
+  const { ops, session, seam, info } = await advanceStory(
+    provider,
+    src,
+    b.session,
+    b.options
+  );
   return NextResponse.json({ ops, session, seam, info }, { status: 200 });
 }

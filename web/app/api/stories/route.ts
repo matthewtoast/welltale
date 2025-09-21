@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { listMetas, putMeta } from "lib/StoryRepo";
 import { ulid } from "ulid";
-import { safeJsonParseTyped } from "lib/JSONHelpers";
-import { authenticateRequest } from "lib/api/auth";
+import { safeJsonParseTyped } from "./../../../../lib/JSONHelpers";
+import { listMetas, putMeta } from "./../../../../lib/StoryRepo";
+import { authenticateRequest } from "./../../../../lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,10 @@ export async function POST(req: Request) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const t = await req.text();
-  const b = safeJsonParseTyped<CreateBody>(t, (v) => typeof v?.title === "string");
+  const b = safeJsonParseTyped<CreateBody>(
+    t,
+    (v) => typeof v?.title === "string"
+  );
   if (!b) {
     console.warn("invalid body");
     return NextResponse.json({ ok: false }, { status: 400 });

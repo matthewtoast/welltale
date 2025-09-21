@@ -2,28 +2,28 @@ import chalk from "chalk";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
 
-import { sleep } from "lib/AsyncHelpers";
-import { loadEnv } from "lib/DotEnv";
-import { safeJsonParse } from "lib/JSONHelpers";
+import { sleep } from "./AsyncHelpers";
+import { loadEnv } from "./DotEnv";
+import { safeJsonParse } from "./JSONHelpers";
 import {
   createDefaultSession,
   HOST_ID,
   OP,
   PlayMediaOptions,
   SeamType,
-} from "lib/StoryEngine";
-import { StoryServiceProvider } from "lib/StoryServiceProvider";
+} from "./StoryEngine";
+import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   AUDIO_MIMES,
   isBlank,
   mimeTypeFromUrl,
   railsTimestamp,
-} from "lib/TextHelpers";
+} from "./TextHelpers";
 
 import { play, playWait } from "./LocalAudioUtils";
 import { RenderResult } from "./RunnerCore";
-import { createStoryStream } from "./StoryStream";
 import { createSkipHandle } from "./SkipSignal";
+import { createStoryStream } from "./StoryStream";
 import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
 
 export const CAROT = "> ";
@@ -161,13 +161,7 @@ export async function renderUntilBlocking(
   options: RunnerOptions,
   provider: StoryServiceProvider
 ): Promise<RenderResult> {
-  return renderWithPrefetch(
-    input,
-    session,
-    sources,
-    options,
-    provider
-  );
+  return renderWithPrefetch(input, session, sources, options, provider);
 }
 
 export async function renderWithPrefetch(
@@ -199,10 +193,7 @@ export async function renderWithPrefetch(
       await terminalRenderOps(next.ops, options);
     }
     last = next;
-    if (
-      next.seam === SeamType.MEDIA ||
-      next.seam === SeamType.GRANT
-    ) {
+    if (next.seam === SeamType.MEDIA || next.seam === SeamType.GRANT) {
       continue;
     }
     if (next.seam === SeamType.ERROR) {
