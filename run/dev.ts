@@ -122,7 +122,7 @@ async function seed(err: () => void) {
 
   console.log("Writing iOS configuration");
   const iosDir = join(root, "ios");
-  const configPath = join(iosDir, "Config", "Generated.xcconfig");
+  const configPath = join(iosDir, "Welltale", "Generated.xcconfig");
   await mkdir(dirname(configPath), { recursive: true }).catch(() => {});
   const lines = [
     `DEV_SESSION_TOKEN = ${safeConfigValue(sessionToken, "_")}`,

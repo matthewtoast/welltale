@@ -54,17 +54,23 @@ async function upsertUser(
   return next;
 }
 
-async function issue(account: ProviderAccount): Promise<{
+async function issue(
+  account: ProviderAccount,
+  expirationTimeExpr: string
+): Promise<{
   token: string;
   user: UserRecord;
 } | null> {
   const user = await upsertUser(account);
   if (!user) return null;
-  const token = await issueSessionToken({
-    uid: user.id,
-    ver: user.sessionVersion,
-    roles: ensureRoles(user.roles),
-  });
+  const token = await issueSessionToken(
+    {
+      uid: user.id,
+      ver: user.sessionVersion,
+      roles: ensureRoles(user.roles),
+    },
+    expirationTimeExpr
+  );
   if (!token) return null;
   return { token, user };
 }
@@ -80,11 +86,12 @@ function mapProvider(
 
 export async function exchangeSession(
   provider: ProviderId,
-  proof: string
+  proof: string,
+  expirationTimeExpr: string
 ): Promise<{ token: string; user: UserRecord } | null> {
   const account = await mapProvider(provider, proof);
   if (!account) return null;
-  return issue(account);
+  return issue(account, expirationTimeExpr);
 }
 
 export async function authenticateSession(

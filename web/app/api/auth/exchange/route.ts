@@ -29,7 +29,18 @@ export async function POST(req: Request) {
     console.warn("unsupported provider");
     return NextResponse.json({ ok: false }, { status: 400 });
   }
-  const result = await exchangeSession(provider, body.token);
+  // "sec", "secs", "s"
+  // "minute", "minutes", "m"
+  // "hour", "hours", "h"
+  // "day", "days", "d"
+  // "week", "weeks", "w"
+  // year", "years", and "y"
+  const expirationTimeExpr = provider === "dev" ? "1y" : "15m";
+  const result = await exchangeSession(
+    provider,
+    body.token,
+    expirationTimeExpr
+  );
   if (!result) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }

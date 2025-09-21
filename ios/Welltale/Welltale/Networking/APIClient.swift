@@ -62,6 +62,7 @@ struct APIClient {
         guard let url = components?.url else {
             throw APIError.invalidURL
         }
+        print("[welltale] API request", method, path, query, url)
         var request = URLRequest(url: url)
         request.httpMethod = method
         if let body = body {
@@ -72,6 +73,7 @@ struct APIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         let (data, response) = try await session.data(for: request)
+        print("[welltale] API response", response)
         guard let http = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }

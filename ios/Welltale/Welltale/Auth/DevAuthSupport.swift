@@ -3,18 +3,18 @@ import Foundation
 enum DevAuthSupport {
     static var session: AuthSession? {
         #if DEBUG
-        print("HI")
         guard let token = value(for: "DevSessionToken"), !token.isEmpty else {
             return nil
         }
-        print("TOKEN", token)
         let user = APIUser(
             id: value(for: "DevSessionUserId") ?? "dev",
             provider: value(for: "DevSessionUserProvider") ?? "dev",
             email: emailValue(),
             roles: rolesValue()
         )
-        return AuthSession(token: token, user: user)
+        let session = AuthSession(token: token, user: user)
+        print("[welltale] dev session", session)
+        return session
         #else
         return nil
         #endif

@@ -20,7 +20,8 @@ function key(): Uint8Array | null {
 }
 
 export async function issueSessionToken(
-  claims: SessionClaims
+  claims: SessionClaims,
+  expirationTimeExpr: string
 ): Promise<string | null> {
   const k = key();
   if (!k) return null;
@@ -31,7 +32,7 @@ export async function issueSessionToken(
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("15m")
+    .setExpirationTime(expirationTimeExpr)
     .sign(k)
     .catch((err) => {
       console.warn("failed to sign session", err);

@@ -1,0 +1,3 @@
+#include "Base.xcconfig"
+#include "Generated.xcconfig"
+WELLTALE_API_BASE = "http://localhost:3000"
