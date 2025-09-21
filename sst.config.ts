@@ -1,6 +1,6 @@
+import { loadAppEnv } from "env-app";
 import { SSTConfig } from "sst";
 import { Bucket, NextjsSite, Queue, Table } from "sst/constructs";
-import { loadEnv } from "./lib/DotEnv";
 
 /*
 AWS credentials
@@ -16,8 +16,6 @@ Custom domain
   `{ domainName: "www.example.com", isExternalDomain: true }` for external DNS.
 - Deploy will handle ACM cert + DNS (Route53) or output CNAME/validation records (external).
 */
-
-loadEnv();
 
 export default {
   config() {
@@ -67,14 +65,7 @@ export default {
         consumer: {
           function: {
             handler: "jobs/worker.handler",
-            environment: {
-              STORIES_BUCKET: bucket.bucketName,
-              STORIES_TABLE: table.tableName,
-              CACHE_BUCKET: cacheBucket.bucketName,
-              OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY!,
-              OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL!,
-              ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
-            },
+            environment: loadAppEnv(),
             permissions: [bucket, table, cacheBucket],
           },
         },
@@ -83,15 +74,7 @@ export default {
         // customDomain: "",
         path: "web",
         permissions: [bucket, table, users],
-        environment: {
-          JOBS_QUEUE_URL: queue.queueUrl,
-          STORIES_BUCKET: bucket.bucketName,
-          STORIES_TABLE: table.tableName,
-          USERS_TABLE: users.tableName,
-          AUTH_SECRET: process.env.AUTH_SECRET!,
-          DEV_API_KEYS: process.env.DEV_API_KEYS || "",
-          APPLE_AUDIENCE: process.env.APPLE_AUDIENCE || "",
-        },
+        environment: loadAppEnv(),
       });
       stack.addOutputs({
         SiteUrl: site.url,

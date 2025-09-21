@@ -1,8 +1,19 @@
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { ulid } from "ulid";
 import { safeJsonParseTyped } from "./../../../../lib/JSONHelpers";
-import { listMetas, putMeta } from "./../../../../lib/StoryRepo";
+import { createStoryRepo } from "./../../../../lib/StoryRepo";
 import { authenticateRequest } from "./../../../../lib/api/auth";
+import { loadAppEnv } from "./../../../../env-app";
+
+const env = loadAppEnv();
+const storyRepo = createStoryRepo({
+  ddb: new DynamoDBClient({}),
+  tableName: env.STORIES_TABLE,
+  s3: new S3Client({}),
+  bucketName: env.STORIES_BUCKET,
+});
 
 export const runtime = "nodejs";
 
@@ -19,7 +30,7 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const u = new URL(req.url);
   const q = (u.searchParams.get("q") || "").toLowerCase();
-  const metas = await listMetas();
+  const metas = await storyRepo.listMetas();
   const items = metas.filter((m) => {
     if (!q) return true;
     const hay = [m.title, m.author, m.description, ...(m.tags || [])]
@@ -44,7 +55,7 @@ export async function POST(req: Request) {
   }
   const id = ulid();
   const now = Date.now();
-  const meta = await putMeta({
+  const meta = await storyRepo.putMeta({
     id,
     title: b.title,
     author: b.author,

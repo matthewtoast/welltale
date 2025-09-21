@@ -1,16 +1,19 @@
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { ulid } from "ulid";
-import {
-  findUserByProvider,
-  getUser,
-  saveUser,
-  UserRecord,
-} from "../UserRepo";
-import { issueSessionToken, verifySessionToken } from "./session";
+import { createUserRepo, UserRecord } from "../UserRepo";
+import { loadAppEnv } from "./../../env-app";
 import {
   ProviderAccount,
   verifyAppleIdentityToken,
   verifyDevToken,
 } from "./providers";
+import { issueSessionToken, verifySessionToken } from "./session";
+
+const env = loadAppEnv();
+const userRepo = createUserRepo({
+  ddb: new DynamoDBClient({}),
+  tableName: env.USERS_TABLE,
+});
 
 type ProviderId = ProviderAccount["provider"];
 
@@ -22,7 +25,7 @@ function ensureRoles(roles: string[] | null | undefined): string[] {
 async function upsertUser(
   account: ProviderAccount
 ): Promise<UserRecord | null> {
-  const existing = await findUserByProvider(
+  const existing = await userRepo.findUserByProvider(
     account.provider,
     account.providerUserId
   );
@@ -38,7 +41,7 @@ async function upsertUser(
       createdAt: now,
       updatedAt: now,
     };
-    await saveUser(record);
+    await userRepo.saveUser(record);
     return record;
   }
   const next: UserRecord = {
@@ -47,7 +50,7 @@ async function upsertUser(
     roles: ensureRoles(existing.roles),
     updatedAt: now,
   };
-  await saveUser(next);
+  await userRepo.saveUser(next);
   return next;
 }
 
@@ -71,8 +74,7 @@ function mapProvider(
   proof: string
 ): Promise<ProviderAccount | null> {
   if (provider === "apple") return verifyAppleIdentityToken(proof);
-  if (provider === "dev")
-    return Promise.resolve(verifyDevToken(proof));
+  if (provider === "dev") return Promise.resolve(verifyDevToken(proof));
   return Promise.resolve(null);
 }
 
@@ -90,7 +92,7 @@ export async function authenticateSession(
 ): Promise<UserRecord | null> {
   const claims = await verifySessionToken(token);
   if (!claims) return null;
-  const user = await getUser(claims.uid);
+  const user = await userRepo.getUser(claims.uid);
   if (!user) return null;
   if (user.sessionVersion !== claims.ver) return null;
   const roles = ensureRoles(user.roles);

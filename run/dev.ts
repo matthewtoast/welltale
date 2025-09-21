@@ -1,20 +1,16 @@
 import { spawn, type ChildProcess } from "child_process";
+import { loadAppEnv } from "env-app";
+import { loadDevEnv } from "env-dev";
 import { mkdir, readFile, readdir, writeFile } from "fs/promises";
 import { dirname, join } from "path";
-import { loadEnv } from "../lib/DotEnv";
 import { safeYamlParse } from "../lib/JSONHelpers";
 import { zipDir } from "../lib/ZipUtils";
-
 import { cleanSplit } from "./../lib/TextHelpers";
 
-loadEnv();
-
-if (!process.env.WELLTALE_API_BASE) {
-  throw new Error(`process.env.WELLTALE_API_BASE missing`);
-}
-if (!process.env.DEV_API_KEYS) {
-  throw new Error(`process.env.DEV_API_KEYS missing`);
-}
+const env = {
+  ...loadAppEnv(),
+  ...loadDevEnv(),
+};
 
 type StorySpec = {
   title: string;
@@ -279,13 +275,21 @@ function wait(ms: number): Promise<void> {
 function startSstDev(dir: string): ChildProcess {
   return spawn("yarn", ["web:sst:dev"], {
     cwd: dir,
-    env: process.env,
+    env: env,
+    stdio: "inherit",
+  });
+}
+
+function startNextDev(dir: string): ChildProcess {
+  return spawn("npx", ["sst", "bind", "yarn", "web:dev"], {
+    cwd: dir,
+    env: env,
     stdio: "inherit",
   });
 }
 
 async function waitForDevSessionsReady(
-  child: ChildProcess,
+  children: ChildProcess[],
   base: string,
   keys: string[]
 ): Promise<DevSession[] | null> {
@@ -293,7 +297,10 @@ async function waitForDevSessionsReady(
   const timeoutMs = 180000;
   const startTime = Date.now();
   while (Date.now() - startTime < timeoutMs) {
-    if (child.exitCode !== null || child.signalCode !== null) return null;
+    const exited = children.some(
+      (child) => child.exitCode !== null || child.signalCode !== null
+    );
+    if (exited) return null;
     const sessions = await fetchDevSessions(base, keys);
     if (sessions.length > 0) return sessions;
     await wait(1000);
@@ -321,19 +328,23 @@ function bindLifecycle(child: ChildProcess): void {
 }
 
 async function main() {
-  loadEnv();
-
   const rootDir = join(process.cwd());
   const ficDir = join(rootDir, "fic");
   const iosDir = join(rootDir, "ios", "Welltale");
 
-  const apiBaseUrl = normalizeBaseUrl(process.env.WELLTALE_API_BASE!);
-  const devKeys = cleanSplit(process.env.DEV_API_KEYS!, ",");
+  const apiBaseUrl = normalizeBaseUrl(env.WELLTALE_API_BASE);
+  const devKeys = cleanSplit(env.DEV_API_KEYS, ",");
+
   const devProcess = startSstDev(rootDir);
   bindLifecycle(devProcess);
-  const exitPromise = waitForChildExit(devProcess);
+  const sstExitPromise = waitForChildExit(devProcess);
+
+  const nextProcess = startNextDev(rootDir);
+  bindLifecycle(nextProcess);
+  const nextExitPromise = waitForChildExit(nextProcess);
+
   const devSessions = await waitForDevSessionsReady(
-    devProcess,
+    [devProcess, nextProcess],
     apiBaseUrl,
     devKeys
   );
@@ -342,7 +353,10 @@ async function main() {
     if (!devProcess.killed) {
       devProcess.kill();
     }
-    await exitPromise;
+    if (!nextProcess.killed) {
+      nextProcess.kill();
+    }
+    await Promise.all([sstExitPromise, nextExitPromise]);
     return;
   }
   const { user: sessionUser, token: sessionToken } = devSessions[0];
@@ -375,9 +389,15 @@ async function main() {
   const content = lines.join("\n") + "\n";
   await writeFile(configPath, content, "utf8");
 
-  const exitCode = await exitPromise;
-  if (exitCode !== null && exitCode !== 0) {
-    console.warn(`sst dev exited with code ${exitCode}`);
+  const [sstExitCode, nextExitCode] = await Promise.all([
+    sstExitPromise,
+    nextExitPromise,
+  ]);
+  if (sstExitCode !== null && sstExitCode !== 0) {
+    console.warn(`sst dev exited with code ${sstExitCode}`);
+  }
+  if (nextExitCode !== null && nextExitCode !== 0) {
+    console.warn(`next dev exited with code ${nextExitCode}`);
   }
 }
 

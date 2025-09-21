@@ -15,7 +15,7 @@ build/
 dist/
 
 # Environment variables
-.env*.local
+.env.*
 *.secret.*
 
 # Debug

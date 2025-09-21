@@ -1,40 +1,31 @@
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { loadAppEnv } from "env-app";
 import { OpenAI } from "openai";
 import { Readable } from "stream";
 import { toBuffer, unzip } from "./BufferUtils";
 import { PRNG } from "./RandHelpers";
 import { S3Cache } from "./S3Cache";
 import { compileStory } from "./StoryCompiler";
-import { getMeta, putCompiled, putMeta, uploadKey } from "./StoryRepo";
+import { createStoryRepo, uploadKey } from "./StoryRepo";
 import { DefaultStoryServiceProvider } from "./StoryServiceProvider";
 import { DEFAULT_LLM_SLUGS, StoryCartridge, StoryOptions } from "./StoryTypes";
 
-const STORIES_BUCKET = process.env.STORIES_BUCKET!;
-const CACHE_BUCKET = process.env.CACHE_BUCKET!;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
-const OPENROUTER_BASE_URL =
-  process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY!;
-
-if (!STORIES_BUCKET) {
-  throw new Error("STORIES_BUCKET env var missing");
-}
-if (!CACHE_BUCKET) {
-  throw new Error("CACHE_BUCKET env var missing");
-}
-if (!OPENROUTER_API_KEY) {
-  throw new Error("OPENROUTER_API_KEY env var missing");
-}
-if (!ELEVENLABS_API_KEY) {
-  throw new Error("ELEVENLABS_API_KEY env var missing");
-}
+const env = loadAppEnv();
+const sharedS3 = new S3Client({});
+const sharedDdb = new DynamoDBClient({});
+const storyRepo = createStoryRepo({
+  ddb: sharedDdb,
+  tableName: env.STORIES_TABLE,
+  s3: sharedS3,
+  bucketName: env.STORIES_BUCKET,
+});
 
 export async function compileStoryJob(storyId: string) {
-  const s3Client = new S3Client({});
   const key = uploadKey(storyId);
-  const obj = await s3Client.send(
-    new GetObjectCommand({ Bucket: STORIES_BUCKET, Key: key })
+  const obj = await sharedS3.send(
+    new GetObjectCommand({ Bucket: env.STORIES_BUCKET, Key: key })
   );
 
   const zip = await toBuffer(obj.Body as Readable);
@@ -45,11 +36,11 @@ export async function compileStoryJob(storyId: string) {
   const provider = new DefaultStoryServiceProvider(
     {
       openai: new OpenAI({
-        apiKey: OPENROUTER_API_KEY,
-        baseURL: OPENROUTER_BASE_URL,
+        apiKey: env.OPENROUTER_API_KEY,
+        baseURL: env.OPENROUTER_BASE_URL,
       }),
-      eleven: new ElevenLabsClient({ apiKey: ELEVENLABS_API_KEY }),
-      cache: new S3Cache(s3Client, CACHE_BUCKET),
+      eleven: new ElevenLabsClient({ apiKey: env.ELEVENLABS_API_KEY }),
+      cache: new S3Cache(sharedS3, env.CACHE_BUCKET),
     },
     {
       disableCache: false,
@@ -76,12 +67,12 @@ export async function compileStoryJob(storyId: string) {
     doCompileVoices: true,
   });
 
-  await putCompiled(storyId, compiled);
+  await storyRepo.putCompiled(storyId, compiled);
 
-  const meta = await getMeta(storyId);
+  const meta = await storyRepo.getMeta(storyId);
   if (meta) {
     meta.compile = "ready";
     meta.updatedAt = Date.now();
-    await putMeta(meta);
+    await storyRepo.putMeta(meta);
   }
 }

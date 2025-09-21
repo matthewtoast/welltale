@@ -1,4 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { loadAppEnv } from "env-app";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
@@ -21,6 +22,8 @@ import {
 } from "./../lib/StoryServiceProvider";
 import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
 import { railsTimestamp } from "./../lib/TextHelpers";
+
+const env = loadAppEnv();
 
 async function runAutorun() {
   const argv = await yargs(hideBin(process.argv))
@@ -78,17 +81,17 @@ async function runAutorun() {
     .option("openRouterApiKey", {
       type: "string",
       description: "OpenRouter API key",
-      default: process.env.OPENROUTER_API_KEY,
+      default: env.OPENROUTER_API_KEY,
     })
     .option("openRouterBaseUrl", {
       type: "string",
       description: "OpenRouter base URL",
-      default: process.env.OPENROUTER_BASE_URL,
+      default: env.OPENROUTER_BASE_URL,
     })
     .option("elevenlabsKey", {
       type: "string",
       description: "ElevenLabs API key",
-      default: process.env.ELEVENLABS_API_KEY,
+      default: env.ELEVENLABS_API_KEY,
     })
     .option("cacheDir", {
       type: "string",

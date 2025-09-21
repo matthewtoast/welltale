@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
-import { authSecret } from "./config";
+import { loadAppEnv } from "../../env-app";
 
 type SessionClaims = {
   uid: string;
@@ -9,9 +9,11 @@ type SessionClaims = {
 
 let cachedKey: Uint8Array | null = null;
 
+const env = loadAppEnv();
+
 function key(): Uint8Array | null {
   if (cachedKey) return cachedKey;
-  const secret = authSecret();
+  const secret = env.AUTH_SECRET;
   if (!secret) return null;
   cachedKey = new TextEncoder().encode(secret);
   return cachedKey;

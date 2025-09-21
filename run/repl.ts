@@ -1,5 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
+import { loadAppEnv } from "env-app";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
@@ -15,7 +16,6 @@ import {
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
 import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
-import { loadEnv } from "./../lib/DotEnv";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
 import { PRNG } from "./../lib/RandHelpers";
@@ -29,9 +29,9 @@ import {
 import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
 import { railsTimestamp } from "./../lib/TextHelpers";
 
-async function runRepl() {
-  loadEnv();
+const env = loadAppEnv();
 
+async function runRepl() {
   const argv = await yargs(hideBin(process.argv))
     .option("seed", {
       type: "string",
@@ -81,17 +81,17 @@ async function runRepl() {
     .option("openRouterApiKey", {
       type: "string",
       description: "OpenRouter API key",
-      default: process.env.OPENROUTER_API_KEY,
+      default: env.OPENROUTER_API_KEY,
     })
     .option("openRouterBaseUrl", {
       type: "string",
       description: "OpenRouter base URL",
-      default: process.env.OPENROUTER_BASE_URL,
+      default: env.OPENROUTER_BASE_URL,
     })
     .option("elevenlabsKey", {
       type: "string",
       description: "ElevenLabs API key",
-      default: process.env.ELEVENLABS_API_KEY,
+      default: env.ELEVENLABS_API_KEY,
     })
     .option("cacheDir", {
       type: "string",

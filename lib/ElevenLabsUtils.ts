@@ -12,9 +12,6 @@ import { VoiceSpec } from "./StoryTypes";
 
 const DEFAULT_OUTPUT_FORMAT = "mp3_44100_128" as const;
 
-export const makeClient = (apiKey = process.env.ELEVENLABS_API_KEY ?? "") =>
-  new ElevenLabsClient({ apiKey });
-
 async function streamToUint8Array(stream: ReadableStream<Uint8Array>) {
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
@@ -117,7 +114,10 @@ export const generateSpeechClip = async ({
   return streamToUint8Array(stream);
 };
 
-function applyPronunciations(text: string, pronunciations: Record<string, string>) {
+function applyPronunciations(
+  text: string,
+  pronunciations: Record<string, string>
+) {
   let current = text;
   for (const [key, value] of Object.entries(pronunciations)) {
     if (!key) continue;
