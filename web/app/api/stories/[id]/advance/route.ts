@@ -6,11 +6,7 @@ import { safeJsonParseTyped } from "./../../../../../../lib/JSONHelpers";
 import { advanceStory } from "./../../../../../../lib/StoryEngine";
 import { createStoryRepo } from "./../../../../../../lib/StoryRepo";
 import { MockStoryServiceProvider } from "./../../../../../../lib/StoryServiceProvider";
-import {
-  StoryOptions,
-  StorySession,
-  StorySource,
-} from "./../../../../../../lib/StoryTypes";
+import { StoryOptions, StorySession } from "./../../../../../../lib/StoryTypes";
 import { authenticateRequest } from "./../../../../../../lib/api/auth";
 
 export const runtime = "nodejs";
@@ -34,16 +30,15 @@ export async function POST(req: Request, ctx: StoryCtx) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const { id } = await ctx.params;
-  const comp = await storyRepo.getCompiled(id);
-  if (!comp) return NextResponse.json({ ok: false }, { status: 404 });
+  const source = await storyRepo.getCompiled(id);
+  if (!source) return NextResponse.json({ ok: false }, { status: 404 });
   const t = await req.text();
   const b = safeJsonParseTyped<Body>(t);
   if (!b) return NextResponse.json({ ok: false }, { status: 400 });
   const provider = new MockStoryServiceProvider();
-  const src = comp as StorySource;
   const { ops, session, seam, info } = await advanceStory(
     provider,
-    src,
+    source,
     b.session,
     b.options
   );

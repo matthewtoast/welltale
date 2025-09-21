@@ -1,6 +1,7 @@
 import { PRNG } from "./../lib/RandHelpers";
 import { BaseActionContext } from "./../lib/StoryEngine";
 import {
+  collateText,
   findNodes,
   marshallText,
   searchForNode,
@@ -172,6 +173,11 @@ async function test() {
     allTextPipe,
     "Welcome | This is an introduction. | Main Section | Nested text | Bold text | Footer content"
   );
+
+  // Collate is like marshall except doesn't require a context to be passed in
+  const mainSectionNode1 = sections[1];
+  const mainSectionText1 = await collateText(mainSectionNode1);
+  expect(mainSectionText1, "Main Section\nNested text\nBold text");
 
   const mainSectionNode = sections[1];
   const mainSectionText = await marshallText(mainSectionNode, ctx);

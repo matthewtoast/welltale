@@ -18,7 +18,6 @@ import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
 import { loadAppEnv } from "./../env/env-app";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
-import { PRNG } from "./../lib/RandHelpers";
 import { handleCommand } from "./../lib/ReplCommands";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
 import { SeamType } from "./../lib/StoryEngine";
@@ -179,13 +178,7 @@ async function runRepl() {
         }
       );
 
-  const rng = new PRNG(runnerOptions.seed);
-
-  const sources = await compileStory(
-    { rng, provider, scope: {}, options: runnerOptions },
-    cartridge,
-    compileOptions
-  );
+  const sources = await compileStory(provider, cartridge, compileOptions);
 
   const save = () => saveSessionToDisk(session, argv.sessionPath);
   const optionsWithSeed: RunnerOptions = { ...runnerOptions, seed };

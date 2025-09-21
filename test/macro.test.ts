@@ -1,26 +1,12 @@
-import { PRNG } from "./../lib/RandHelpers";
 import { compileStory } from "./../lib/StoryCompiler";
 import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS, StoryNode } from "./../lib/StoryTypes";
+import { StoryNode } from "./../lib/StoryTypes";
 import { createTestCartridge, expect } from "./TestUtils";
 
 async function compileMacroStory(xml: string): Promise<StoryNode> {
   const cartridge = createTestCartridge(xml);
   const provider = new MockStoryServiceProvider();
-  const options = {
-    verbose: false,
-    seed: "seed",
-    loop: 0,
-    ream: 100,
-    doGenerateSpeech: false,
-    doGenerateAudio: false,
-    maxCheckpoints: 20,
-    inputRetryMax: 3,
-    models: DEFAULT_LLM_SLUGS,
-  };
-  const rng = new PRNG(options.seed);
-  const ctx = { rng, provider, scope: {}, options };
-  const compiled = await compileStory(ctx, cartridge, {
+  const compiled = await compileStory(provider, cartridge, {
     doCompileVoices: false,
   });
   return compiled.root;

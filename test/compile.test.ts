@@ -1,8 +1,6 @@
-import { PRNG } from "../lib/RandHelpers";
 import { compileStory, parseXmlFragment } from "../lib/StoryCompiler";
 import { dumpTree } from "../lib/StoryNodeHelpers";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 async function go() {
@@ -43,21 +41,8 @@ async function go() {
   };
 
   const p = new MockStoryServiceProvider();
-  const opts = {
-    verbose: false,
-    seed: "seed",
-    loop: 0,
-    ream: 100,
-    doGenerateSpeech: false,
-    doGenerateAudio: false,
-    maxCheckpoints: 20,
-    inputRetryMax: 3,
-    models: DEFAULT_LLM_SLUGS,
-  };
-  const rng = new PRNG(opts.seed);
-  const ctx = { rng, provider: p, scope: {}, options: opts };
 
-  const c1 = await compileStory(ctx, cartridge, {
+  const c1 = await compileStory(p, cartridge, {
     doCompileVoices: false,
   });
 

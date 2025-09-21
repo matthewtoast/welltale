@@ -264,6 +264,20 @@ export async function marshallText(
   return texts.join(join);
 }
 
+export async function collateText(
+  node: StoryNode,
+  join: string = "\n",
+  texts: string[] = []
+): Promise<string> {
+  if (TEXT_CONTENT_TAGS.includes(node.type)) {
+    texts.push(node.text);
+  }
+  for (let i = 0; i < node.kids.length; i++) {
+    texts.push(await collateText(node.kids[i], join));
+  }
+  return texts.join(join);
+}
+
 export function cloneNode(node: StoryNode): StoryNode {
   return {
     addr: node.addr,

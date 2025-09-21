@@ -1,16 +1,16 @@
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
-import { BaseActionContext } from "./StoryEngine";
 import { applyMacros, collectMacros } from "./StoryMacro";
 import type { ParseSeverity } from "./StoryNodeHelpers";
 import {
   assignAddrs,
   BaseNode,
   cloneNode,
+  collateText,
   findNodes,
-  marshallText,
   parseXmlFragment,
   walkTree,
 } from "./StoryNodeHelpers";
+import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   StoryCartridge,
   StoryNode,
@@ -112,7 +112,7 @@ function buildStoryRoot(
 }
 
 export async function compileStory(
-  ctx: BaseActionContext,
+  provider: StoryServiceProvider,
   cartridge: StoryCartridge,
   options: CompileOptions
 ): Promise<StorySource> {
@@ -183,15 +183,13 @@ export async function compileStory(
         continue;
       }
       const text = snorm(
-        node.atts.prompt ??
-          node.atts.description ??
-          (await marshallText(node, ctx))
+        node.atts.prompt ?? node.atts.description ?? (await collateText(node))
       );
       if (!isBlank(text)) {
         if (options.verbose) {
           console.info(`Generating voice ${node.atts.id}...`);
         }
-        const { id } = await ctx.provider.generateVoice(text, {});
+        const { id } = await provider.generateVoice(text, {});
         voices[id] = {
           id,
           ref: node.atts.id,

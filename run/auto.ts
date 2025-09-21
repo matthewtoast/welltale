@@ -13,7 +13,6 @@ import {
   RunnerOptions,
   runUntilComplete,
 } from "./../lib/LocalRunnerUtils";
-import { PRNG } from "./../lib/RandHelpers";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
 import { SeamType } from "./../lib/StoryEngine";
 import {
@@ -165,12 +164,7 @@ async function runAutorun() {
         }
       );
 
-  const rng = new PRNG(runnerOptions.seed);
-  const sources = await compileStory(
-    { rng, provider, scope: {}, options: runnerOptions },
-    cartridge,
-    compileOptions
-  );
+  const sources = await compileStory(provider, cartridge, compileOptions);
 
   const result = await runUntilComplete(
     {

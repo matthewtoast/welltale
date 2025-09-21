@@ -5,12 +5,11 @@ import { OpenAI } from "openai";
 import { Readable } from "stream";
 import { loadAppEnv } from "./../env/env-app";
 import { toBuffer, unzip } from "./BufferUtils";
-import { PRNG } from "./RandHelpers";
 import { S3Cache } from "./S3Cache";
 import { compileStory } from "./StoryCompiler";
 import { createStoryRepo, uploadKey } from "./StoryRepo";
 import { DefaultStoryServiceProvider } from "./StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS, StoryCartridge, StoryOptions } from "./StoryTypes";
+import { StoryCartridge } from "./StoryTypes";
 
 const env = loadAppEnv();
 const sharedS3 = new S3Client({});
@@ -48,22 +47,7 @@ export async function compileStoryJob(storyId: string) {
     }
   );
 
-  const options: StoryOptions = {
-    verbose: false,
-    seed: "seed",
-    loop: 0,
-    ream: 100,
-    doGenerateSpeech: true,
-    doGenerateAudio: true,
-    maxCheckpoints: 20,
-    inputRetryMax: 3,
-    models: DEFAULT_LLM_SLUGS,
-  };
-
-  const rng = new PRNG(options.seed);
-  const ctx = { rng, provider, scope: {}, options };
-
-  const compiled = await compileStory(ctx, cartridge, {
+  const compiled = await compileStory(provider, cartridge, {
     doCompileVoices: true,
   });
 

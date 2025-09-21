@@ -9,7 +9,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { Readable } from "stream";
 import { s3ObjectExists, uploadBufferToS3 } from "./AWSUtils";
 import { toBuffer } from "./BufferUtils";
-import { StoryMeta } from "./StoryTypes";
+import { StoryMeta, StorySource } from "./StoryTypes";
 
 export function uploadKey(id: string): string {
   return `stories/${id}/upload.zip`;
@@ -23,8 +23,8 @@ export type StoryRepo = {
   getMeta(id: string): Promise<StoryMeta | null>;
   putMeta(meta: StoryMeta): Promise<StoryMeta>;
   listMetas(): Promise<StoryMeta[]>;
-  putCompiled(id: string, data: unknown): Promise<void>;
-  getCompiled(id: string): Promise<unknown | null>;
+  putCompiled(id: string, data: StorySource): Promise<void>;
+  getCompiled(id: string): Promise<StorySource | null>;
 };
 
 export function createStoryRepo(input: {
@@ -59,7 +59,7 @@ export function createStoryRepo(input: {
     return items.map((it) => unmarshall(it) as StoryMeta);
   }
 
-  async function putCompiled(id: string, data: unknown): Promise<void> {
+  async function putCompiled(id: string, data: StorySource): Promise<void> {
     const k = compiledKey(id);
     const buf = Buffer.from(JSON.stringify(data));
     await uploadBufferToS3({
@@ -72,11 +72,13 @@ export function createStoryRepo(input: {
     });
   }
 
-  async function getCompiled(id: string): Promise<unknown | null> {
+  async function getCompiled(id: string): Promise<StorySource | null> {
     const k = compiledKey(id);
     const ok = await s3ObjectExists(s3, bucketName, k);
     if (!ok) return null;
-    const res = await s3.send(new GetObjectCommand({ Bucket: bucketName, Key: k }));
+    const res = await s3.send(
+      new GetObjectCommand({ Bucket: bucketName, Key: k })
+    );
     const buf = await toBuffer(res.Body as Readable);
     return JSON.parse(buf.toString());
   }

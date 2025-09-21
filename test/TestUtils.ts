@@ -1,6 +1,5 @@
 import { isDeepStrictEqual } from "util";
 import { RunnerOptions } from "./../lib/LocalRunnerUtils";
-import { PRNG } from "./../lib/RandHelpers";
 import { renderUntilBlocking } from "./../lib/RunnerCore";
 import { compileStory } from "./../lib/StoryCompiler";
 import { createDefaultSession, OP, SeamType } from "./../lib/StoryEngine";
@@ -90,12 +89,11 @@ export async function runTestStory(
     doGenerateAudio: false,
     doPlayMedia: false,
   };
-  const rng = new PRNG(options.seed);
-  const sources = await compileStory(
-    { rng, provider, scope: {}, options },
-    cartridge,
-    { doCompileVoices: false }
-  );
+
+  const sources = await compileStory(provider, cartridge, {
+    doCompileVoices: false,
+  });
+
   const session = createDefaultSession(`test-session-${Date.now()}`);
   if (testOptions) {
     if (testOptions.resume !== undefined) session.resume = testOptions.resume;
