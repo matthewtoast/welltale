@@ -11,11 +11,10 @@ Welltale is an interactive audio story platform. Think Audible, but interactive.
 
 It will soon also comprise:
 
-- A web app to browsing, purchasing, and play stories
+- A web app to browse, purchase, and play stories (plus author portal to publish them)
   - See web/ for code, sst.config.ts for deployment, and jobs/ for background tasks
-- An author portal to upload and monetize stories (same codebase as web app)
-- An iOS app for browsing, purchasing, and playing stories
-  - See ios/ for iOS application code
+- An iOS app to browse, purchase, and play stories
+  - See ios/ for iOS application code; run yarn ios:typecheck to see build problems
 
 Stories may short, long, or even "infinite". Their interactivity affordances may be anything from explicit user prompts, to subtlely included dynamic data from the user's environment, to full-on dialog with NPCs.
 
