@@ -35,9 +35,7 @@ export async function GET(req: Request, ctx: StoryCtx) {
   const id = params?.id;
   if (!id) return NextResponse.json({ ok: false }, { status: 400 });
   const meta = await storyRepo.getMeta(id);
-  if (!meta) return NextResponse.json({ ok: false }, { status: 404 });
-  const compiled = await storyRepo.getCompiled(id);
-  return NextResponse.json({ meta, compiled }, { status: 200 });
+  return NextResponse.json({ meta }, { status: 200 });
 }
 
 export async function POST(req: Request, ctx: StoryCtx) {
@@ -48,7 +46,12 @@ export async function POST(req: Request, ctx: StoryCtx) {
   const b = safeJsonParseTyped<UpdateBody>(t);
   const bodyId = b?.id?.trim();
   const pathId = params?.id?.trim();
-  const id = bodyId && bodyId.length > 0 ? bodyId : pathId && pathId.length > 0 ? pathId : ulid();
+  const id =
+    bodyId && bodyId.length > 0
+      ? bodyId
+      : pathId && pathId.length > 0
+        ? pathId
+        : ulid();
   const meta = await storyRepo.getMeta(id);
   const now = Date.now();
   if (!meta) {
@@ -57,7 +60,7 @@ export async function POST(req: Request, ctx: StoryCtx) {
       title: b?.title ?? "",
       author: b?.author ?? "",
       description: b?.description ?? "",
-      tags: Array.isArray(b?.tags) ? b?.tags ?? [] : [],
+      tags: Array.isArray(b?.tags) ? (b?.tags ?? []) : [],
       publish: b?.publish ?? "draft",
       compile: "pending" as const,
       createdAt: now,

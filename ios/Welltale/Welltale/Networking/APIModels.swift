@@ -115,6 +115,10 @@ struct StorySearchResponse: Codable {
     let items: [StoryMetaDTO]
 }
 
+struct StoryDetailResponse: Codable {
+    let meta: StoryMetaDTO
+}
+
 struct UploadTicketDTO: Codable {
     let method: String
     let url: URL

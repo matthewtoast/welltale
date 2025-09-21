@@ -13,6 +13,7 @@
     "repl": "yarn ts ./run/repl.ts",
     "auto": "yarn ts ./run/auto.ts",
     "web:typecheck": "tsc -p web/tsconfig.typecheck.json --noEmit",
+    "ios:typecheck": "xcodebuild -project ios/Welltale/Welltale.xcodeproj -scheme Welltale -sdk iphonesimulator build 2>&1 | grep -E \"(error:|warning:)\"",
     "web:sst:deploy": "sst deploy --stage prod",
     "web:sst:remove": "sst remove --stage prod"
   },

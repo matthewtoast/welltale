@@ -23,4 +23,12 @@ struct StoryService {
     func fetchAll() async throws -> [StoryMetaDTO] {
         try await search(query: nil)
     }
+    
+    func fetchStory(id: String) async throws -> StoryMetaDTO {
+        let response: StoryDetailResponse = try await client.request(
+            method: "GET",
+            path: "api/stories/\(id)"
+        )
+        return response.meta
+    }
 }

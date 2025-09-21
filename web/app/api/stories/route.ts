@@ -25,7 +25,6 @@ type CreateBody = {
 };
 
 export async function GET(req: Request) {
-  console.log(req);
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const u = new URL(req.url);

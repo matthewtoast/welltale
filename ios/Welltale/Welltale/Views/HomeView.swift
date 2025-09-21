@@ -31,25 +31,10 @@ struct HomeView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(stories) { story in
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(story.title)
-                                    .font(.headline)
-                                Text(story.author)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                if !story.description.isEmpty {
-                                    Text(story.description)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(3)
-                                }
-                                if !story.tags.isEmpty {
-                                    Text(story.tags.joined(separator: ", "))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                            NavigationLink(destination: StoryPlaybackView(storyId: story.id)) {
+                                StoryItemView(story: story)
                             }
-                            .padding(.vertical, 6)
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                 }
