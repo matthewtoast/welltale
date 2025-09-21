@@ -1,6 +1,8 @@
 import { ChildProcess, spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 import { loadDevEnv } from "../env/env-dev";
 import { loadSstEnv } from "../env/env-sst";
 import {
@@ -93,6 +95,19 @@ async function go() {
 go();
 
 async function seed(err: () => void) {
+  const argv = await yargs(hideBin(process.argv))
+    .option("syncStories", {
+      type: "boolean",
+      description: "Sync stories with the server",
+      default: false,
+    })
+    .parserConfiguration({
+      "camel-case-expansion": true,
+      "strip-aliased": true,
+    })
+    .help()
+    .parse();
+
   console.log("Fetching sessions");
   const devSessions = await fetchDevSessions(
     devEnv.WELLTALE_API_BASE,
@@ -104,19 +119,6 @@ async function seed(err: () => void) {
   }
 
   const { user: sessionUser, token: sessionToken } = devSessions[0];
-
-  console.log("Syncing stories");
-  const ficDir = join(root, "fic");
-  const cartridgeDirs = await listDirs(ficDir);
-  for (const storyId of cartridgeDirs) {
-    const storyDirPath = join(ficDir, storyId);
-    await syncStory(
-      devEnv.WELLTALE_API_BASE,
-      storyId,
-      storyDirPath,
-      sessionToken
-    );
-  }
 
   console.log("Writing iOS configuration");
   const iosDir = join(root, "ios", "Welltale");
@@ -133,11 +135,21 @@ async function seed(err: () => void) {
     `DEV_SESSION_USER_PROVIDER = ${safeConfigValue(sessionUser.provider, "_")}`,
     `DEV_SESSION_USER_EMAIL = ${safeConfigValue(sessionUser.email, "test@aisatsu.co")}`,
     `DEV_SESSION_USER_ROLES = ${safeConfigValue(sessionUser.roles?.join(","), "user")}`,
-    `INFOPLIST_KEY_DevSessionToken = $(DEV_SESSION_TOKEN)`,
-    `INFOPLIST_KEY_DevSessionUserId = $(DEV_SESSION_USER_ID)`,
-    `INFOPLIST_KEY_DevSessionUserProvider = $(DEV_SESSION_USER_PROVIDER)`,
-    `INFOPLIST_KEY_DevSessionUserEmail = $(DEV_SESSION_USER_EMAIL)`,
-    `INFOPLIST_KEY_DevSessionUserRoles = $(DEV_SESSION_USER_ROLES)`,
   ];
   await writeFile(configPath, lines.join("\n") + "\n", "utf8");
+
+  if (argv.syncStories) {
+    console.log("Syncing stories");
+    const ficDir = join(root, "fic");
+    const cartridgeDirs = await listDirs(ficDir);
+    for (const storyId of cartridgeDirs) {
+      const storyDirPath = join(ficDir, storyId);
+      await syncStory(
+        devEnv.WELLTALE_API_BASE,
+        storyId,
+        storyDirPath,
+        sessionToken
+      );
+    }
+  }
 }

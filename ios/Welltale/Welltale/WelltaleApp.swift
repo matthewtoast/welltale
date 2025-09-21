@@ -2,7 +2,7 @@
 //  WelltaleApp.swift
 //  Welltale
 //
-//  Created by Matthew Trost on 8/29/25.
+//  Created by Matthew Trost on 9/22/25.
 //
 
 import SwiftUI
@@ -12,7 +12,7 @@ import SwiftData
 struct WelltaleApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            
+            Item.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
