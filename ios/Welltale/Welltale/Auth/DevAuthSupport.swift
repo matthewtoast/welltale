@@ -1,0 +1,39 @@
+import Foundation
+
+enum DevAuthSupport {
+    static var session: AuthSession? {
+        #if DEBUG
+        print("HI")
+        guard let token = value(for: "DevSessionToken"), !token.isEmpty else {
+            return nil
+        }
+        print("TOKEN", token)
+        let user = APIUser(
+            id: value(for: "DevSessionUserId") ?? "dev",
+            provider: value(for: "DevSessionUserProvider") ?? "dev",
+            email: emailValue(),
+            roles: rolesValue()
+        )
+        return AuthSession(token: token, user: user)
+        #else
+        return nil
+        #endif
+    }
+
+    #if DEBUG
+    private static func value(for key: String) -> String? {
+        Bundle.main.object(forInfoDictionaryKey: key) as? String
+    }
+
+    private static func emailValue() -> String? {
+        let raw = value(for: "DevSessionUserEmail")
+        return (raw?.isEmpty ?? true) ? nil : raw
+    }
+
+    private static func rolesValue() -> [String] {
+        let raw = value(for: "DevSessionUserRoles") ?? ""
+        if raw.isEmpty { return [] }
+        return raw.split(separator: ",").map { String($0) }
+    }
+    #endif
+}
