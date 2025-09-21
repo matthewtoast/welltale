@@ -164,7 +164,7 @@ async function saveMeta(
   const res = await safeRequest(
     `${base}/api/stories/${id}`,
     {
-      method: "PUT",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: payload,
     },
@@ -253,8 +253,11 @@ async function safeRequest(
   return res;
 }
 
-export const safeConfigValue = (value: string | null | undefined): string => {
-  if (!value) return "";
+export const safeConfigValue = (
+  value: string | null | undefined,
+  fallback: string
+): string => {
+  if (!value) return `"${fallback}"`;
   const escaped = value.replace(/"/g, '\\"');
   return `"${escaped}"`;
 };

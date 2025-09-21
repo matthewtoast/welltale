@@ -15,10 +15,12 @@ const storyRepo = createStoryRepo({
   bucketName: env.STORIES_BUCKET,
 });
 
-export async function POST(req: Request, ctx: { params: { id: string } }) {
+type StoryCtx = { params: Promise<{ id: string }> };
+
+export async function POST(req: Request, ctx: StoryCtx) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  const id = ctx.params.id;
+  const { id } = await ctx.params;
   const q = env.JOBS_QUEUE_URL;
   if (!q) {
     console.warn("missing queue");

@@ -128,11 +128,11 @@ async function seed(err: () => void) {
   );
   await mkdir(dirname(configPath), { recursive: true }).catch(() => {});
   const lines = [
-    `DEV_SESSION_TOKEN = ${safeConfigValue(sessionToken)}`,
-    `DEV_SESSION_USER_ID = ${safeConfigValue(sessionUser.id)}`,
-    `DEV_SESSION_USER_PROVIDER = ${safeConfigValue(sessionUser.provider)}`,
-    `DEV_SESSION_USER_EMAIL = ${safeConfigValue(sessionUser.email)}`,
-    `DEV_SESSION_USER_ROLES = ${safeConfigValue(sessionUser.roles?.join(","))}`,
+    `DEV_SESSION_TOKEN = ${safeConfigValue(sessionToken, "_")}`,
+    `DEV_SESSION_USER_ID = ${safeConfigValue(sessionUser.id, "_")}`,
+    `DEV_SESSION_USER_PROVIDER = ${safeConfigValue(sessionUser.provider, "_")}`,
+    `DEV_SESSION_USER_EMAIL = ${safeConfigValue(sessionUser.email, "test@aisatsu.co")}`,
+    `DEV_SESSION_USER_ROLES = ${safeConfigValue(sessionUser.roles?.join(","), "user")}`,
     `INFOPLIST_KEY_DevSessionToken = $(DEV_SESSION_TOKEN)`,
     `INFOPLIST_KEY_DevSessionUserId = $(DEV_SESSION_USER_ID)`,
     `INFOPLIST_KEY_DevSessionUserProvider = $(DEV_SESSION_USER_PROVIDER)`,

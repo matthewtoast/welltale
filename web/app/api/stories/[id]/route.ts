@@ -1,6 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
+import { ulid } from "ulid";
 import { loadAppEnv } from "../../../../../env/env-app";
 import { safeJsonParseTyped } from "./../../../../../lib/JSONHelpers";
 import { createStoryRepo } from "./../../../../../lib/StoryRepo";
@@ -16,7 +17,10 @@ const storyRepo = createStoryRepo({
   bucketName: env.STORIES_BUCKET,
 });
 
+type StoryCtx = { params: Promise<{ id?: string }> };
+
 type UpdateBody = {
+  id?: string;
   title?: string;
   author?: string;
   description?: string;
@@ -24,33 +28,53 @@ type UpdateBody = {
   publish?: "draft" | "published";
 };
 
-export async function GET(req: Request, ctx: { params: { id: string } }) {
+export async function GET(req: Request, ctx: StoryCtx) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  const id = ctx.params.id;
+  const params = await ctx.params;
+  const id = params?.id;
+  if (!id) return NextResponse.json({ ok: false }, { status: 400 });
   const meta = await storyRepo.getMeta(id);
   if (!meta) return NextResponse.json({ ok: false }, { status: 404 });
   const compiled = await storyRepo.getCompiled(id);
   return NextResponse.json({ meta, compiled }, { status: 200 });
 }
 
-export async function PUT(req: Request, ctx: { params: { id: string } }) {
+export async function POST(req: Request, ctx: StoryCtx) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  const id = ctx.params.id;
-  const meta = await storyRepo.getMeta(id);
-  if (!meta) return NextResponse.json({ ok: false }, { status: 404 });
+  const params = await ctx.params;
   const t = await req.text();
   const b = safeJsonParseTyped<UpdateBody>(t);
+  const bodyId = b?.id?.trim();
+  const pathId = params?.id?.trim();
+  const id = bodyId && bodyId.length > 0 ? bodyId : pathId && pathId.length > 0 ? pathId : ulid();
+  const meta = await storyRepo.getMeta(id);
+  const now = Date.now();
+  if (!meta) {
+    const next = {
+      id,
+      title: b?.title ?? "",
+      author: b?.author ?? "",
+      description: b?.description ?? "",
+      tags: Array.isArray(b?.tags) ? b?.tags ?? [] : [],
+      publish: b?.publish ?? "draft",
+      compile: "pending" as const,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const saved = await storyRepo.putMeta(next);
+    return NextResponse.json({ id, meta: saved }, { status: 200 });
+  }
   const next = {
     ...meta,
     title: b?.title ?? meta.title,
     author: b?.author ?? meta.author,
     description: b?.description ?? meta.description,
-    tags: b?.tags ?? meta.tags,
+    tags: Array.isArray(b?.tags) ? (b?.tags ?? meta.tags) : meta.tags,
     publish: b?.publish ?? meta.publish,
-    updatedAt: Date.now(),
+    updatedAt: now,
   };
   const saved = await storyRepo.putMeta(next);
-  return NextResponse.json({ meta: saved }, { status: 200 });
+  return NextResponse.json({ id, meta: saved }, { status: 200 });
 }

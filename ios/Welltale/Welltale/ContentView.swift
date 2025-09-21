@@ -1,40 +1,28 @@
-//
-//  ContentView.swift
-//  Welltale
-//
-//  Created by Matthew Trost on 8/29/25.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     @State private var auth = AuthState()
-
+    @State private var count = 0
+    
     var body: some View {
-        TabView {
-            HomeView(auth: $auth)
-                .tabItem {
-                    Image(systemName: "house.fill")
-                    Text("Home")
-                }
-
-            LibraryView(auth: $auth)
-                .tabItem {
-                    Image(systemName: "books.vertical.fill")
-                    Text("Library")
-                }
-
-            ProfileView(auth: $auth)
-                .tabItem {
-                    Image(systemName: "person.fill")
-                    Text("Profile")
-                }
+        VStack(spacing: 20) {
+            Text("Welcome")
+                .font(.largeTitle)
+            
+            Text("Count: \(count)")
+            
+            Button("Increase") {
+                count += 1
+            }
+            .padding()
+            .background(.blue)
+            .foregroundStyle(.white)
+            .clipShape(Capsule())
         }
-        .preferredColorScheme(.dark)
+        .padding()
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: [Story.self, UserLibrary.self], inMemory: true)
 }

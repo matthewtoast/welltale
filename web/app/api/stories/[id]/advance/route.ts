@@ -28,10 +28,12 @@ type Body = {
   options: StoryOptions;
 };
 
-export async function POST(req: Request, ctx: { params: { id: string } }) {
+type StoryCtx = { params: Promise<{ id: string }> };
+
+export async function POST(req: Request, ctx: StoryCtx) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  const id = ctx.params.id;
+  const { id } = await ctx.params;
   const comp = await storyRepo.getCompiled(id);
   if (!comp) return NextResponse.json({ ok: false }, { status: 404 });
   const t = await req.text();

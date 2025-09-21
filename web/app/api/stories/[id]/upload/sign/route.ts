@@ -10,10 +10,12 @@ const s3Client = new S3Client({});
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request, ctx: { params: { id: string } }) {
+type StoryCtx = { params: Promise<{ id: string }> };
+
+export async function POST(req: Request, ctx: StoryCtx) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  const id = ctx.params.id;
+  const { id } = await ctx.params;
   const b = env.STORIES_BUCKET;
   if (!b) {
     console.warn("missing bucket");
