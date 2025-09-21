@@ -1,5 +1,4 @@
 import { spawn, type ChildProcess } from "child_process";
-import { loadAppEnv } from "env/env-app";
 import { loadDevEnv } from "env/env-dev";
 import { loadSstEnv } from "env/env-sst";
 import { mkdir, readFile, readdir, writeFile } from "fs/promises";
@@ -9,7 +8,6 @@ import { zipDir } from "../lib/ZipUtils";
 import { cleanSplit } from "./../lib/TextHelpers";
 
 const devEnv = loadDevEnv();
-const appEnv = loadAppEnv();
 const sstEnv = loadSstEnv();
 
 type StorySpec = {

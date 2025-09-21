@@ -1,8 +1,7 @@
 import { config } from "dotenv";
-import { join } from "path";
 import { z } from "zod";
 
-config({ path: join(__dirname, ".env.base") });
+config({ path: "./.env.base", quiet: true });
 
 export const ZBaseEnvSchema = z.object({
   NODE_ENV: z.union([

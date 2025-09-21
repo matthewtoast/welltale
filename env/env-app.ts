@@ -1,9 +1,8 @@
 import { config } from "dotenv";
 import { ZSstEnvSchema } from "env/env-sst";
-import { join } from "path";
 import { z } from "zod";
 
-config({ path: join(__dirname, ".env.app") });
+config({ path: "./.env.app", quiet: true });
 
 export const ZAppEnvSchema = z.intersection(
   ZSstEnvSchema,

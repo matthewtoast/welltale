@@ -1,9 +1,10 @@
 import { config } from "dotenv";
-import { join } from "path";
 import { z } from "zod";
 import { ZBaseEnvSchema } from "./env-base";
 
-config({ path: join(__dirname, ".env.dev") });
+config({ path: "./.env.dev", quiet: true });
+
+console.log(11111, process.env.AWS_ACCOUNT_ID);
 
 export const ZDevEnvSchema = z.intersection(
   ZBaseEnvSchema,

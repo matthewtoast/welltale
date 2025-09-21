@@ -1,9 +1,8 @@
 import { config } from "dotenv";
-import { join } from "path";
 import { z } from "zod";
 import { ZBaseEnvSchema } from "./env-base";
 
-config({ path: join(__dirname, ".env.sst") });
+config({ path: "./.env.sst", quiet: true });
 
 export const ZSstEnvSchema = z.intersection(
   ZBaseEnvSchema,
