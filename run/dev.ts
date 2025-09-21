@@ -1,16 +1,16 @@
 import { spawn, type ChildProcess } from "child_process";
-import { loadAppEnv } from "env-app";
-import { loadDevEnv } from "env-dev";
+import { loadAppEnv } from "env/env-app";
+import { loadDevEnv } from "env/env-dev";
+import { loadSstEnv } from "env/env-sst";
 import { mkdir, readFile, readdir, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 import { safeYamlParse } from "../lib/JSONHelpers";
 import { zipDir } from "../lib/ZipUtils";
 import { cleanSplit } from "./../lib/TextHelpers";
 
-const env = {
-  ...loadAppEnv(),
-  ...loadDevEnv(),
-};
+const devEnv = loadDevEnv();
+const appEnv = loadAppEnv();
+const sstEnv = loadSstEnv();
 
 type StorySpec = {
   title: string;
@@ -275,7 +275,7 @@ function wait(ms: number): Promise<void> {
 function startSstDev(dir: string): ChildProcess {
   return spawn("yarn", ["web:sst:dev"], {
     cwd: dir,
-    env: env,
+    env: sstEnv,
     stdio: "inherit",
   });
 }
@@ -283,7 +283,7 @@ function startSstDev(dir: string): ChildProcess {
 function startNextDev(dir: string): ChildProcess {
   return spawn("npx", ["sst", "bind", "yarn", "web:dev"], {
     cwd: dir,
-    env: env,
+    env: devEnv,
     stdio: "inherit",
   });
 }
@@ -332,8 +332,8 @@ async function main() {
   const ficDir = join(rootDir, "fic");
   const iosDir = join(rootDir, "ios", "Welltale");
 
-  const apiBaseUrl = normalizeBaseUrl(env.WELLTALE_API_BASE);
-  const devKeys = cleanSplit(env.DEV_API_KEYS, ",");
+  const apiBaseUrl = normalizeBaseUrl(devEnv.WELLTALE_API_BASE);
+  const devKeys = cleanSplit(devEnv.DEV_API_KEYS, ",");
 
   const devProcess = startSstDev(rootDir);
   bindLifecycle(devProcess);

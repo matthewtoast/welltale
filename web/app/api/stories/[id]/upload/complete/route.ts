@@ -2,7 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { NextResponse } from "next/server";
-import { loadAppEnv } from "./../../../../../../../env-app";
+import { loadAppEnv } from "../../../../../../../env/env-app";
 import { createStoryRepo } from "./../../../../../../../lib/StoryRepo";
 import { authenticateRequest } from "./../../../../../../../lib/api/auth";
 const env = loadAppEnv();

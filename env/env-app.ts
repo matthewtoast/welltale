@@ -1,22 +1,22 @@
 import { config } from "dotenv";
+import { ZSstEnvSchema } from "env/env-sst";
+import { join } from "path";
 import { z } from "zod";
 
-config({ path: ".env" });
-config({ path: ".env.app" });
+config({ path: join(__dirname, ".env.app") });
 
-export const ZAppEnvSchema = z.object({
-  APPLE_AUDIENCE: z.string(),
-  AUTH_SECRET: z.string(),
-  CACHE_BUCKET: z.string(),
-  DEV_API_KEYS: z.string(),
-  ELEVENLABS_API_KEY: z.string(),
-  JOBS_QUEUE_URL: z.string(),
-  OPENROUTER_API_KEY: z.string(),
-  OPENROUTER_BASE_URL: z.string(),
-  STORIES_BUCKET: z.string(),
-  STORIES_TABLE: z.string(),
-  USERS_TABLE: z.string(),
-});
+export const ZAppEnvSchema = z.intersection(
+  ZSstEnvSchema,
+  z.object({
+    // Note: These are *not* defined in the env file;
+    // they are intended to be created by SST and passed in
+    CACHE_BUCKET: z.string(),
+    JOBS_QUEUE_URL: z.string(),
+    STORIES_BUCKET: z.string(),
+    STORIES_TABLE: z.string(),
+    USERS_TABLE: z.string(),
+  })
+);
 
 export type AppEnv = z.infer<typeof ZAppEnvSchema>;
 

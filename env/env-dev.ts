@@ -1,21 +1,19 @@
 import { config } from "dotenv";
+import { join } from "path";
 import { z } from "zod";
+import { ZBaseEnvSchema } from "./env-base";
 
-config({ path: ".env" });
-config({ path: ".env.dev" });
+config({ path: join(__dirname, ".env.dev") });
 
-export const ZDevEnvSchema = z.object({
-  AWS_ACCOUNT_ID: z.string(),
-  AWS_PROFILE: z.string(),
-  AWS_REGION: z.string(),
-  DEV_API_KEYS: z.string(),
-  NODE_ENV: z.union([
-    z.literal("development"),
-    z.literal("production"),
-    z.literal("test"),
-  ]),
-  WELLTALE_API_BASE: z.string(),
-});
+export const ZDevEnvSchema = z.intersection(
+  ZBaseEnvSchema,
+  z.object({
+    AWS_ACCOUNT_ID: z.string(),
+    AWS_PROFILE: z.string(),
+    AWS_REGION: z.string(),
+    WELLTALE_API_BASE: z.string(),
+  })
+);
 
 export type DevEnv = z.infer<typeof ZDevEnvSchema>;
 

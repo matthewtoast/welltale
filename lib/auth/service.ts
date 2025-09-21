@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { ulid } from "ulid";
+import { loadAppEnv } from "../../env/env-app";
 import { createUserRepo, UserRecord } from "../UserRepo";
-import { loadAppEnv } from "./../../env-app";
 import {
   ProviderAccount,
   verifyAppleIdentityToken,

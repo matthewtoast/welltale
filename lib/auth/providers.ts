@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import { loadAppEnv } from "../../env-app";
+import { loadAppEnv } from "../../env/env-app";
 import { cleanSplit } from "../TextHelpers";
 
 export type ProviderAccount = {

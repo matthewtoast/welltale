@@ -1,5 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import { loadAppEnv } from "env-app";
+import { loadAppEnv } from "env/env-app";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";

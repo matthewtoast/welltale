@@ -1,4 +1,4 @@
-import { loadAppEnv } from "env-app";
+import { loadSstEnv } from "env/env-sst";
 import { SSTConfig } from "sst";
 import { Bucket, NextjsSite, Queue, Table } from "sst/constructs";
 
@@ -16,6 +16,8 @@ Custom domain
   `{ domainName: "www.example.com", isExternalDomain: true }` for external DNS.
 - Deploy will handle ACM cert + DNS (Route53) or output CNAME/validation records (external).
 */
+
+const sst = loadSstEnv();
 
 export default {
   config() {
@@ -65,7 +67,12 @@ export default {
         consumer: {
           function: {
             handler: "jobs/worker.handler",
-            environment: loadAppEnv(),
+            environment: {
+              STORIES_BUCKET: bucket.bucketName,
+              STORIES_TABLE: table.tableName,
+              CACHE_BUCKET: cacheBucket.bucketName,
+              ...sst,
+            },
             permissions: [bucket, table, cacheBucket],
           },
         },
@@ -74,7 +81,13 @@ export default {
         // customDomain: "",
         path: "web",
         permissions: [bucket, table, users],
-        environment: loadAppEnv(),
+        environment: {
+          JOBS_QUEUE_URL: queue.queueUrl,
+          STORIES_BUCKET: bucket.bucketName,
+          STORIES_TABLE: table.tableName,
+          USERS_TABLE: users.tableName,
+          ...sst,
+        },
       });
       stack.addOutputs({
         SiteUrl: site.url,

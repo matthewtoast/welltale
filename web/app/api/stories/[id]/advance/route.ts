@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
-import { loadAppEnv } from "./../../../../../../env-app";
+import { loadAppEnv } from "../../../../../../env/env-app";
 import { safeJsonParseTyped } from "./../../../../../../lib/JSONHelpers";
 import { advanceStory } from "./../../../../../../lib/StoryEngine";
 import { createStoryRepo } from "./../../../../../../lib/StoryRepo";
