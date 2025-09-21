@@ -1,23 +1,21 @@
-import { loadSstEnv } from "env/env-sst";
 import { SSTConfig } from "sst";
 import { Bucket, NextjsSite, Queue, Table } from "sst/constructs";
 
-/*
-AWS credentials
-- Uses standard AWS SDK chain: env vars -> AWS_PROFILE (SSO/keys) -> role assumption.
-- Run with a profile: `AWS_PROFILE=myprofile yarn dev|deploy`.
+// Whomever invokes this should export or pass these env vars!
 
-Site URL
-- After deploy, CloudFormation Outputs includes `SiteUrl` (CloudFront domain).
-- Also printed in the deploy logs.
-
-Custom domain
-- Set on NextjsSite: `customDomain: "www.example.com"` (Route53) or
-  `{ domainName: "www.example.com", isExternalDomain: true }` for external DNS.
-- Deploy will handle ACM cert + DNS (Route53) or output CNAME/validation records (external).
-*/
-
-const sst = loadSstEnv();
+const REQUIRED_ENV_VARS = [
+  "OPENROUTER_API_KEY",
+  "OPENROUTER_BASE_URL",
+  "ELEVENLABS_API_KEY",
+  "AUTH_SECRET",
+  "DEV_API_KEYS",
+  "APPLE_AUDIENCE",
+];
+REQUIRED_ENV_VARS.forEach((key) => {
+  if (!process.env[key]) {
+    throw new Error(`process.env.${key} not found`);
+  }
+});
 
 export default {
   config() {
@@ -71,7 +69,9 @@ export default {
               STORIES_BUCKET: bucket.bucketName,
               STORIES_TABLE: table.tableName,
               CACHE_BUCKET: cacheBucket.bucketName,
-              ...sst,
+              OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY!,
+              OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL!,
+              ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
             },
             permissions: [bucket, table, cacheBucket],
           },
@@ -86,7 +86,9 @@ export default {
           STORIES_BUCKET: bucket.bucketName,
           STORIES_TABLE: table.tableName,
           USERS_TABLE: users.tableName,
-          ...sst,
+          AUTH_SECRET: process.env.AUTH_SECRET!,
+          DEV_API_KEYS: process.env.DEV_API_KEYS!,
+          APPLE_AUDIENCE: process.env.APPLE_AUDIENCE!,
         },
       });
       stack.addOutputs({

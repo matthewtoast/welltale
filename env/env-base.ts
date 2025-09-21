@@ -1,7 +1,7 @@
-import { config } from "dotenv";
 import { z } from "zod";
+import { loadEnvFile } from "./load-env";
 
-config({ path: "./.env.base", quiet: true });
+loadEnvFile(import.meta.url, ".env.base");
 
 export const ZBaseEnvSchema = z.object({
   NODE_ENV: z.union([

@@ -1,6 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
-import { loadAppEnv } from "env/env-app";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
@@ -16,6 +15,7 @@ import {
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
 import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
+import { loadAppEnv } from "./../env/env-app";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
 import { PRNG } from "./../lib/RandHelpers";

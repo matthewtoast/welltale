@@ -1,11 +1,11 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import { loadAppEnv } from "env/env-app";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
 import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
+import { loadAppEnv } from "../env/env-app";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
 import {

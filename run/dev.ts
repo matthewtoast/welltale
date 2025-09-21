@@ -1,14 +1,15 @@
 import { spawn, type ChildProcess } from "child_process";
-import { loadDevEnv } from "env/env-dev";
-import { loadSstEnv } from "env/env-sst";
+import { AppEnv } from "env/env-app";
 import { mkdir, readFile, readdir, writeFile } from "fs/promises";
 import { dirname, join } from "path";
 import { safeYamlParse } from "../lib/JSONHelpers";
 import { zipDir } from "../lib/ZipUtils";
+import { loadDevEnv } from "./../env/env-dev";
+import { loadSstEnv } from "./../env/env-sst";
 import { cleanSplit } from "./../lib/TextHelpers";
 
-const devEnv = loadDevEnv();
 const sstEnv = loadSstEnv();
+const devEnv = loadDevEnv();
 
 type StorySpec = {
   title: string;
@@ -270,20 +271,39 @@ function wait(ms: number): Promise<void> {
   });
 }
 
-function startSstDev(dir: string): ChildProcess {
-  return spawn("yarn", ["web:sst:dev"], {
+function spawnWithErrorLogging(
+  cmd: string,
+  args: string[],
+  dir: string,
+  extraEnv: Record<string, string>
+): ChildProcess {
+  const env = { ...process.env, ...extraEnv };
+  const child = spawn(cmd, args, {
     cwd: dir,
-    env: sstEnv,
+    env,
     stdio: "inherit",
   });
+  child.once("error", (err) => {
+    const message =
+      err && typeof err === "object" && "stack" in err && err.stack
+        ? String(err.stack)
+        : String(err);
+    console.error(message);
+  });
+  return child;
 }
 
-function startNextDev(dir: string): ChildProcess {
-  return spawn("npx", ["sst", "bind", "yarn", "web:dev"], {
-    cwd: dir,
-    env: devEnv,
-    stdio: "inherit",
-  });
+function startSstDev(dir: string): ChildProcess {
+  return spawnWithErrorLogging("yarn", ["web:sst:dev"], dir, sstEnv);
+}
+
+function startNextDev(dir: string, env: AppEnv): ChildProcess {
+  return spawnWithErrorLogging(
+    "npx",
+    ["sst", "bind", "yarn", "web:dev"],
+    dir,
+    env
+  );
 }
 
 async function waitForDevSessionsReady(
@@ -337,7 +357,9 @@ async function main() {
   bindLifecycle(devProcess);
   const sstExitPromise = waitForChildExit(devProcess);
 
-  const nextProcess = startNextDev(rootDir);
+  const nextProcess = startNextDev(rootDir, {
+    // TODO: somehow get the env vars for infra created by SST in here.
+  });
   bindLifecycle(nextProcess);
   const nextExitPromise = waitForChildExit(nextProcess);
 

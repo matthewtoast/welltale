@@ -1,9 +1,9 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import { loadAppEnv } from "env/env-app";
 import { OpenAI } from "openai";
 import { Readable } from "stream";
+import { loadAppEnv } from "./../env/env-app";
 import { toBuffer, unzip } from "./BufferUtils";
 import { PRNG } from "./RandHelpers";
 import { S3Cache } from "./S3Cache";

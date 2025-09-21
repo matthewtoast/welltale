@@ -1,10 +1,8 @@
-import { config } from "dotenv";
 import { z } from "zod";
-import { ZBaseEnvSchema } from "./env-base";
+import { loadBaseEnv, ZBaseEnvSchema } from "./env-base";
+import { loadEnvFile } from "./load-env";
 
-config({ path: "./.env.dev", quiet: true });
-
-console.log(11111, process.env.AWS_ACCOUNT_ID);
+loadEnvFile(import.meta.url, ".env.dev");
 
 export const ZDevEnvSchema = z.intersection(
   ZBaseEnvSchema,
@@ -20,7 +18,10 @@ export type DevEnv = z.infer<typeof ZDevEnvSchema>;
 
 export const loadDevEnv = (): DevEnv => {
   try {
-    return ZDevEnvSchema.parse(process.env);
+    return ZDevEnvSchema.parse({
+      ...loadBaseEnv(),
+      ...process.env,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       const missingVars = error.errors

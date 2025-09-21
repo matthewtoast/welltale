@@ -1,8 +1,8 @@
-import { config } from "dotenv";
 import { z } from "zod";
-import { ZBaseEnvSchema } from "./env-base";
+import { loadBaseEnv, ZBaseEnvSchema } from "./env-base";
+import { loadEnvFile } from "./load-env";
 
-config({ path: "./.env.sst", quiet: true });
+loadEnvFile(import.meta.url, ".env.sst");
 
 export const ZSstEnvSchema = z.intersection(
   ZBaseEnvSchema,
@@ -19,7 +19,10 @@ export type SstEnv = z.infer<typeof ZSstEnvSchema>;
 
 export const loadSstEnv = (): SstEnv => {
   try {
-    return ZSstEnvSchema.parse(process.env);
+    return ZSstEnvSchema.parse({
+      ...loadBaseEnv(),
+      ...process.env,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       const missingVars = error.errors
