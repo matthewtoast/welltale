@@ -50,6 +50,19 @@ export default {
         },
         primaryIndex: { partitionKey: "id" },
       });
+      const users = new Table(stack, "UsersTable", {
+        fields: {
+          id: "string",
+          provider: "string",
+          providerUserId: "string",
+          email: "string",
+          roles: "string",
+          sessionVersion: "number",
+          createdAt: "number",
+          updatedAt: "number",
+        },
+        primaryIndex: { partitionKey: "id" },
+      });
       const queue = new Queue(stack, "Jobs", {
         consumer: {
           function: {
@@ -69,11 +82,15 @@ export default {
       const site = new NextjsSite(stack, "Site", {
         // customDomain: "",
         path: "web",
-        permissions: [bucket, table],
+        permissions: [bucket, table, users],
         environment: {
           JOBS_QUEUE_URL: queue.queueUrl,
           STORIES_BUCKET: bucket.bucketName,
           STORIES_TABLE: table.tableName,
+          USERS_TABLE: users.tableName,
+          AUTH_SECRET: process.env.AUTH_SECRET!,
+          DEV_API_KEYS: process.env.DEV_API_KEYS || "",
+          APPLE_AUDIENCE: process.env.APPLE_AUDIENCE || "",
         },
       });
       stack.addOutputs({
@@ -81,6 +98,7 @@ export default {
         JobsQueueUrl: queue.queueUrl,
         StoriesBucket: bucket.bucketName,
         StoriesTable: table.tableName,
+        UsersTable: users.tableName,
         CacheBucket: cacheBucket.bucketName,
       });
     });

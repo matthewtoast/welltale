@@ -8,6 +8,8 @@
 
 /* Begin PBXFileReference section */
 		345843F22E618E55000DC6FD /* Welltale.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Welltale.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA2F6B5A2FA86D1C00A1F001 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configurations/Debug.xcconfig; sourceTree = "<group>"; };
+		AA2F6B5B2FA86D1C00A1F002 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configurations/Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +54,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 345844002E618E56000DC6FD /* Build configuration list for PBXNativeTarget "Welltale" */;
 			buildPhases = (
+				AA5C1B2A2FA86F1800A1F003 /* Prepare Dev Session */,
 				345843EE2E618E55000DC6FD /* Sources */,
 				345843EF2E618E55000DC6FD /* Frameworks */,
 				345843F02E618E55000DC6FD /* Resources */,
@@ -114,6 +117,27 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		AA5C1B2A2FA86F1800A1F003 /* Prepare Dev Session */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Prepare Dev Session";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nif [ \"$CONFIGURATION\" != \"Debug\" ]; then\n  exit 0\nfi\ncd \"$PROJECT_DIR/../..\"\nyarn ts ./ios/scripts/bootstrap-dev.ts\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		345843EE2E618E55000DC6FD /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -127,6 +151,7 @@
 /* Begin XCBuildConfiguration section */
 		345843FE2E618E56000DC6FD /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA2F6B5A2FA86D1C00A1F001 /* Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -189,6 +214,7 @@
 		};
 		345843FF2E618E56000DC6FD /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA2F6B5B2FA86D1C00A1F002 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -243,6 +269,7 @@
 		};
 		345844012E618E56000DC6FD /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA2F6B5A2FA86D1C00A1F001 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -282,6 +309,7 @@
 		};
 		345844022E618E56000DC6FD /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA2F6B5B2FA86D1C00A1F002 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { listMetas, putMeta } from "lib/StoryRepo";
 import { ulid } from "ulid";
 import { safeJsonParseTyped } from "lib/JSONHelpers";
+import { authenticateRequest } from "lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,8 @@ type CreateBody = {
 };
 
 export async function GET(req: Request) {
+  const user = await authenticateRequest(req);
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const u = new URL(req.url);
   const q = (u.searchParams.get("q") || "").toLowerCase();
   const metas = await listMetas();
@@ -28,6 +31,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const user = await authenticateRequest(req);
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const t = await req.text();
   const b = safeJsonParseTyped<CreateBody>(t, (v) => typeof v?.title === "string");
   if (!b) {

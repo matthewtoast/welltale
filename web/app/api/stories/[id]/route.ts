@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCompiled, getMeta, putMeta } from "lib/StoryRepo";
 import { safeJsonParseTyped } from "lib/JSONHelpers";
+import { authenticateRequest } from "lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,9 @@ type UpdateBody = {
   publish?: "draft" | "published";
 };
 
-export async function GET(_: Request, ctx: { params: { id: string } }) {
+export async function GET(req: Request, ctx: { params: { id: string } }) {
+  const user = await authenticateRequest(req);
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const id = ctx.params.id;
   const meta = await getMeta(id);
   if (!meta) return NextResponse.json({ ok: false }, { status: 404 });
@@ -21,6 +24,8 @@ export async function GET(_: Request, ctx: { params: { id: string } }) {
 }
 
 export async function PUT(req: Request, ctx: { params: { id: string } }) {
+  const user = await authenticateRequest(req);
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const id = ctx.params.id;
   const meta = await getMeta(id);
   if (!meta) return NextResponse.json({ ok: false }, { status: 404 });
@@ -38,4 +43,3 @@ export async function PUT(req: Request, ctx: { params: { id: string } }) {
   const saved = await putMeta(next);
   return NextResponse.json({ meta: saved }, { status: 200 });
 }
-

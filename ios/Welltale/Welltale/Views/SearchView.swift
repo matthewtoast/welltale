@@ -2,10 +2,12 @@ import SwiftUI
 
 struct SearchView: View {
     @Environment(\.dismiss) private var dismiss
+    @Binding var auth: AuthState
     @State private var searchText = ""
     @State private var selectedFilter: SearchFilter = .all
     @State private var searchResults: [Story] = []
     @State private var isSearching = false
+    @State private var searchTask: Task<Void, Never>? = nil
     
     var body: some View {
         NavigationStack {
@@ -13,7 +15,9 @@ struct SearchView: View {
                 searchBar
                 filterTabs
                 
-                if searchText.isEmpty {
+                if !auth.isSignedIn {
+                    signedOutView
+                } else if searchText.isEmpty {
                     searchPrompt
                 } else if isSearching {
                     loadingView
@@ -22,16 +26,20 @@ struct SearchView: View {
                 } else {
                     searchResultsList
                 }
-            }
-            .background(Color.black.ignoresSafeArea())
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .foregroundColor(.white)
-                }
+        }
+        .background(Color.black.ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") { dismiss() }
+                    .foregroundColor(.white)
             }
         }
+        .onDisappear {
+            searchTask?.cancel()
+            searchTask = nil
+        }
+    }
     }
     
     private var searchBar: some View {
@@ -101,7 +109,7 @@ struct SearchView: View {
             .tint(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private var noResultsView: some View {
         VStack(spacing: 16) {
             Image(systemName: "book.slash")
@@ -113,6 +121,22 @@ struct SearchView: View {
                 .foregroundColor(.white)
             
             Text("Try adjusting your search terms")
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var signedOutView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 48))
+                .foregroundColor(.gray)
+
+            Text("Sign in to search")
+                .font(.title2)
+                .foregroundColor(.white)
+
+            Text("Sign in from the Profile tab to use search")
                 .foregroundColor(.gray)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -132,20 +156,46 @@ struct SearchView: View {
     
     private func performSearch(_ query: String) {
         guard !query.isEmpty else {
+            searchTask?.cancel()
+            searchTask = nil
             searchResults = []
+            isSearching = false
             return
         }
-        
+
         isSearching = true
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            searchResults = MockData.allStories.filter { story in
-                story.title.localizedCaseInsensitiveContains(query) ||
-                story.authors.joined().localizedCaseInsensitiveContains(query) ||
-                story.genre.localizedCaseInsensitiveContains(query)
-            }
+
+        guard let token = auth.token else {
+            searchTask?.cancel()
+            searchTask = nil
+            searchResults = []
             isSearching = false
+            return
         }
+        searchTask?.cancel()
+        let task = Task {
+            let client = APIClient(
+                baseURL: AppConfig.apiBaseURL,
+                tokenProvider: { token }
+            )
+            let service = StoryService(client: client)
+            do {
+                let items = try await service.search(query: query)
+                if Task.isCancelled { return }
+                let mapped = items.map { Story.fromDTO($0) }
+                await MainActor.run {
+                    searchResults = mapped
+                    isSearching = false
+                }
+            } catch {
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    searchResults = []
+                    isSearching = false
+                }
+            }
+        }
+        searchTask = task
     }
 }
 

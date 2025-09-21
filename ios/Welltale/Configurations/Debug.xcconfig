@@ -1,0 +1,3 @@
+#include? "Generated/DevSession.xcconfig"
+WelltaleAPIBase = http://127.0.0.1:3000
+INFOPLIST_KEY_WelltaleAPIBase = $(WelltaleAPIBase)

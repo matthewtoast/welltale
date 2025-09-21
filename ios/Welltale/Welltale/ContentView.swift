@@ -8,21 +8,23 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var auth = AuthState()
+
     var body: some View {
         TabView {
-            HomeView()
+            HomeView(auth: $auth)
                 .tabItem {
                     Image(systemName: "house.fill")
                     Text("Home")
                 }
-            
-            LibraryView()
+
+            LibraryView(auth: $auth)
                 .tabItem {
                     Image(systemName: "books.vertical.fill")
                     Text("Library")
                 }
-            
-            ProfileView()
+
+            ProfileView(auth: $auth)
                 .tabItem {
                     Image(systemName: "person.fill")
                     Text("Profile")

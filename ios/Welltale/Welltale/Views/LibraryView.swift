@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct LibraryView: View {
+    @Binding var auth: AuthState
     @Environment(\.modelContext) private var modelContext
     @Query private var userLibrary: [UserLibrary]
     @State private var selectedTab: PlaybackStatus = .all
@@ -9,22 +10,28 @@ struct LibraryView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                tabSelector
-                
-                if filteredLibraryItems.isEmpty {
-                    emptyStateView
+            Group {
+                if auth.isSignedIn {
+                    VStack(spacing: 0) {
+                        tabSelector
+
+                        if filteredLibraryItems.isEmpty {
+                            emptyStateView
+                        } else {
+                            libraryList
+                        }
+                    }
+                    .onAppear {
+                        loadUserLibrary()
+                    }
                 } else {
-                    libraryList
+                    signedOutView
                 }
             }
             .background(Color.black.ignoresSafeArea())
             .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .onAppear {
-                loadUserLibrary()
-            }
         }
     }
     
@@ -78,6 +85,24 @@ struct LibraryView: View {
                 .foregroundColor(.white)
             
             Text(emptyStateSubtitle)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 40)
+    }
+
+    private var signedOutView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 48))
+                .foregroundColor(.gray)
+
+            Text("Sign in to view your library")
+                .font(.title2)
+                .foregroundColor(.white)
+
+            Text("Stories will sync once you are signed in")
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
         }

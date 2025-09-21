@@ -1,9 +1,11 @@
 import SwiftUI
 
 struct HomeView: View {
+    @Binding var auth: AuthState
     @State private var showingSearch = false
     @State private var recommendedStories: [Story] = []
-    
+    @State private var isLoading = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -14,21 +16,23 @@ struct HomeView: View {
                     
                     ScrollView {
                         VStack(spacing: 24) {
-                            if !recommendedStories.isEmpty {
+                            if isLoading {
+                                loadingView
+                            } else if !recommendedStories.isEmpty {
                                 recommendedBooksCarousel
                             } else {
-                                loadingView
+                                emptyState
                             }
                         }
                         .padding(.top, 20)
                     }
                 }
             }
-            .onAppear {
-                loadRecommendedStories()
-            }
             .sheet(isPresented: $showingSearch) {
-                SearchView()
+                SearchView(auth: $auth)
+            }
+            .task(id: auth.token) {
+                await loadRecommendedStories()
             }
         }
     }
@@ -80,10 +84,51 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: auth.isSignedIn ? "books.vertical" : "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 48))
+                .foregroundColor(.gray)
+
+            Text(auth.isSignedIn ? "No stories yet" : "Sign in to see stories")
+                .font(.title2)
+                .foregroundColor(.white)
+
+            Text(auth.isSignedIn ? "Upload a cartridge to get started" : "Sign in from the Profile tab")
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
     
-    private func loadRecommendedStories() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            recommendedStories = MockData.recommendedStories
+    private func loadRecommendedStories() async {
+        await MainActor.run {
+            isLoading = true
+        }
+        guard let token = auth.token else {
+            await MainActor.run {
+                recommendedStories = []
+                isLoading = false
+            }
+            return
+        }
+        let client = APIClient(
+            baseURL: AppConfig.apiBaseURL,
+            tokenProvider: { token }
+        )
+        let service = StoryService(client: client)
+        do {
+            let items = try await service.fetchAll()
+            let stories = items.map { Story.fromDTO($0) }
+            await MainActor.run {
+                recommendedStories = stories
+                isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                recommendedStories = []
+                isLoading = false
+            }
         }
     }
 }

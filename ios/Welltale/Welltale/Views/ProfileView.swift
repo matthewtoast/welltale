@@ -1,14 +1,25 @@
 import SwiftUI
+import AuthenticationServices
 
 struct ProfileView: View {
-    @State private var user = MockData.currentUser
-    
+    @Binding var auth: AuthState
+    @State private var isSigningIn = false
+    @State private var errorMessage: String?
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    profileHeader
-                    settingsSection
+                    if auth.isSignedIn {
+                        signedInSection
+                    } else {
+                        signedOutSection
+                    }
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.footnote)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -19,162 +30,133 @@ struct ProfileView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
-    
-    private var profileHeader: some View {
+
+    private var signedInSection: some View {
         VStack(spacing: 16) {
-            AsyncImage(url: URL(string: user.profileImageURL ?? "")) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle()
-                    .fill(.gray.opacity(0.3))
-                    .overlay {
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray)
-                    }
-            }
-            .frame(width: 100, height: 100)
-            .clipShape(Circle())
-            
+            let user = auth.session?.user
+            Circle()
+                .fill(.gray.opacity(0.3))
+                .frame(width: 100, height: 100)
+                .overlay {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray)
+                }
+
             VStack(spacing: 4) {
-                Text(user.name)
+                Text(user?.email ?? "Signed In")
                     .font(.title2.bold())
                     .foregroundColor(.white)
-                
-                Text(user.email)
-                    .font(.subheadline)
+
+                Text(user?.id ?? "")
+                    .font(.footnote)
                     .foregroundColor(.gray)
             }
-            
-            HStack(spacing: 32) {
-                VStack(spacing: 4) {
-                    Text("\(user.totalBooksOwned)")
-                        .font(.title3.bold())
-                        .foregroundColor(.white)
-                    Text("Books")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-                
-                VStack(spacing: 4) {
-                    Text(formatListeningTime(user.totalListeningTime))
-                        .font(.title3.bold())
-                        .foregroundColor(.white)
-                    Text("Hours")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
+
+            Button(action: signOut) {
+                Text("Sign Out")
+                    .foregroundColor(.red)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(.gray.opacity(0.2))
+                    .clipShape(Capsule())
             }
         }
-        .padding(.vertical, 20)
     }
-    
-    private var settingsSection: some View {
-        VStack(spacing: 0) {
-            Text("Settings")
-                .font(.title3.bold())
+
+    private var signedOutSection: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.crop.circle.badge.plus")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+
+            Text("Sign in with Apple")
+                .font(.title2)
                 .foregroundColor(.white)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 16)
-            
-            VStack(spacing: 1) {
-                SettingsRow(
-                    icon: "bell",
-                    title: "Notifications",
-                    action: {}
-                )
-                
-                SettingsRow(
-                    icon: "cloud",
-                    title: "Sync & Backup",
-                    action: {}
-                )
-                
-                SettingsRow(
-                    icon: "speaker.wave.2",
-                    title: "Audio Settings",
-                    action: {}
-                )
-                
-                SettingsRow(
-                    icon: "moon",
-                    title: "Sleep Timer",
-                    action: {}
-                )
-                
-                SettingsRow(
-                    icon: "questionmark.circle",
-                    title: "Help & Support",
-                    action: {}
-                )
-                
-                SettingsRow(
-                    icon: "info.circle",
-                    title: "About",
-                    action: {}
-                )
-                
-                SettingsRow(
-                    icon: "rectangle.portrait.and.arrow.right",
-                    title: "Sign Out",
-                    action: {},
-                    isDestructive: true
-                )
+
+            Text("Required to upload and browse stories")
+                .foregroundColor(.gray)
+
+            SignInWithAppleButton(.signIn) { request in
+                request.requestedScopes = [.email]
+            } onCompletion: { result in
+                switch result {
+                case .success(let authorization):
+                    Task { await handleAuthorization(authorization) }
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                    isSigningIn = false
+                }
             }
-            .background(.gray.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .frame(height: 45)
+            .signInWithAppleButtonStyle(.white)
+            .disabled(isSigningIn)
+
+#if DEBUG
+            Button("Use Dev Session") {
+                useDevSession()
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(.gray.opacity(0.2))
+            .clipShape(Capsule())
+#endif
+
+            if isSigningIn {
+                ProgressView()
+                    .tint(.white)
+            }
         }
     }
-    
-    private func formatListeningTime(_ time: TimeInterval) -> String {
-        let hours = Int(time) / 3600
-        return "\(hours)"
-    }
-}
 
-struct SettingsRow: View {
-    let icon: String
-    let title: String
-    let action: () -> Void
-    let isDestructive: Bool
-    
-    init(icon: String, title: String, action: @escaping () -> Void, isDestructive: Bool = false) {
-        self.icon = icon
-        self.title = title
-        self.action = action
-        self.isDestructive = isDestructive
+    private func signOut() {
+        auth.session = nil
+        errorMessage = nil
     }
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(isDestructive ? .red : .white)
-                    .frame(width: 24)
-                
-                Text(title)
-                    .font(.body)
-                    .foregroundColor(isDestructive ? .red : .white)
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+
+#if DEBUG
+    private func useDevSession() {
+        guard let session = DevAuthSupport.session else {
+            errorMessage = "Dev session unavailable"
+            return
+        }
+        auth.session = session
+        errorMessage = nil
+    }
+#endif
+
+    private func handleAuthorization(_ authorization: ASAuthorization) async {
+        await MainActor.run {
+            isSigningIn = true
+            errorMessage = nil
+        }
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let token = String(data: tokenData, encoding: .utf8) else {
+            await MainActor.run {
+                errorMessage = "Invalid identity token"
+                isSigningIn = false
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
+            return
+        }
+        do {
+            let session = try await AuthService(baseURL: AppConfig.apiBaseURL).exchangeApple(identityToken: token)
+            await MainActor.run {
+                auth.session = session
+                isSigningIn = false
+            }
+        } catch {
+            let message: String
+            if let authError = error as? AuthError, authError == .unauthorized {
+                message = "Authentication failed"
+            } else {
+                message = error.localizedDescription
+            }
+            await MainActor.run {
+                errorMessage = message
+                isSigningIn = false
+            }
         }
     }
-}
-
-struct User {
-    let name: String
-    let email: String
-    let profileImageURL: String?
-    let totalBooksOwned: Int
-    let totalListeningTime: TimeInterval
 }

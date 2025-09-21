@@ -19,9 +19,6 @@
       }
     ],
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    },
     "forceConsistentCasingInFileNames": true,
     "allowImportingTsExtensions": true
   },
