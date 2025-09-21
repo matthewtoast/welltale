@@ -44,3 +44,4 @@ run/sessions/*
 test/fixtures/sessions/*
 
 tmp
+.sst/

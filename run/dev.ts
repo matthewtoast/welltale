@@ -1,11 +1,10 @@
-import { readdir, readFile } from "fs/promises";
-import { join } from "path";
+import { spawn, type ChildProcess } from "child_process";
+import { mkdir, readFile, readdir, writeFile } from "fs/promises";
+import { dirname, join } from "path";
 import { loadEnv } from "../lib/DotEnv";
 import { safeYamlParse } from "../lib/JSONHelpers";
 import { zipDir } from "../lib/ZipUtils";
 
-import { mkdir, writeFile } from "fs/promises";
-import { dirname } from "path";
 import { cleanSplit } from "./../lib/TextHelpers";
 
 loadEnv();
@@ -271,6 +270,56 @@ const safeConfigValue = (value: string | null | undefined): string => {
   return `"${escaped}"`;
 };
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function startSstDev(dir: string): ChildProcess {
+  return spawn("yarn", ["web:sst:dev"], {
+    cwd: dir,
+    env: process.env,
+    stdio: "inherit",
+  });
+}
+
+async function waitForDevSessionsReady(
+  child: ChildProcess,
+  base: string,
+  keys: string[]
+): Promise<DevSession[] | null> {
+  if (keys.length < 1) return null;
+  const timeoutMs = 180000;
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeoutMs) {
+    if (child.exitCode !== null || child.signalCode !== null) return null;
+    const sessions = await fetchDevSessions(base, keys);
+    if (sessions.length > 0) return sessions;
+    await wait(1000);
+  }
+  return null;
+}
+
+function waitForChildExit(child: ChildProcess): Promise<number | null> {
+  return new Promise((resolve) => {
+    child.once("exit", (code) => {
+      resolve(code);
+    });
+  });
+}
+
+function bindLifecycle(child: ChildProcess): void {
+  const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
+  for (const signal of signals) {
+    process.on(signal, () => {
+      if (!child.killed) {
+        child.kill(signal);
+      }
+    });
+  }
+}
+
 async function main() {
   loadEnv();
 
@@ -279,27 +328,31 @@ async function main() {
   const iosDir = join(rootDir, "ios", "Welltale");
 
   const apiBaseUrl = normalizeBaseUrl(process.env.WELLTALE_API_BASE!);
-
-  // 1. TODO: start dev server & wait until running
-
-  // 2. Fetch actual sessions using our local dev API keys
-  const devSessions = await fetchDevSessions(
+  const devKeys = cleanSplit(process.env.DEV_API_KEYS!, ",");
+  const devProcess = startSstDev(rootDir);
+  bindLifecycle(devProcess);
+  const exitPromise = waitForChildExit(devProcess);
+  const devSessions = await waitForDevSessionsReady(
+    devProcess,
     apiBaseUrl,
-    cleanSplit(process.env.DEV_API_KEYS!, ",")
+    devKeys
   );
-  if (devSessions.length < 1) {
-    throw new Error("unable to load dev sessions");
+  if (!devSessions || devSessions.length < 1) {
+    console.warn("unable to load dev sessions");
+    if (!devProcess.killed) {
+      devProcess.kill();
+    }
+    await exitPromise;
+    return;
   }
   const { user: sessionUser, token: sessionToken } = devSessions[0];
 
-  // 3. Sync locally defined stories to dev web database using API
   const cartridgeDirs = await listDirs(ficDir);
   for (const storyId of cartridgeDirs) {
-    const storyDirPath = join(rootDir, storyId);
+    const storyDirPath = join(ficDir, storyId);
     await syncStory(apiBaseUrl, storyId, storyDirPath, sessionToken);
   }
 
-  // 4. Update iOS configuration so app can start up with requisite keys
   const configPath = join(
     iosDir,
     "Configurations",
@@ -321,6 +374,11 @@ async function main() {
   ];
   const content = lines.join("\n") + "\n";
   await writeFile(configPath, content, "utf8");
+
+  const exitCode = await exitPromise;
+  if (exitCode !== null && exitCode !== 0) {
+    console.warn(`sst dev exited with code ${exitCode}`);
+  }
 }
 
 main();
