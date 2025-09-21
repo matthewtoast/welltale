@@ -12,11 +12,7 @@
     "test": "for f in $(find . -name '*.test.ts' -not -path './node_modules/*'); do echo \"Running $f\"; npx tsx \"$f\" || exit 1; done",
     "repl": "yarn ts ./run/repl.ts",
     "auto": "yarn ts ./run/auto.ts",
-    "web:dev": "next dev web",
-    "web:build": "next build web",
-    "web:start": "next start web",
     "web:typecheck": "tsc -p web/tsconfig.typecheck.json --noEmit",
-    "web:sst:dev": "AWS_PROFILE=aisatsu-dev sst dev",
     "web:sst:deploy": "sst deploy --stage prod",
     "web:sst:remove": "sst remove --stage prod"
   },

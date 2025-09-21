@@ -4,6 +4,7 @@ import { loadEnvFile } from "./load-env";
 loadEnvFile(import.meta.url, ".env.base");
 
 export const ZBaseEnvSchema = z.object({
+  AWS_PROFILE: z.string(),
   NODE_ENV: z.union([
     z.literal("development"),
     z.literal("production"),

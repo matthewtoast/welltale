@@ -2,7 +2,6 @@ import { SSTConfig } from "sst";
 import { Bucket, NextjsSite, Queue, Table } from "sst/constructs";
 
 // Whomever invokes this should export or pass these env vars!
-
 const REQUIRED_ENV_VARS = [
   "OPENROUTER_API_KEY",
   "OPENROUTER_BASE_URL",
@@ -69,6 +68,7 @@ export default {
               STORIES_BUCKET: bucket.bucketName,
               STORIES_TABLE: table.tableName,
               CACHE_BUCKET: cacheBucket.bucketName,
+              USERS_TABLE: users.tableName,
               OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY!,
               OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL!,
               ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
@@ -85,6 +85,7 @@ export default {
           JOBS_QUEUE_URL: queue.queueUrl,
           STORIES_BUCKET: bucket.bucketName,
           STORIES_TABLE: table.tableName,
+          CACHE_BUCKET: cacheBucket.bucketName,
           USERS_TABLE: users.tableName,
           AUTH_SECRET: process.env.AUTH_SECRET!,
           DEV_API_KEYS: process.env.DEV_API_KEYS!,
