@@ -14,15 +14,14 @@ type PutOpts = {
 };
 
 export const s3PublicUrl = ({
-  client,
+  region,
   bucket,
   key,
 }: {
-  client: S3Client;
+  region: string;
   bucket: string;
   key: string;
 }) => {
-  const region = client.config.region as string;
   const host =
     region === "us-east-1" ? "s3.amazonaws.com" : `s3.${region}.amazonaws.com`;
   const k = key.split("/").map(encodeURIComponent).join("/");
@@ -57,9 +56,11 @@ export const uploadBufferToS3 = async ({
     CacheControl: cacheControl,
   });
   const res = await client.send(cmd);
+  const region = await client.config.region();
+  const url = s3PublicUrl({ region, bucket, key: Key });
   return {
     key: Key,
-    url: s3PublicUrl({ client, bucket, key: Key }),
+    url,
     etag: res.ETag ?? null,
   };
 };
