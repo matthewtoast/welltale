@@ -1,0 +1,9 @@
+<var name="time" value="{$ timestamp(2001, 1, 1) $}" type="number" />
+
+<p>
+  You're playing {{title}}, by {{author}}.
+</p>
+
+<p>
+  It's {$ formatDate(time, "YYYY/MM/DD") $}.
+</p>

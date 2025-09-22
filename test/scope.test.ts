@@ -25,7 +25,7 @@ async function go() {
       },
     },
   });
-  const scope = createScope(session);
+  const scope = createScope(session, {});
   const mockProvider = new MockStoryServiceProvider();
   const context: BaseActionContext = {
     scope,
@@ -55,7 +55,7 @@ async function go() {
     scope: null,
     blockType: "intro",
   });
-  const introScope = createScope(introSession);
+  const introScope = createScope(introSession, {});
   introScope.introVar = "intro";
   expect(introSession.state.introVar, "intro");
 
@@ -71,7 +71,7 @@ async function go() {
     scope: null,
     blockType: "intro",
   });
-  const mixedScope = createScope(mixedSession);
+  const mixedScope = createScope(mixedSession, {});
   mixedScope.blockVar = "block";
   expect(scopeFrame.scope.blockVar, "block");
 
@@ -82,7 +82,7 @@ async function go() {
     blockType: "yield" as const,
   };
   yieldSession.stack.push(yieldFrame);
-  const yieldScope = createScope(yieldSession);
+  const yieldScope = createScope(yieldSession, {});
   yieldScope.param = "value";
   expect(yieldFrame.scope.param, "value");
 }

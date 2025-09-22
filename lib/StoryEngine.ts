@@ -1,5 +1,5 @@
 import dedent from "dedent";
-import { get, isEmpty, omit, set } from "lodash";
+import { isEmpty, omit, set } from "lodash";
 import { NonEmpty, TSerial } from "../typings";
 import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
 import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
@@ -265,7 +265,7 @@ export async function advanceStory(
       rng,
       provider,
       // We need to get a new scope on every node since it may have introduced new scope
-      scope: createScope(session),
+      scope: createScope(session, source.meta),
       events: evs,
     };
 
@@ -1396,10 +1396,6 @@ export function wouldEscapeCurrentBlock(
   return !nextNode.addr.startsWith(blockPrefix);
 }
 
-function getState(state: Record<string, TSerial>, key: string): TSerial {
-  return get(state, key);
-}
-
 function setState(
   state: Record<string, TSerial>,
   key: string,
@@ -1408,7 +1404,10 @@ function setState(
   set(state, key, value);
 }
 
-export function createScope(session: StorySession): { [key: string]: TSerial } {
+export function createScope(
+  session: StorySession,
+  extra: Record<string, string>
+): { [key: string]: TSerial } {
   function findWritableScope(): { [key: string]: TSerial } | null {
     for (let i = session.stack.length - 1; i >= 0; i--) {
       const scope = session.stack[i].scope;
@@ -1431,6 +1430,7 @@ export function createScope(session: StorySession): { [key: string]: TSerial } {
       return (
         session.state[prop] ??
         session.meta[prop] ??
+        extra[prop] ??
         session[prop as keyof typeof session] ??
         null
       );
@@ -1491,7 +1491,7 @@ async function execNodes(
       session,
       rng,
       provider,
-      scope: createScope(session),
+      scope: createScope(session, source.meta),
       events,
     };
     await handler.exec(ctx);

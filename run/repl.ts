@@ -1,5 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
+import { loadSstEnv } from "env/env-sst";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
@@ -15,7 +16,6 @@ import {
   saveSessionToDisk,
 } from "../lib/LocalRunnerUtils";
 import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
-import { loadAppEnv } from "./../env/env-app";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
 import { handleCommand } from "./../lib/ReplCommands";
@@ -28,7 +28,7 @@ import {
 import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
 import { railsTimestamp } from "./../lib/TextHelpers";
 
-const env = loadAppEnv();
+const env = loadSstEnv();
 
 async function runRepl() {
   const argv = await yargs(hideBin(process.argv))

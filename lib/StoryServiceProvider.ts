@@ -239,7 +239,11 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   ): Promise<{ url: string }> {
     const useCache = !this.options.disableCache && !options.disableCache;
     const voiceId = autoFindVoice(spec, voices);
-    const idemp = `${spec.speaker}:${spec.voice}:${JSON.stringify(spec.tags)}:${parameterize(spec.body)}:${voiceId}:${voices.length}`;
+    const bodyWithPronunciations = applyPronunciations(
+      spec.body,
+      spec.pronunciations
+    );
+    const idemp = `${spec.speaker}:${spec.voice}:${JSON.stringify(spec.tags)}:${parameterize(bodyWithPronunciations)}:${voiceId}:${voices.length}`;
     if (this.options.verbose) {
       console.info(`Generate Speech ~> ${idemp}`);
     }
@@ -254,8 +258,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const audio = await generateSpeechClip({
       client: this.config.eleven,
       voiceId,
-      text: spec.body,
-      pronunciations: spec.pronunciations ?? {},
+      text: bodyWithPronunciations,
     });
     const url = await this.config.cache.set(
       key,
@@ -359,6 +362,18 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
         return null;
       });
   }
+}
+
+function applyPronunciations(
+  text: string,
+  pronunciations: Record<string, string>
+) {
+  let current = text;
+  for (const [key, value] of Object.entries(pronunciations)) {
+    if (!key) continue;
+    current = current.split(key).join(value);
+  }
+  return current;
 }
 
 export class DefaultStoryServiceProvider extends BaseStoryServiceProvider {}

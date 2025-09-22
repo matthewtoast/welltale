@@ -203,6 +203,14 @@ function runDateTests() {
       expr: 'formatDate(timestamp(2024, 2, 29, 15, 30, 0), "YYYY/MM/DD HH:mm:ss")',
       expected: "2024/02/29 15:30:00",
     },
+    {
+      expr: 'formatDate("978339481000", "YYYY/MM/DD HH:mm:ss")',
+      expected: "2001/01/01 08:58:01",
+    },
+    {
+      expr: 'formatDate(978339481000, "YYYY/MM/DD HH:mm:ss")',
+      expected: "2001/01/01 08:58:01",
+    },
     { expr: "year(timestamp(2024, 2, 29))", expected: 2024 },
     { expr: "month(timestamp(2024, 2, 29))", expected: 2 },
     { expr: "day(timestamp(2024, 2, 29))", expected: 29 },

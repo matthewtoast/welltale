@@ -1,3 +1,4 @@
+import { omit } from "lodash";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { applyMacros, collectMacros } from "./StoryMacro";
 import type { ParseSeverity } from "./StoryNodeHelpers";
@@ -142,11 +143,11 @@ export async function compileStory(
 
   const jsons = Object.keys(cartridge)
     .filter((k) => k.endsWith(".json"))
-    .map(safeJsonParse)
+    .map((key) => safeJsonParse(cartridge[key].toString()))
     .filter(isPresent);
   const yamls = Object.keys(cartridge)
     .filter((k) => k.endsWith(".yml") || k.endsWith(".yaml"))
-    .map(safeYamlParse)
+    .map((key) => safeYamlParse(cartridge[key].toString()))
     .filter(isPresent);
   [...jsons, ...yamls].forEach((data) => {
     if (!data || typeof data !== "object") {
@@ -209,6 +210,8 @@ export async function compileStory(
       }
     }
   }
+
+  console.info("Compiled", omit(outputs, "root"));
 
   return outputs;
 }
