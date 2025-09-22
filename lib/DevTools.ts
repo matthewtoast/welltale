@@ -3,12 +3,12 @@ import { join } from "path";
 import { safeYamlParse } from "../lib/JSONHelpers";
 import { zipDir } from "../lib/ZipUtils";
 import {
-  finalizeUpload,
-  requestUpload,
-  saveMeta,
+  apiFinalizeUpload,
+  apiRequestUpload,
+  apiSaveMeta,
+  apiUploadZip,
   StorySpec,
-  uploadZip,
-} from "./StoryWebMethods";
+} from "./StoryWebAPI";
 
 export async function syncStory(
   base: string,
@@ -26,22 +26,22 @@ export async function syncStory(
     console.warn(`skip ${id}: zip failed`);
     return false;
   }
-  const saved = await saveMeta(base, id, spec, token);
+  const saved = await apiSaveMeta(base, id, spec, token);
   if (!saved) {
     console.warn(`skip ${id}: meta save failed`);
     return false;
   }
-  const ticket = await requestUpload(base, id, token);
+  const ticket = await apiRequestUpload(base, id, token);
   if (!ticket) {
     console.warn(`skip ${id}: upload sign failed`);
     return false;
   }
-  const sent = await uploadZip(ticket, zip);
+  const sent = await apiUploadZip(ticket, zip);
   if (!sent) {
     console.warn(`skip ${id}: upload failed`);
     return false;
   }
-  const queued = await finalizeUpload(base, id, token);
+  const queued = await apiFinalizeUpload(base, id, token);
   if (!queued) {
     console.warn(`skip ${id}: finalize failed`);
     return false;
