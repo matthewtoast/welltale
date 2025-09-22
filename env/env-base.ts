@@ -10,6 +10,8 @@ export const ZBaseEnvSchema = z.object({
     z.literal("test"),
   ]),
   DEV_API_KEYS: z.string(),
+  AWS_PROFILE: z.string(),
+  AWS_REGION: z.string(),
 });
 
 export type BaseEnv = z.infer<typeof ZBaseEnvSchema>;

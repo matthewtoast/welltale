@@ -8,8 +8,6 @@ export const ZDevEnvSchema = z.intersection(
   ZBaseEnvSchema,
   z.object({
     AWS_ACCOUNT_ID: z.string(),
-    AWS_PROFILE: z.string(),
-    AWS_REGION: z.string(),
     WELLTALE_API_BASE: z.string(),
   })
 );
