@@ -10,6 +10,8 @@
   "typescript.referencesCodeLens.showOnAllFunctions": true,
   "typescript.referencesCodeLens.enabled": true,
   "typescript.implementationsCodeLens.enabled": true,
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "javascript.preferences.importModuleSpecifier": "relative",
   "eslint.codeActionsOnSave.mode": "all",
   "eslint.run": "onType",
   "search.useIgnoreFiles": true,
