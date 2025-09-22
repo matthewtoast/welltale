@@ -30,10 +30,18 @@ const spawnProc = (
 
 const killTree = (p?: ChildProcess) => {
   if (!p?.pid) return;
+  const pid = p.pid;
   try {
     if (process.platform === "win32")
-      spawn("taskkill", ["/pid", String(p.pid), "/t", "/f"]);
-    else process.kill(-p.pid, "SIGTERM");
+      spawn("taskkill", ["/pid", String(pid), "/t", "/f"]);
+    else {
+      process.kill(-pid, "SIGTERM");
+      setTimeout(() => {
+        try {
+          process.kill(-pid, "SIGKILL");
+        } catch {}
+      }, 1000);
+    }
   } catch {}
 };
 
@@ -42,10 +50,12 @@ const waitExit = (p: ChildProcess) =>
 
 async function go() {
   let next: ChildProcess | undefined;
+  const processes: ChildProcess[] = [];
 
   const onSig = () => {
     killTree(next);
     killTree(sst);
+    processes.forEach(killTree);
     process.exit();
   };
 
@@ -54,6 +64,7 @@ async function go() {
     ...process.env,
     ...sstEnv,
   });
+  processes.push(sst);
   sst.stdout!.on("data", (b: Buffer) => {
     const s = b.toString();
     process.stdout.write(s);
@@ -62,6 +73,7 @@ async function go() {
         ...process.env,
         ...sstEnv,
       });
+      processes.push(next);
       next.stdout!.on("data", (x: Buffer) => process.stdout.write(x));
       setTimeout(() => {
         setupFixtures(onSig);

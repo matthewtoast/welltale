@@ -83,7 +83,8 @@ export async function runUntilComplete(
   inputs: string[],
   seam: SeamType = SeamType.GRANT,
   advance: (input: string | null) => Promise<StoryAdvanceResult>,
-  render: (ops: OP[]) => Promise<void>
+  render: (ops: OP[]) => Promise<void>,
+  renderInput: (input: string | null) => Promise<void>
 ): Promise<{ seam: SeamType }> {
   let next = seam;
   while (true) {
@@ -91,6 +92,9 @@ export async function runUntilComplete(
       return { seam: next };
     }
     const input = next === SeamType.INPUT ? (inputs.shift() ?? "") : null;
+    if (next === SeamType.INPUT) {
+      await renderInput(input);
+    }
     const result = await runWithPrefetch(input, advance, render);
     next = result.seam;
   }

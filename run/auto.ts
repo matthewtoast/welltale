@@ -1,4 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import chalk from "chalk";
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
@@ -10,6 +11,7 @@ import { advanceToNext, runUntilComplete } from "../lib/StoryRunnerCore";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
 import {
+  CAROT,
   loadSessionFromDisk,
   RunnerOptions,
   terminalRenderOps,
@@ -183,7 +185,10 @@ async function runAutorun() {
     argv.inputs!.map((i) => i + ""),
     SeamType.GRANT,
     advance,
-    render
+    render,
+    async (input) => {
+      console.log(chalk.greenBright(`${CAROT}${(input ?? "").trim()}`));
+    }
   );
 
   return result.seam;

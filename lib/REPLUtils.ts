@@ -47,7 +47,6 @@ export async function instantiateREPL(
     awaitingInput = false;
     const fixed = raw.trim();
     try {
-      console.log(chalk.greenBright(`${CAROT}${fixed}`));
       resp = await runWithPrefetch(fixed, advance, render);
       await save();
     } catch (err) {
