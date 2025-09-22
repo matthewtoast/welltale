@@ -1,5 +1,6 @@
 import z from "zod";
 import { NonEmpty } from "../typings";
+import { OP, SeamType } from "./StoryEngine";
 
 export type StoryCartridge = Record<string, Buffer | string>;
 
@@ -150,3 +151,11 @@ export type StoryMeta = {
   createdAt: number;
   updatedAt: number;
 } & StoryBaseMeta;
+
+export type StoryAdvanceResult = {
+  ops: OP[];
+  session: StorySession;
+  addr: string | null;
+  seam: SeamType;
+  info: Record<string, string>;
+};

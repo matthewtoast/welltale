@@ -30,6 +30,7 @@ import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   DEFAULT_LLM_SLUGS,
   LLM_SLUGS,
+  StoryAdvanceResult,
   StoryEvent,
   StoryNode,
   StoryOptions,
@@ -137,13 +138,7 @@ export async function advanceStory(
   source: StorySource,
   session: StorySession,
   options: StoryOptions
-): Promise<{
-  ops: OP[];
-  session: StorySession;
-  addr: string | null;
-  seam: SeamType;
-  info: Record<string, string>;
-}> {
+): Promise<StoryAdvanceResult> {
   const out: OP[] = [];
   const evs: StoryEvent[] = [];
 

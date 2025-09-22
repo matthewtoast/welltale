@@ -1,31 +1,29 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import chalk from "chalk";
-import { loadSstEnv } from "env/env-sst";
+import { loadSstEnv } from "../env/env-sst";
+import { instantiateREPL } from "../lib/REPLUtils";
+
 import { last } from "lodash";
 import OpenAI from "openai";
 import { join } from "path";
 import { cwd } from "process";
-import readline from "readline";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import {
-  CAROT,
   loadSessionFromDisk,
-  renderWithPrefetch,
   RunnerOptions,
   saveSessionToDisk,
+  terminalRenderOps,
 } from "../lib/LocalRunnerUtils";
-import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
+import { advanceToNext } from "../lib/StoryRunnerCore";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
-import { handleCommand } from "./../lib/ReplCommands";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
-import { SeamType } from "./../lib/StoryEngine";
+import { OP } from "./../lib/StoryEngine";
 import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
 } from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
+import { DEFAULT_LLM_SLUGS, StoryAdvanceResult } from "./../lib/StoryTypes";
 import { railsTimestamp } from "./../lib/TextHelpers";
 
 const env = loadSstEnv();
@@ -114,7 +112,6 @@ async function runRepl() {
     throw new Error("openRouterBaseUrl missing");
   }
 
-  const seed = argv.seed;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
@@ -136,31 +133,6 @@ async function runRepl() {
     doPlayMedia: argv.doPlayMedia,
   };
 
-  console.info(
-    chalk.gray(`Starting REPL...`, JSON.stringify(runnerOptions, null, 2))
-  );
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: chalk.greenBright(CAROT),
-  });
-
-  rl.on("close", () => process.exit(0));
-
-  let awaitingInput = false;
-  process.stdin.setEncoding("utf8");
-  if (process.stdin.isTTY) {
-    process.stdin.resume();
-  }
-
-  process.stdin.on("data", (chunk) => {
-    const text = typeof chunk === "string" ? chunk : chunk.toString();
-    if (!isSkipActive()) return;
-    if (!text.includes("\n") && !text.includes("\r")) return;
-    triggerSkip();
-  });
-
   const provider = argv.mock
     ? new MockStoryServiceProvider()
     : new DefaultStoryServiceProvider(
@@ -179,87 +151,20 @@ async function runRepl() {
       );
 
   const sources = await compileStory(provider, cartridge, compileOptions);
-
-  const save = () => saveSessionToDisk(session, argv.sessionPath);
-  const optionsWithSeed: RunnerOptions = { ...runnerOptions, seed };
-
-  let resp = await renderWithPrefetch(
-    null,
-    session,
-    sources,
-    optionsWithSeed,
-    provider
-  );
-  save();
-
-  if (resp.seam !== SeamType.INPUT) {
-    rl.close();
-    return;
+  const save = async () => await saveSessionToDisk(session, argv.sessionPath);
+  async function render(ops: OP[]): Promise<void> {
+    await terminalRenderOps(ops, runnerOptions);
   }
-
-  awaitingInput = true;
-  rl.prompt();
-
-  rl.on("line", async (raw) => {
-    if (!awaitingInput) {
-      return;
-    }
-    awaitingInput = false;
-    const fixed = raw.trim();
-    try {
-      if (fixed.startsWith("/")) {
-        const r = await handleCommand(fixed, {
-          session,
-          sources,
-          options: runnerOptions,
-          provider,
-          seed,
-          save,
-        });
-        if (!r.handled) {
-          console.warn("Unknown command");
-          awaitingInput = true;
-          rl.prompt();
-          return;
-        }
-        if (r.seam) {
-          resp = await renderWithPrefetch(
-            null,
-            session,
-            sources,
-            optionsWithSeed,
-            provider
-          );
-          save();
-        } else {
-          awaitingInput = true;
-          rl.prompt();
-          return;
-        }
-      } else {
-        resp = await renderWithPrefetch(
-          fixed,
-          session,
-          sources,
-          optionsWithSeed,
-          provider
-        );
-        save();
-      }
-    } catch (err) {
-      console.error(chalk.red(err));
-      awaitingInput = true;
-      rl.prompt();
-      return;
-    }
-
-    if (resp.seam === SeamType.INPUT) {
-      awaitingInput = true;
-      rl.prompt();
-      return;
-    }
-    rl.close();
-  });
+  async function advance(input: string | null): Promise<StoryAdvanceResult> {
+    return await advanceToNext(
+      input,
+      session,
+      sources,
+      runnerOptions,
+      provider
+    );
+  }
+  await instantiateREPL(advance, render, save);
 }
 
 runRepl();

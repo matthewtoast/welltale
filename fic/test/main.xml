@@ -5,5 +5,11 @@
 </p>
 
 <p>
-  It's {$ formatDate(time, "YYYY/MM/DD") $}.
+  It's {$ formatDate(time, "YYYY/MM/DD") $}. What do you think?
+</p>
+
+<input />
+
+<p>
+  You said {{input}}.
 </p>

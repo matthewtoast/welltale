@@ -1,32 +1,25 @@
-import { renderNext, RenderResult } from "./RunnerCore";
 import { SeamType } from "./StoryEngine";
-import { StoryServiceProvider } from "./StoryServiceProvider";
-import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
+import { StoryAdvanceResult } from "./StoryTypes";
 
-type StreamState = {
-  session: StorySession;
-  sources: StorySource;
-  options: StoryOptions;
-  provider: StoryServiceProvider;
-};
-
-type Resolver = (result: RenderResult | null) => void;
+type Resolver = (result: StoryAdvanceResult | null) => void;
 
 export type StoryStream = {
   push(input: string | null): void;
-  take(): Promise<RenderResult | null>;
+  take(): Promise<StoryAdvanceResult | null>;
   close(): void;
 };
 
-export function createStoryStream(state: StreamState): StoryStream {
+export function createStoryStream(
+  advance: (input: string | null) => Promise<StoryAdvanceResult>
+): StoryStream {
   const inputs: Array<string | null> = [];
-  const ready: RenderResult[] = [];
+  const ready: StoryAdvanceResult[] = [];
   const waiters: Resolver[] = [];
   let running = false;
   let closed = false;
   let blocked = true;
 
-  function emit(result: RenderResult) {
+  function emit(result: StoryAdvanceResult) {
     const next = waiters.shift();
     if (next) {
       next(result);
@@ -50,13 +43,7 @@ export function createStoryStream(state: StreamState): StoryStream {
       if (blocked && inputs.length === 0) break;
       const nextInput = inputs.length > 0 ? (inputs.shift() ?? null) : null;
       try {
-        const result = await renderNext(
-          nextInput,
-          state.session,
-          state.sources,
-          state.options,
-          state.provider
-        );
+        const result = await advance(nextInput);
         emit(result);
         if (result.seam === SeamType.MEDIA || result.seam === SeamType.GRANT) {
           blocked = false;
@@ -85,7 +72,7 @@ export function createStoryStream(state: StreamState): StoryStream {
     run();
   }
 
-  function take(): Promise<RenderResult | null> {
+  function take(): Promise<StoryAdvanceResult | null> {
     if (ready.length > 0) {
       return Promise.resolve(ready.shift() ?? null);
     }

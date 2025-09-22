@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "util";
+import { advanceToNextUntilBlocking } from "../lib/StoryRunnerCore";
 import { RunnerOptions } from "./../lib/LocalRunnerUtils";
-import { renderUntilBlocking } from "./../lib/RunnerCore";
 import { compileStory } from "./../lib/StoryCompiler";
 import { createDefaultSession, OP, SeamType } from "./../lib/StoryEngine";
 import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
@@ -51,7 +51,7 @@ async function runTestUntilComplete(
     const input = next === SeamType.INPUT ? (info.inputs.shift() ?? "") : null;
 
     // Use renderUntilBlocking directly and collect ops from result
-    const result = await renderUntilBlocking(
+    const result = await advanceToNextUntilBlocking(
       input,
       info.session,
       info.sources,

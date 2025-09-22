@@ -10,9 +10,7 @@ import {
   HOST_ID,
   OP,
   PlayMediaOptions,
-  SeamType,
 } from "./StoryEngine";
-import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   AUDIO_MIMES,
   isBlank,
@@ -21,10 +19,8 @@ import {
 } from "./TextHelpers";
 
 import { play, playWait } from "./LocalAudioUtils";
-import { RenderResult } from "./RunnerCore";
 import { createSkipHandle } from "./SkipSignal";
-import { createStoryStream } from "./StoryStream";
-import { StoryOptions, StorySession, StorySource } from "./StoryTypes";
+import { StoryOptions, StorySession } from "./StoryTypes";
 
 export const CAROT = "> ";
 
@@ -143,91 +139,5 @@ export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
         }
         break;
     }
-  }
-}
-
-function logError(info: Record<string, string>) {
-  const msg =
-    (info.reason && typeof info.reason === "string" && info.reason) ||
-    (info.error && typeof info.error === "string" && info.error) ||
-    "Unknown error";
-  console.log(chalk.red.bold(`ERROR: ${msg}`));
-}
-
-export async function renderWithPrefetch(
-  input: string | null,
-  session: StorySession,
-  sources: StorySource,
-  options: RunnerOptions,
-  provider: StoryServiceProvider
-): Promise<RenderResult> {
-  if (input !== null) {
-    console.log(chalk.greenBright(`${CAROT}${input}`));
-  }
-  const stream = createStoryStream({
-    session,
-    sources,
-    options,
-    provider,
-  });
-  stream.push(input);
-  const ops: OP[] = [];
-  let last: RenderResult | null = null;
-  while (true) {
-    const next = await stream.take();
-    if (!next) {
-      break;
-    }
-    if (next.ops.length > 0) {
-      ops.push(...next.ops);
-      await terminalRenderOps(next.ops, options);
-    }
-    last = next;
-    if (next.seam === SeamType.MEDIA || next.seam === SeamType.GRANT) {
-      continue;
-    }
-    if (next.seam === SeamType.ERROR) {
-      logError(next.info);
-    }
-    break;
-  }
-  stream.close();
-  if (!last) {
-    return {
-      seam: SeamType.GRANT,
-      ops,
-      addr: null,
-      info: {},
-    };
-  }
-  return { ...last, ops };
-}
-
-export async function runUntilComplete(
-  info: {
-    options: RunnerOptions;
-    provider: StoryServiceProvider;
-    session: StorySession;
-    sources: StorySource;
-    seed: string;
-    inputs: string[];
-  },
-  seam: SeamType = SeamType.GRANT
-): Promise<{ seam: SeamType }> {
-  let next = seam;
-  const runOptions: RunnerOptions = { ...info.options, seed: info.seed };
-  while (true) {
-    if (next === SeamType.ERROR || next === SeamType.FINISH) {
-      return { seam: next };
-    }
-    const input = next === SeamType.INPUT ? (info.inputs.shift() ?? "") : null;
-    const result = await renderWithPrefetch(
-      input,
-      info.session,
-      info.sources,
-      runOptions,
-      info.provider
-    );
-    next = result.seam;
   }
 }

@@ -25,22 +25,24 @@ type Body = {
 };
 
 type StoryCtx = { params: Promise<{ id: string }> };
-
 export async function POST(req: Request, ctx: StoryCtx) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const { id } = await ctx.params;
   const source = await storyRepo.getCompiled(id);
+  console.log(4, source);
   if (!source) return NextResponse.json({ ok: false }, { status: 404 });
   const t = await req.text();
   const b = safeJsonParseTyped<Body>(t);
+  console.log(6, b);
   if (!b) return NextResponse.json({ ok: false }, { status: 400 });
   const provider = new MockStoryServiceProvider();
-  const { ops, session, seam, info } = await advanceStory(
+  const { ops, session, seam, info, addr } = await advanceStory(
     provider,
     source,
     b.session,
     b.options
   );
+  console.log(8, ops);
   return NextResponse.json({ ops, session, seam, info }, { status: 200 });
 }

@@ -6,20 +6,21 @@ import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadAppEnv } from "../env/env-app";
+import { advanceToNext, runUntilComplete } from "../lib/StoryRunnerCore";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
 import {
   loadSessionFromDisk,
   RunnerOptions,
-  runUntilComplete,
+  terminalRenderOps,
 } from "./../lib/LocalRunnerUtils";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
-import { SeamType } from "./../lib/StoryEngine";
+import { OP, SeamType } from "./../lib/StoryEngine";
 import {
   DefaultStoryServiceProvider,
   MockStoryServiceProvider,
 } from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
+import { DEFAULT_LLM_SLUGS, StoryAdvanceResult } from "./../lib/StoryTypes";
 import { railsTimestamp } from "./../lib/TextHelpers";
 
 const env = loadAppEnv();
@@ -117,7 +118,6 @@ async function runAutorun() {
     .help()
     .parse();
 
-  const seed = argv.seed;
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
   const session = loadSessionFromDisk(argv.sessionPath, gameId);
@@ -166,17 +166,26 @@ async function runAutorun() {
 
   const sources = await compileStory(provider, cartridge, compileOptions);
 
-  const result = await runUntilComplete(
-    {
-      options: runnerOptions,
-      provider,
+  async function render(ops: OP[]): Promise<void> {
+    await terminalRenderOps(ops, runnerOptions);
+  }
+  async function advance(input: string | null): Promise<StoryAdvanceResult> {
+    return await advanceToNext(
+      input,
       session,
       sources,
-      seed,
-      inputs: argv.inputs!.map((i) => i + ""),
-    },
-    SeamType.GRANT
+      runnerOptions,
+      provider
+    );
+  }
+
+  const result = await runUntilComplete(
+    argv.inputs!.map((i) => i + ""),
+    SeamType.GRANT,
+    advance,
+    render
   );
+
   return result.seam;
 }
 
