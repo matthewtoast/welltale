@@ -30,7 +30,7 @@ export type DevSession = {
   user: ApiUser;
 };
 
-export async function authTokenExchange(
+export async function apiAuthTokenExchange(
   baseUrl: string,
   key: string
 ): Promise<DevSession | null> {
@@ -64,27 +64,27 @@ export async function authTokenExchange(
   return { token: data.token, user };
 }
 
-export async function fetchDevSessions(
+export async function apiFetchDevSessions(
   baseUrl: string,
   devKeys: string[]
 ): Promise<DevSession[]> {
   if (devKeys.length === 0) return [];
   const results: DevSession[] = [];
   for (const key of devKeys) {
-    const token = await authTokenExchange(baseUrl, key);
+    const token = await apiAuthTokenExchange(baseUrl, key);
     if (token) results.push(token);
   }
   return results;
 }
 
-export async function saveMeta(
+export async function apiSaveMeta(
   baseUrl: string,
   id: string,
   spec: StorySpec,
   token: string
 ): Promise<boolean> {
   const payload = JSON.stringify(spec);
-  const res = await safeRequest(
+  const res = await apiSafeRequest(
     `${baseUrl}/api/stories/${id}`,
     {
       method: "POST",
@@ -98,12 +98,12 @@ export async function saveMeta(
   return true;
 }
 
-export async function requestUpload(
+export async function apiRequestUpload(
   baseUrl: string,
   id: string,
   token: string
 ): Promise<UploadTicket | null> {
-  const res = await safeRequest(
+  const res = await apiSafeRequest(
     `${baseUrl}/api/stories/${id}/upload/sign`,
     {
       method: "POST",
@@ -125,12 +125,12 @@ export async function requestUpload(
   return { method: data.method, url: data.url, headers };
 }
 
-export async function uploadZip(
+export async function apiUploadZip(
   ticket: UploadTicket,
   zip: Buffer
 ): Promise<boolean> {
   const headers = { ...ticket.headers, "Content-Length": `${zip.byteLength}` };
-  const res = await safeRequest(
+  const res = await apiSafeRequest(
     ticket.url,
     {
       method: ticket.method,
@@ -144,12 +144,12 @@ export async function uploadZip(
   return true;
 }
 
-export async function finalizeUpload(
+export async function apiFinalizeUpload(
   base: string,
   id: string,
   token: string
 ): Promise<boolean> {
-  const res = await safeRequest(
+  const res = await apiSafeRequest(
     `${base}/api/stories/${id}/upload/complete`,
     {
       method: "POST",
@@ -161,7 +161,7 @@ export async function finalizeUpload(
   return true;
 }
 
-export async function advanceStory(
+export async function apiAdvanceStory(
   baseUrl: string,
   id: string,
   session: StorySession,
@@ -169,7 +169,7 @@ export async function advanceStory(
   token: string
 ): Promise<StoryAdvanceResult | null> {
   const payload = JSON.stringify({ session, options });
-  const res = await safeRequest(
+  const res = await apiSafeRequest(
     `${baseUrl}/api/stories/${id}/advance`,
     {
       method: "POST",
@@ -185,7 +185,7 @@ export async function advanceStory(
   return data as StoryAdvanceResult;
 }
 
-async function safeRequest(
+async function apiSafeRequest(
   url: string,
   init: RequestInit,
   token: string | null

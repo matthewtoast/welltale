@@ -1,16 +1,17 @@
 import chalk from "chalk";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
-
 import { sleep } from "./AsyncHelpers";
-import { loadEnv } from "./DotEnv";
 import { safeJsonParse } from "./JSONHelpers";
+import { play, playWait } from "./LocalAudioUtils";
+import { createSkipHandle } from "./SkipSignal";
 import {
   createDefaultSession,
   HOST_ID,
   OP,
   PlayMediaOptions,
 } from "./StoryEngine";
+import { StoryOptions, StorySession } from "./StoryTypes";
 import {
   AUDIO_MIMES,
   isBlank,
@@ -18,13 +19,7 @@ import {
   railsTimestamp,
 } from "./TextHelpers";
 
-import { play, playWait } from "./LocalAudioUtils";
-import { createSkipHandle } from "./SkipSignal";
-import { StoryOptions, StorySession } from "./StoryTypes";
-
 export const CAROT = "> ";
-
-loadEnv();
 
 export function loadSessionFromDisk(
   abspath: string,
