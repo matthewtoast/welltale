@@ -31,4 +31,18 @@ struct StoryService {
         )
         return response.meta
     }
+    
+    func advanceStory(id: String, session: StorySession, options: StoryOptions) async throws -> StoryAdvanceResponse {
+        let request = StoryAdvanceRequest(session: session, options: options)
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let body = try encoder.encode(request)
+        
+        let response: StoryAdvanceResponse = try await client.request(
+            method: "POST",
+            path: "api/stories/\(id)/advance",
+            body: body
+        )
+        return response
+    }
 }

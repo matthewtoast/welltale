@@ -154,16 +154,6 @@ function logError(info: Record<string, string>) {
   console.log(chalk.red.bold(`ERROR: ${msg}`));
 }
 
-export async function renderUntilBlocking(
-  input: string | null,
-  session: StorySession,
-  sources: StorySource,
-  options: RunnerOptions,
-  provider: StoryServiceProvider
-): Promise<RenderResult> {
-  return renderWithPrefetch(input, session, sources, options, provider);
-}
-
 export async function renderWithPrefetch(
   input: string | null,
   session: StorySession,
@@ -231,7 +221,7 @@ export async function runUntilComplete(
       return { seam: next };
     }
     const input = next === SeamType.INPUT ? (info.inputs.shift() ?? "") : null;
-    const result = await renderUntilBlocking(
+    const result = await renderWithPrefetch(
       input,
       info.session,
       info.sources,

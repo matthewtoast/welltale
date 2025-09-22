@@ -48,7 +48,7 @@ export function createStoryStream(state: StreamState): StoryStream {
     running = true;
     while (!closed) {
       if (blocked && inputs.length === 0) break;
-      const nextInput = inputs.length > 0 ? inputs.shift() ?? null : null;
+      const nextInput = inputs.length > 0 ? (inputs.shift() ?? null) : null;
       try {
         const result = await renderNext(
           nextInput,
@@ -58,10 +58,7 @@ export function createStoryStream(state: StreamState): StoryStream {
           state.provider
         );
         emit(result);
-        if (
-          result.seam === SeamType.MEDIA ||
-          result.seam === SeamType.GRANT
-        ) {
+        if (result.seam === SeamType.MEDIA || result.seam === SeamType.GRANT) {
           blocked = false;
           continue;
         }

@@ -1,6 +1,6 @@
 import { omit } from "lodash";
 import { revertSession } from "./CheckpointUtils";
-import { renderUntilBlocking, RunnerOptions } from "./LocalRunnerUtils";
+import { renderWithPrefetch, RunnerOptions } from "./LocalRunnerUtils";
 import { OP, SeamType } from "./StoryEngine";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import { StorySession, StorySource } from "./StoryTypes";
@@ -38,7 +38,7 @@ export async function handleCommand(
       console.warn("Invalid revert index");
       return { handled: true };
     }
-    const r = await renderUntilBlocking(
+    const r = await renderWithPrefetch(
       null,
       ctx.session,
       ctx.sources,
