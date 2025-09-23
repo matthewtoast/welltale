@@ -5,8 +5,13 @@
 </p>
 
 <p>
-  It's {$ formatDate(time, "YYYY/MM/DD") $}. What do you think?
+  It's {$ formatDate(time, "YYYY") $}. What do you think?
 </p>
+
+<while cond="true" />
+  <input />
+
+</while>
 
 <input />
 

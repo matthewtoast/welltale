@@ -31,17 +31,17 @@ can also use $models=""
 
 <!--
 classifies the text returning only string of one of the given classifications as enumerated in the attributes
-result is stored in ctx.scope.classify unless key attribute is present, in which case ctx.scope[key]
+result is stored in ctx.scope.tags unless key attribute is present, in which case ctx.scope[key]
 -->
-<llm:classify
+<llm:tag
   rewind="requested rewind like go back to a certain point in the story"
   smalltalk="general pleasantries or chit-chat"
   greeting="user is greeting"
   >
   {{input}}
-</llm:classify>
+</llm:tag>
 
-<log message="CLASSIFY: {{classify}}" />
+<log message="TAGS: {{tags}}" />
 
 <!--
 returns a score between 0.0 and 1.0 for each attribute.
@@ -76,16 +76,16 @@ the underlying prompt might be slightly different than llm:parse tailored more t
 `;
 
   const { ops, seam } = await runTestStory(xmlContent, ["hello there"]);
-  
-  const eventOps = ops.filter(op => op.type === "play-event");
-  const textEvents = eventOps.filter(op => op.event && op.event.body);
-  const textBodies = textEvents.map(e => e.event.body.trim());
-  
+
+  const eventOps = ops.filter((op) => op.type === "play-event");
+  const textEvents = eventOps.filter((op) => op.event && op.event.body);
+  const textBodies = textEvents.map((e) => e.event.body.trim());
+
   expect(textBodies.length, 1);
   expect(textBodies[0], 'LLM tag demo. User said: "hello there"');
-  
+
   expect(seam, "finish");
-  
+
   console.log("✓ llm-tags.test.ts passed");
 }
 

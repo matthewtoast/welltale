@@ -22,18 +22,33 @@ import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
 
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
-export function processModuleIncludes(root: StoryNode): void {
-  const modules = findNodes(root, (node) => node.type === "module").filter(
-    (mod) => !isBlank(mod.atts.id)
+const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body", "macro"];
+
+export function processIncludes(root: StoryNode): void {
+  const moduleables = findNodes(
+    root,
+    (node) =>
+      !NON_INCLUDABLE_TAGS.includes(node.type) &&
+      !node.type.startsWith("#") &&
+      node.kids.length > 0 &&
+      !isBlank(node.atts.id)
   );
-  if (modules.length === 0) return;
+  if (moduleables.length === 0) return;
+
+  // Pre-collect <include> tags so we don't end up in an infinite loop if modules include an <include>
+  const includes: { node: StoryNode; parent: StoryNode; idx: number }[] = [];
   walkTree(root, (node, parent, idx) => {
     if (parent && node.type === "include" && !isBlank(node.atts.id)) {
-      const found = modules.find((mod) => mod.atts.id === node.atts.id);
-      parent.kids.splice(idx, 1, ...(found?.kids.map(cloneNode) ?? []));
+      includes.push({ node, parent, idx });
     }
     return null;
   });
+
+  for (let i = 0; i < includes.length; i++) {
+    const { node, parent, idx } = includes[i];
+    const found = moduleables.find((mod) => mod.atts.id === node.atts.id);
+    parent.kids.splice(idx, 1, ...(found?.kids.map(cloneNode) ?? []));
+  }
 }
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
@@ -128,7 +143,7 @@ export async function compileStory(
     : undefined;
 
   const root = buildStoryRoot(cartridge, options.verbose, collect);
-  processModuleIncludes(root);
+  processIncludes(root);
   assignAddrs(root);
 
   const meta: Record<string, string> = {};

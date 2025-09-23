@@ -1,4 +1,4 @@
-import { processModuleIncludes } from "./../lib/StoryCompiler";
+import { processIncludes } from "./../lib/StoryCompiler";
 import { StoryNode } from "./../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
@@ -65,7 +65,7 @@ async function test() {
       text: "",
     };
 
-    processModuleIncludes(root);
+    processIncludes(root);
 
     const sec = root.kids[1];
     expect(sec.kids.length, 4);
@@ -125,7 +125,7 @@ async function test() {
       text: "",
     };
 
-    processModuleIncludes(root);
+    processIncludes(root);
 
     const sec = root.kids[1];
     expect(sec.kids.length, 2);
@@ -190,7 +190,7 @@ async function test() {
       text: "",
     };
 
-    processModuleIncludes(root);
+    processIncludes(root);
 
     const sec = root.kids[1];
     expect(sec.kids.length, 2);
@@ -247,7 +247,7 @@ async function test() {
       text: "",
     };
 
-    processModuleIncludes(root);
+    processIncludes(root);
 
     const sec = root.kids[1];
     expect(sec.kids.length, 1);
@@ -297,7 +297,7 @@ async function test() {
       text: "",
     };
 
-    processModuleIncludes(root);
+    processIncludes(root);
 
     const sec = root.kids[1];
     expect(sec.kids.length, 1);
@@ -345,7 +345,7 @@ async function test() {
       text: "",
     };
 
-    processModuleIncludes(root);
+    processIncludes(root);
 
     const sec = root.kids[1];
     expect(sec.kids.length, 1);

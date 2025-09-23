@@ -90,6 +90,61 @@ async function go() {
     ],
     text: "",
   });
+
+  // (1) containers with "bare" text (no <p> etc) are possible and
+  // (2) we can include that content elsewhere in the tree
+  const cart2 = {
+    "main.xml": `
+    <div id="foo">
+      hi
+    </div>
+    <div>
+      <include id="foo" />
+    </div>
+  `,
+  };
+  const p2 = new MockStoryServiceProvider();
+  const c2 = await compileStory(p, cart2, {
+    doCompileVoices: false,
+  });
+  expect(c2.root, {
+    addr: "0",
+    type: "root",
+    atts: {},
+    kids: [
+      {
+        type: "div",
+        atts: { id: "foo" },
+        text: "",
+        kids: [
+          {
+            type: "#text",
+            atts: {},
+            text: "\n      hi\n    ",
+            kids: [],
+            addr: "0.0.0",
+          },
+        ],
+        addr: "0.0",
+      },
+      {
+        type: "div",
+        atts: {},
+        text: "",
+        kids: [
+          {
+            addr: "0.1.0",
+            type: "#text",
+            atts: {},
+            text: "\n      hi\n    ",
+            kids: [],
+          },
+        ],
+        addr: "0.1",
+      },
+    ],
+    text: "",
+  });
 }
 
 go();

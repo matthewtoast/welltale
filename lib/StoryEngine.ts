@@ -431,7 +431,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm:classify",
+    match: (node: StoryNode) => node.type === "llm:tag",
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
@@ -440,15 +440,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const models = normalizeModels(ctx.options, atts.models);
       const out = await ctx.provider.generateJson(
         dedent`
-          Classify the input into 0 or more labels based on the best fit per each label's description.
+          Tag the input using 0 or more of the given labels, based on each label's description.
           <input>${prompt}</input>
           <labels>${JSON.stringify(labels, null, 2)}</labels>
-          Return only the winning labels. Return multiple labels only if multiple are relevant.
+          Return only labels that fit the content. Return multiple if relevant.
         `,
         { labels: "array<string> - Classification labels for the input" },
         { models, useWebSearch }
       );
-      const key = atts.key ?? "classify";
+      const key = atts.key ?? "tags";
       setState(ctx.scope, key, ensureArray(out.labels ?? []));
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
