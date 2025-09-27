@@ -1,5 +1,5 @@
 import z from "zod";
-import { NonEmpty } from "../typings";
+import { NonEmpty, TSerial } from "../typings";
 import { OP, SeamType } from "./StoryEngine";
 
 export type StoryCartridge = Record<string, Buffer | string>;
@@ -14,10 +14,12 @@ export const StoryVoiceSchema = z.object({
 export type VoiceSpec = z.infer<typeof StoryVoiceSchema>;
 
 export type StorySource = {
-  voices: Record<string, VoiceSpec>;
   root: StoryNode;
-  meta: Record<string, string>;
+  voices: Record<string, VoiceSpec>;
   pronunciations: Record<string, string>;
+  meta: {
+    [key: string]: TSerial;
+  };
 };
 
 export type StoryNode = {

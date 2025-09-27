@@ -1,4 +1,5 @@
 import { castToBoolean, castToNumber, castToString } from "./EvalCasting";
+import { ExprEvalFunc } from "./EvalUtils";
 import { PRNG } from "./RandHelpers";
 import { isBlank } from "./TextHelpers";
 
@@ -1409,3 +1410,19 @@ export const createRandomHelpers = (
     return shuffled.slice(0, size);
   },
 });
+
+export function buildDefaultFuncs(
+  funcs: Record<string, ExprEvalFunc> = {},
+  prng: PRNG
+) {
+  const randomHelpers = createRandomHelpers(prng);
+  return Object.assign(
+    arrayHelpers,
+    stringHelpers,
+    unifiedHelpers,
+    mathHelpers,
+    dateHelpers,
+    randomHelpers,
+    funcs
+  );
+}

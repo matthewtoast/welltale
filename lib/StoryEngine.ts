@@ -1401,7 +1401,7 @@ function setState(
 
 export function createScope(
   session: StorySession,
-  extra: Record<string, string>
+  extra: Record<string, TSerial>
 ): { [key: string]: TSerial } {
   function findWritableScope(): { [key: string]: TSerial } | null {
     for (let i = session.stack.length - 1; i >= 0; i--) {

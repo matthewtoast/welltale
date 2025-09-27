@@ -1,5 +1,4 @@
 import { Parser } from "expr-eval";
-import { Primitive } from "zod";
 import { TSerial } from "../typings";
 import {
   arrayHelpers,
@@ -7,12 +6,13 @@ import {
   dateHelpers,
   EvalResult,
   mathHelpers,
+  Primitive,
   stringHelpers,
   unifiedHelpers,
 } from "./EvalMethods";
 import { PRNG } from "./RandHelpers";
 
-type Func = (...args: Primitive[]) => EvalResult;
+export type ExprEvalFunc = (...args: Primitive[]) => EvalResult;
 
 function makeParser() {
   return new Parser({
@@ -25,7 +25,7 @@ function makeParser() {
 export const evalExpr = (
   expr: string,
   vars: Record<string, TSerial>,
-  funcs: Record<string, Func> = {},
+  funcs: Record<string, ExprEvalFunc> = {},
   prng: PRNG,
   prev: Parser = makeParser()
 ): EvalResult => {
@@ -40,7 +40,7 @@ export const evalExpr = (
 };
 
 export function getParser(
-  funcs: Record<string, Func> = {},
+  funcs: Record<string, ExprEvalFunc> = {},
   prng: PRNG,
   parser: Parser = makeParser()
 ) {

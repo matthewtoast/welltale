@@ -1,4 +1,5 @@
 import { omit } from "lodash";
+import { TSerial } from "../typings";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { applyMacros, collectMacros } from "./StoryMacro";
 import type { ParseSeverity } from "./StoryNodeHelpers";
@@ -146,13 +147,13 @@ export async function compileStory(
   processIncludes(root);
   assignAddrs(root);
 
-  const meta: Record<string, string> = {};
   const pronunciations: Record<string, string> = {};
   const voices: Record<string, VoiceSpec> = {};
-  const outputs = {
-    meta,
+  const meta: Record<string, TSerial> = {};
+  const outputs: StorySource = {
     pronunciations,
     voices,
+    meta,
     root,
   };
 
@@ -160,24 +161,29 @@ export async function compileStory(
     .filter((k) => k.endsWith(".json"))
     .map((key) => safeJsonParse(cartridge[key].toString()))
     .filter(isPresent);
+
   const yamls = Object.keys(cartridge)
     .filter((k) => k.endsWith(".yml") || k.endsWith(".yaml"))
     .map((key) => safeYamlParse(cartridge[key].toString()))
     .filter(isPresent);
+
   [...jsons, ...yamls].forEach((data) => {
     if (!data || typeof data !== "object") {
       return;
     }
-    ["meta", "voices", "pronunciations"].forEach((key) => {
-      if (data[key] && typeof data[key] === "object") {
-        Object.assign(outputs[key as keyof typeof outputs], data[key]);
-      }
-    });
+    if (data.pronunciations) {
+      Object.assign(pronunciations, data.pronunciations);
+    }
+    if (data.voices) {
+      Object.assign(voices, data.voices);
+    }
+    Object.assign(meta, omit(data, "pronunciations", "voices"));
   });
 
   findNodes(root, (node) => node.type === "meta").forEach((node) => {
     if (!isBlank(node.atts.description)) {
-      meta[node.atts.name ?? node.atts.property] = node.atts.description;
+      outputs.meta[node.atts.name ?? node.atts.property] =
+        node.atts.description;
       if (options.verbose) {
         console.info("Found <meta>", node.atts);
       }

@@ -1,0 +1,27 @@
+<macro match="judge">
+  <rename to="p" />
+  <set attr="from" value="Judge" />
+  <set attr="voice" value="Adam" />
+</macro>
+
+<var name="location" value="San Francisco" />
+<var name="year" value="1994" type="number" />
+
+<intro>
+  <music duration="10000" fadeAt="4000" fadeDuration="6000" background="true">
+    1950s courtroom drama intro music; setting the stage for the jury's deliberations in a murder trial
+  </music>
+  <sleep duration="5000" />
+  <p>
+    You're playing {{title}}, by {{author}}.
+  </p>
+  <jump to="start" />
+</intro>
+
+<div id="start">
+</div>
+
+<!--
+the main secret of this story is that you cannot persuade until you are able to
+*fully* state the person's point of view in a way that's better than they would have
+-->
