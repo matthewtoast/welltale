@@ -2,8 +2,8 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { loadAppEnv } from "../../../../env/env-app";
+import { authenticateRequest } from "../../../lib/api/auth";
 import { createStoryRepo } from "./../../../../lib/StoryRepo";
-import { authenticateRequest } from "./../../../../lib/api/auth";
 
 const env = loadAppEnv();
 

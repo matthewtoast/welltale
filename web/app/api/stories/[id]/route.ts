@@ -3,9 +3,9 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { ulid } from "ulid";
 import { loadAppEnv } from "../../../../../env/env-app";
+import { authenticateRequest } from "../../../../lib/api/auth";
 import { safeJsonParseTyped } from "./../../../../../lib/JSONHelpers";
 import { createStoryRepo } from "./../../../../../lib/StoryRepo";
-import { authenticateRequest } from "./../../../../../lib/api/auth";
 
 export const runtime = "nodejs";
 

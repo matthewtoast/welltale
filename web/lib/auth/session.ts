@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
-import { loadAppEnv } from "../../env/env-app";
+import { loadAppEnv } from "../../../env/env-app";
 
 type SessionClaims = {
   uid: string;

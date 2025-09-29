@@ -12,6 +12,7 @@
     "test": "for f in $(find . -name '*.test.ts' -not -path './node_modules/*'); do echo \"Running $f\"; npx tsx \"$f\" || exit 1; done",
     "repl": "yarn ts ./run/repl.ts",
     "auto": "yarn ts ./run/auto.ts",
+    "web:dev": "next dev web",
     "web:typecheck": "tsc -p web/tsconfig.typecheck.json --noEmit",
     "ios:typecheck": "xcodebuild -project ios/Welltale/Welltale.xcodeproj -scheme Welltale -sdk iphonesimulator build 2>&1 | grep -E \"(error:|warning:)\"",
     "web:sst:deploy": "sst deploy --stage prod",
@@ -25,6 +26,7 @@
     "@aws-sdk/util-dynamodb": "3.864.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
     "@types/aws-lambda": "^8.10.137",
     "@types/dedent": "^0.7.2",
     "@types/js-yaml": "^4.0.9",

@@ -1,5 +1,5 @@
+import { UserRecord } from "../../../lib/UserRepo";
 import { authenticateSession } from "../auth/service";
-import { UserRecord } from "../UserRepo";
 
 function fromAuthorization(req: Request): string | null {
   const header = req.headers.get("authorization");

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { exchangeSession } from "../../../../lib/auth/service";
 import { safeJsonParseTyped } from "./../../../../../lib/JSONHelpers";
-import { exchangeSession } from "./../../../../../lib/auth/service";
 
 export const runtime = "nodejs";
 

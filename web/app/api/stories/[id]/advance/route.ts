@@ -4,12 +4,12 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { loadAppEnv } from "../../../../../../env/env-app";
-import { authenticateRequest } from "./../../../../../../lib/api/auth";
+import { authenticateRequest } from "../../../../../lib/api/auth";
+import { DefaultStoryServiceProvider } from "./../../../../../../lib/DefaultStoryServiceProvider";
 import { safeJsonParseTyped } from "./../../../../../../lib/JSONHelpers";
 import { S3Cache } from "./../../../../../../lib/S3Cache";
 import { advanceStory } from "./../../../../../../lib/StoryEngine";
 import { createStoryRepo } from "./../../../../../../lib/StoryRepo";
-import { DefaultStoryServiceProvider } from "./../../../../../../lib/DefaultStoryServiceProvider";
 import { StoryOptions, StorySession } from "./../../../../../../lib/StoryTypes";
 
 export const runtime = "nodejs";

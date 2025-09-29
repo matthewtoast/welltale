@@ -3,8 +3,8 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { NextResponse } from "next/server";
 import { loadAppEnv } from "../../../../../../../env/env-app";
+import { authenticateRequest } from "../../../../../../lib/api/auth";
 import { createStoryRepo } from "./../../../../../../../lib/StoryRepo";
-import { authenticateRequest } from "./../../../../../../../lib/api/auth";
 
 const env = loadAppEnv();
 
