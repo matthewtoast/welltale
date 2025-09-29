@@ -5,7 +5,7 @@ import {
   SandboxOptions,
 } from "@sebastianwessel/quickjs";
 import { TSerial } from "../typings";
-import { ExprEvalFunc } from "./EvalUtils";
+import { ExprEvalFunc } from "./EvalCasting";
 import { NestedRecords } from "./StoryTypes";
 import { cleanSplit } from "./TextHelpers";
 

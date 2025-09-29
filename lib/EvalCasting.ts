@@ -1,4 +1,6 @@
-import { TSerial } from "../typings";
+import { TScalar, TSerial } from "../typings";
+
+export type ExprEvalFunc = (...args: TScalar[]) => TSerial;
 
 export function castToBoolean(v: any): boolean {
   if (typeof v === "boolean") return v;
@@ -120,4 +122,14 @@ export function castToTypeEnhanced(value: TSerial, type?: string): TSerial {
   }
 
   return value;
+}
+
+export function ensureArray(a: any): any[] {
+  if (Array.isArray(a)) {
+    return a;
+  }
+  if (a === null || a === undefined || isNaN(a)) {
+    return [];
+  }
+  return [a];
 }

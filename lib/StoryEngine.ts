@@ -7,10 +7,10 @@ import {
   castToBoolean,
   castToString,
   castToTypeEnhanced,
+  ensureArray,
   isTruthy,
 } from "./EvalCasting";
 import { buildDefaultFuncs } from "./EvalMethods";
-import { ensureArray } from "./EvalUtils";
 import { isValidUrl, toHttpMethod } from "./HTTPHelpers";
 import { parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
