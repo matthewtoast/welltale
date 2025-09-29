@@ -1,5 +1,4 @@
 import { DOMParser } from "@xmldom/xmldom";
-import { evalExpr } from "./EvalUtils";
 import { BaseActionContext, renderAtts } from "./StoryEngine";
 import { StoryNode } from "./StoryTypes";
 import { isBlank, smoosh, snorm } from "./TextHelpers";
@@ -247,7 +246,7 @@ export async function marshallText(
 ): Promise<string> {
   if (node.type === "when") {
     const atts = await renderAtts(node.atts, ctx);
-    const cond = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
+    const cond = await ctx.evaluator(atts.cond, ctx.scope);
     if (cond) {
       for (let i = 0; i < node.kids.length; i++) {
         texts.push(await marshallText(node.kids[i], ctx, join));

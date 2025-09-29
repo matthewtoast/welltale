@@ -1,14 +1,20 @@
-import { PRNG } from "./../lib/RandHelpers";
-import { BaseActionContext } from "./../lib/StoryEngine";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
+import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
+import { PRNG } from "../lib/RandHelpers";
+import { BaseActionContext } from "../lib/StoryEngine";
 import {
   collateText,
   findNodes,
   marshallText,
   searchForNode,
   walkTree,
-} from "./../lib/StoryNodeHelpers";
-import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS, StoryNode } from "./../lib/StoryTypes";
+} from "../lib/StoryNodeHelpers";
+import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import {
+  createDefaultSession,
+  DEFAULT_LLM_SLUGS,
+  StoryNode,
+} from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 function createTestTree(): StoryNode {
@@ -92,20 +98,30 @@ async function test() {
   const tree = createTestTree();
 
   // Create a test context object
-  const provider = new MockStoryServiceProvider();
-  const options = {
-    verbose: false,
-    seed: "test-seed",
-    loop: 0,
-    ream: 100,
-    doGenerateSpeech: false,
-    doGenerateAudio: false,
-    maxCheckpoints: 20,
-    inputRetryMax: 3,
-    models: DEFAULT_LLM_SLUGS,
+  const rng = new PRNG("test");
+  const scriptRunner = await createRunner();
+  const funcs = buildDefaultFuncs({}, rng);
+  const mockProvider = new MockStoryServiceProvider();
+  const context: BaseActionContext = {
+    session: createDefaultSession("test"),
+    rng,
+    provider: mockProvider,
+    scope: {},
+    evaluator: async (expr, scope) => {
+      return await evaluateScript(expr, scope, funcs, scriptRunner);
+    },
+    options: {
+      verbose: false,
+      seed: "test",
+      loop: 0,
+      ream: 100,
+      doGenerateSpeech: false,
+      doGenerateAudio: false,
+      maxCheckpoints: 20,
+      inputRetryMax: 3,
+      models: DEFAULT_LLM_SLUGS,
+    },
   };
-  const rng = new PRNG(options.seed);
-  const ctx: BaseActionContext = { rng, provider, scope: {}, options };
 
   const foundNode = walkTree(tree, (node) =>
     node.atts.id === "intro-para" ? node : null
@@ -162,13 +178,13 @@ async function test() {
 
   expect(searchForNode(tree, "does-not-exist"), null);
 
-  const allText = await marshallText(tree, ctx);
+  const allText = await marshallText(tree, context);
   expect(
     allText,
     "Welcome\nThis is an introduction.\nMain Section\nNested text\nBold text\nFooter content"
   );
 
-  const allTextPipe = await marshallText(tree, ctx, " | ");
+  const allTextPipe = await marshallText(tree, context, " | ");
   expect(
     allTextPipe,
     "Welcome | This is an introduction. | Main Section | Nested text | Bold text | Footer content"
@@ -180,7 +196,7 @@ async function test() {
   expect(mainSectionText1, "Main Section\nNested text\nBold text");
 
   const mainSectionNode = sections[1];
-  const mainSectionText = await marshallText(mainSectionNode, ctx);
+  const mainSectionText = await marshallText(mainSectionNode, context);
   expect(mainSectionText, "Main Section\nNested text\nBold text");
 
   const emptyDiv = {
@@ -190,7 +206,7 @@ async function test() {
     text: "",
     kids: [],
   };
-  expect(await marshallText(emptyDiv, ctx), "");
+  expect(await marshallText(emptyDiv, context), "");
 
   const whitespaceNode = {
     addr: "2",
@@ -199,7 +215,7 @@ async function test() {
     text: "   \n  \t  ",
     kids: [],
   };
-  expect(await marshallText(whitespaceNode, ctx), "   \n  \t  ");
+  expect(await marshallText(whitespaceNode, context), "   \n  \t  ");
 
   const mixedTree: StoryNode = {
     addr: "0",
@@ -230,7 +246,7 @@ async function test() {
       },
     ],
   };
-  expect(await marshallText(mixedTree, ctx), "\nShould appear\n");
+  expect(await marshallText(mixedTree, context), "\nShould appear\n");
 }
 
 test();

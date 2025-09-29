@@ -13,10 +13,15 @@ export const StoryVoiceSchema = z.object({
 
 export type VoiceSpec = z.infer<typeof StoryVoiceSchema>;
 
+export type NestedRecords = {
+  [key: string]: string | NestedRecords;
+};
+
 export type StorySource = {
   root: StoryNode;
   voices: Record<string, VoiceSpec>;
   pronunciations: Record<string, string>;
+  scripts: NestedRecords;
   meta: {
     [key: string]: TSerial;
   };
@@ -59,6 +64,11 @@ export const StoryCheckpointSchema = z.object({
   events: z.array(StoryEventSchema),
 });
 
+export const DDVStateSchema = z.object({
+  cycles: z.record(z.number()),
+  bags: z.record(z.object({ order: z.array(z.number()), idx: z.number() })),
+});
+
 export const StorySessionSchema = z.object({
   id: z.string(),
   time: z.number(),
@@ -93,7 +103,10 @@ export const StorySessionSchema = z.object({
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
   inputTries: z.record(z.number()).default({}),
   inputLast: z.string().nullable().default(null),
+  ddv: DDVStateSchema,
 });
+
+export type DDVState = z.infer<typeof DDVStateSchema>;
 
 export const LLM_SLUGS = [
   "openai/gpt-5",
@@ -161,3 +174,33 @@ export type StoryAdvanceResult = {
   seam: SeamType;
   info: Record<string, string>;
 };
+
+export function createDefaultSession(
+  id: string,
+  state: Record<string, TSerial> = {},
+  meta: Record<string, TSerial> = {}
+): StorySession {
+  return {
+    id,
+    time: Date.now(),
+    turn: 0,
+    cycle: 0,
+    loops: 0,
+    resume: false,
+    address: null,
+    input: null,
+    stack: [],
+    state,
+    meta,
+    cache: {},
+    flowTarget: null,
+    checkpoints: [],
+    outroDone: false,
+    inputTries: {},
+    inputLast: null,
+    ddv: {
+      cycles: {},
+      bags: {},
+    },
+  };
+}

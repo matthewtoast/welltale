@@ -1,6 +1,6 @@
-import { compileStory } from "./../lib/StoryCompiler";
-import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
-import { StoryNode } from "./../lib/StoryTypes";
+import { compileStory } from "../lib/StoryCompiler";
+import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { StoryNode } from "../lib/StoryTypes";
 import { createTestCartridge, expect } from "./TestUtils";
 
 async function compileMacroStory(xml: string): Promise<StoryNode> {

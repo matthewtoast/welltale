@@ -14,6 +14,7 @@ import {
 } from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
+  NestedRecords,
   StoryCartridge,
   StoryNode,
   StorySource,
@@ -150,7 +151,9 @@ export async function compileStory(
   const pronunciations: Record<string, string> = {};
   const voices: Record<string, VoiceSpec> = {};
   const meta: Record<string, TSerial> = {};
+  const scripts: NestedRecords = {};
   const outputs: StorySource = {
+    scripts,
     pronunciations,
     voices,
     meta,
@@ -179,6 +182,23 @@ export async function compileStory(
     }
     Object.assign(meta, omit(data, "pronunciations", "voices"));
   });
+
+  Object.keys(cartridge)
+    .filter((k) => k.endsWith(".ts") || k.endsWith(".js"))
+    .forEach((key) => {
+      const src = cartridge[key];
+      const parts = key.split("/");
+      let cur = scripts;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (!cur[part] || typeof cur[part] !== "object") {
+          cur[part] = {};
+        }
+        cur = cur[part] as NestedRecords;
+      }
+      const last = parts[parts.length - 1];
+      cur[last] = src.toString();
+    });
 
   findNodes(root, (node) => node.type === "meta").forEach((node) => {
     if (!isBlank(node.atts.description)) {

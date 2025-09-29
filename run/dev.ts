@@ -145,7 +145,7 @@ async function setupFixtures(err: () => void) {
       `DEV_SESSION_USER_EMAIL = ${safeConfigValue(sessionUser.email, "test@aisatsu.co")}`,
       `DEV_SESSION_USER_ROLES = ${safeConfigValue(sessionUser.roles?.join(","), "user")}`,
     ];
-    console.log(lines);
+    console.log("iOS vars", lines);
     await writeFile(configPath, lines.join("\n") + "\n", "utf8");
 
     if (argv.syncStories) {

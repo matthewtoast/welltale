@@ -38,6 +38,8 @@ async function go() {
     <p>meow</p>
     <p>ruff</p>
   `,
+    "bar/baz.js": `fooBarBaz()`,
+    "bar/bum/bux.js": "blahBlah()",
   };
 
   const p = new MockStoryServiceProvider();
@@ -89,6 +91,10 @@ async function go() {
       },
     ],
     text: "",
+  });
+
+  expect(c1.scripts, {
+    bar: { "baz.js": "fooBarBaz()", bum: { "bux.js": "blahBlah()" } },
   });
 
   // (1) containers with "bare" text (no <p> etc) are possible and

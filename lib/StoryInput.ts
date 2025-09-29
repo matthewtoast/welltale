@@ -2,7 +2,6 @@ import dedent from "dedent";
 import { omit } from "lodash";
 import { TSerial } from "../typings";
 import { castToString, castToTypeEnhanced } from "./EvalCasting";
-import { evalExpr } from "./EvalUtils";
 import { parseFieldGroups, parseFieldGroupsNested } from "./InputHelpers";
 import { BaseActionContext, normalizeModels } from "./StoryEngine";
 import { isBlank } from "./TextHelpers";
@@ -146,12 +145,10 @@ export async function extractInput(
 
   // Step 2: Parse expression if specified
   if (fieldAtts.parse) {
-    value = evalExpr(
-      castToString(fieldAtts.parse),
-      { ...ctx.scope, input: value },
-      {},
-      ctx.rng
-    );
+    value = await ctx.evaluator(castToString(fieldAtts.parse), {
+      ...ctx.scope,
+      input: value,
+    });
     if (isBlank(value)) {
       value = fallback;
     }

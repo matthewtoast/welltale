@@ -60,8 +60,8 @@ async function testBlockOrder() {
     {{stash-1}}
   </p>
   <code>
-    em = "eminem"
-    en = "nono"
+    set("em", "eminem");
+    set("en", "nono");
   </code>
   <p>
     M {{em}}
@@ -84,13 +84,11 @@ async function testBlockOrder() {
     P - input should appear here = ({{pop}})
   </p>
   <p>
-    Q 1 | Q 2 | Q 3
+    [Q 1|Q 2|Q 3]
   </p>
-  <!-- </p>
-    {%
-      Give me a word that begins with the letter "R"
-    %}
-  <p> -->
+  <!--
+    here is a comment
+  -->
   <p>
     S
   </p>
@@ -98,12 +96,7 @@ async function testBlockOrder() {
 </sec>
 
 <sec id="blub">
-  <!-- <make nextVar="string - The name" otherVar="number - any number between 1 and 10">
-    Give me a good human Medieval name starting with the letter "T"
-  </make>
-  <p>
-    {{nextVar}} {{otherVar}}
-  </p> -->
+  <!-- here is a comment -->
   <span>U</span>
   <scope>
     <var name="v" value="V" />
@@ -115,7 +108,8 @@ async function testBlockOrder() {
     W - but there should not be a 'v' variable here: ({{v}})
   </p>
 
-  <while cond='empty(xx) or not startsWith(lower(xx), "x")'>
+  <var name="xx" />
+  <while cond='empty(xx) || !startsWith(lower(xx), "x")'>
     <p from="Bob">... Say a word beginning with the letter "x".</p>
     <input xx.type="string" xx.default="" />
     <if cond='lower(xx) == "invalid1"'>
@@ -162,7 +156,7 @@ async function testBlockOrder() {
   <p>
     CC
     <when cond="empty(testEmpty)">Variable is empty!</when>
-    <when cond="not empty(testStr)">String is not empty!</when>
+    <when cond="!empty(testStr)">String is not empty!</when>
   </p>
   
   <p>

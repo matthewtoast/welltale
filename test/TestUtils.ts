@@ -2,9 +2,10 @@ import { isDeepStrictEqual } from "util";
 import { advanceToNextUntilBlocking } from "../lib/StoryRunnerCore";
 import { RunnerOptions } from "./../lib/LocalRunnerUtils";
 import { compileStory } from "./../lib/StoryCompiler";
-import { createDefaultSession, OP, SeamType } from "./../lib/StoryEngine";
+import { OP, SeamType } from "./../lib/StoryEngine";
 import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
 import {
+  createDefaultSession,
   DEFAULT_LLM_SLUGS,
   StorySession,
   StorySource,
@@ -105,26 +106,18 @@ export async function runTestStory(
   // Collect ops during the run
   const collectedOps: OP[] = [];
 
-  // Suppress console output for tests
-  const originalLog = console.log;
-  console.log = () => {};
+  const outcome = await runTestUntilComplete(
+    {
+      options,
+      provider,
+      session,
+      sources,
+      seed: options.seed,
+      inputs,
+    },
+    collectedOps,
+    SeamType.GRANT
+  );
 
-  try {
-    const outcome = await runTestUntilComplete(
-      {
-        options,
-        provider,
-        session,
-        sources,
-        seed: options.seed,
-        inputs,
-      },
-      collectedOps,
-      SeamType.GRANT
-    );
-
-    return { ops: collectedOps, seam: outcome.seam, session };
-  } finally {
-    console.log = originalLog;
-  }
+  return { ops: collectedOps, seam: outcome.seam, session };
 }

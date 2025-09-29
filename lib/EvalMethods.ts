@@ -4,7 +4,6 @@ import { PRNG } from "./RandHelpers";
 import { isBlank } from "./TextHelpers";
 
 export type Primitive = number | boolean | string | null;
-export type EvalResult = Primitive | Primitive[];
 
 type P = number | boolean | string | null;
 type A = P | P[];
@@ -240,7 +239,9 @@ export const unifiedHelpers: Record<string, (...args: any[]) => P | P[]> = {
     return !v;
   },
   // Type casting functions
-  toNumber: (v: any) => castToNumber(v),
+  toNumber: (v: any) => {
+    return castToNumber(v);
+  },
   toNum: (v: any) => castToNumber(v),
   toString: (v: any) => castToString(v),
   toStr: (v: any) => castToString(v),
@@ -414,16 +415,6 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
   toFixed: (v: P, digits: P) => Number(num(v).toFixed(num(digits))),
   toPrecision: (v: P, precision: P) =>
     Number(num(v).toPrecision(num(precision))),
-  pi: () => Math.PI,
-  e: () => Math.E,
-  tau: () => Math.PI * 2,
-  phi: () => (1 + Math.sqrt(5)) / 2,
-  sqrt2: () => Math.SQRT2,
-  sqrt1_2: () => Math.SQRT1_2,
-  ln2: () => Math.LN2,
-  ln10: () => Math.LN10,
-  log2e: () => Math.LOG2E,
-  log10e: () => Math.LOG10E,
   incr: (v: P, by?: P) => num(v) + num(by ?? 1),
   decr: (v: P, by?: P) => num(v) - num(by ?? 1),
   wrap: (v: P, min: P, max: P) => {

@@ -1,12 +1,9 @@
-import { PRNG } from "./../lib/RandHelpers";
-import {
-  BaseActionContext,
-  createDefaultSession,
-  createScope,
-  renderText,
-} from "./../lib/StoryEngine";
-import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
+import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
+import { PRNG } from "../lib/RandHelpers";
+import { BaseActionContext, createScope, renderText } from "../lib/StoryEngine";
+import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { createDefaultSession, DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 async function go() {
@@ -25,12 +22,19 @@ async function go() {
       },
     },
   });
-  const scope = createScope(session, {});
+
+  const rng = new PRNG("test");
+  const scriptRunner = await createRunner();
+  const funcs = buildDefaultFuncs({}, rng);
   const mockProvider = new MockStoryServiceProvider();
   const context: BaseActionContext = {
-    scope,
-    rng: new PRNG("test"),
+    session,
+    rng,
     provider: mockProvider,
+    scope: session.state,
+    evaluator: async (expr, scope) => {
+      return await evaluateScript(expr, scope, funcs, scriptRunner);
+    },
     options: {
       verbose: false,
       seed: "test",
@@ -43,6 +47,7 @@ async function go() {
       models: DEFAULT_LLM_SLUGS,
     },
   };
+
   const text = await renderText(
     `hello {{f}} or {{a.b.c}} or {$ 1 + g.h.i $}`,
     context

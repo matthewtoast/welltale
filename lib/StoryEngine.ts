@@ -9,13 +9,16 @@ import {
   castToTypeEnhanced,
   isTruthy,
 } from "./EvalCasting";
-import { ensureArray, evalExpr } from "./EvalUtils";
+import { buildDefaultFuncs } from "./EvalMethods";
+import { ensureArray } from "./EvalUtils";
 import { isValidUrl, toHttpMethod } from "./HTTPHelpers";
 import { parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { parseNumberOrNull } from "./MathHelpers";
 import { AIChatMessage } from "./OpenRouterUtils";
+import { createRunner, evaluateScript } from "./QuickJSUtils";
 import { PRNG } from "./RandHelpers";
+import { resolveBracketDDV } from "./StoryDDVHelpers";
 import { extractInput } from "./StoryInput";
 import {
   DESCENDABLE_TAGS,
@@ -41,7 +44,6 @@ import {
 import { renderTemplate } from "./Template";
 import {
   cleanSplit,
-  cleanSplitRegex,
   DOLLAR,
   enhanceText,
   isBlank,
@@ -52,32 +54,6 @@ import {
 export const PLAYER_ID = "USER";
 export const HOST_ID = "HOST";
 const OUTRO_RETURN_ADDR = "__outro:return__";
-
-export function createDefaultSession(
-  id: string,
-  state: Record<string, TSerial> = {},
-  meta: Record<string, TSerial> = {}
-): StorySession {
-  return {
-    id,
-    time: Date.now(),
-    turn: 0,
-    cycle: 0,
-    loops: 0,
-    resume: false,
-    address: null,
-    input: null,
-    stack: [],
-    state,
-    meta,
-    cache: {},
-    flowTarget: null,
-    checkpoints: [],
-    outroDone: false,
-    inputTries: {},
-    inputLast: null,
-  };
-}
 
 export type PlayMediaOptions = {
   media: string; // URL
@@ -98,17 +74,23 @@ export type OP =
   | { type: "story-error"; reason: string }
   | { type: "story-end" };
 
+export type EvaluatorFunc = (
+  expr: string,
+  scope: Record<string, TSerial>
+) => Promise<TSerial>;
+
 export interface BaseActionContext {
+  session: StorySession;
   rng: PRNG;
   provider: StoryServiceProvider;
   scope: { [key: string]: TSerial };
   options: StoryOptions;
+  evaluator: EvaluatorFunc;
 }
 
 export interface ActionContext extends BaseActionContext {
   origin: StoryNode;
   node: StoryNode;
-  session: StorySession;
   source: StorySource;
   events: StoryEvent[];
 }
@@ -156,6 +138,12 @@ export async function advanceStory(
   const outro =
     findNodes(source.root, (node) => node.type === "outro")[0] ?? null;
 
+  const scriptRunner = await createRunner();
+  const funcs = buildDefaultFuncs({}, rng);
+  const evaluator: EvaluatorFunc = async (expr, scope) => {
+    return await evaluateScript(expr, scope, funcs, scriptRunner);
+  };
+
   if (session.turn === 1 && !session.resume) {
     await execNodes(
       source.root.kids.filter((node) =>
@@ -166,6 +154,7 @@ export async function advanceStory(
       session,
       options,
       rng,
+      evaluator,
       origin
     );
   }
@@ -261,6 +250,7 @@ export async function advanceStory(
       provider,
       // We need to get a new scope on every node since it may have introduced new scope
       scope: createScope(session, source.meta),
+      evaluator,
       events: evs,
     };
 
@@ -570,10 +560,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) => node.type === "code" || node.type === "script",
     exec: async (ctx) => {
       const text = await renderText(await marshallText(ctx.node, ctx), ctx);
-      const lines = cleanSplitRegex(text, /[;\n]/);
-      lines.forEach((line) => {
-        evalExpr(line, ctx.scope, {}, ctx.rng);
-      });
+      await ctx.evaluator(text, ctx.scope);
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.source.root, false),
@@ -711,7 +698,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let next;
-      const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
+      const conditionTrue = await ctx.evaluator(atts.cond, ctx.scope);
       if (conditionTrue && ctx.node.kids.length > 0) {
         // Find first non-else child
         const firstNonElse = ctx.node.kids.find((k) => k.type !== "else");
@@ -740,7 +727,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let next;
-      const conditionTrue = evalExpr(atts.cond, ctx.scope, {}, ctx.rng);
+      const conditionTrue = await ctx.evaluator(atts.cond, ctx.scope);
       if (conditionTrue && ctx.node.kids.length > 0) {
         next = nextNode(ctx.node, ctx.source.root, true);
       } else {
@@ -789,7 +776,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let next: { node: StoryNode } | null = null;
-      if (!atts.if || evalExpr(atts.if, ctx.scope, {}, ctx.rng)) {
+      if (!atts.if || (await ctx.evaluator(atts.if, ctx.scope))) {
         next = searchForNode(
           ctx.source.root,
           atts.to ?? atts.target ?? atts.destination
@@ -1439,6 +1426,19 @@ export function createScope(
       }
       return true;
     },
+    ownKeys(target) {
+      const keys: string[] = [];
+      for (let i = session.stack.length - 1; i >= 0; i--) {
+        const scope = session.stack[i].scope;
+        for (const key in scope) {
+          keys.push(key);
+        }
+      }
+      for (const key in session.state) {
+        keys.push(key);
+      }
+      return keys;
+    },
     getOwnPropertyDescriptor(target, prop: string) {
       for (let i = session.stack.length - 1; i >= 0; i--) {
         const scope = session.stack[i].scope;
@@ -1468,6 +1468,7 @@ async function execNodes(
   session: StorySession,
   options: StoryOptions,
   rng: PRNG,
+  evaluator: EvaluatorFunc,
   origin: StoryNode
 ): Promise<void> {
   const prevAddress = session.address;
@@ -1487,14 +1488,13 @@ async function execNodes(
       rng,
       provider,
       scope: createScope(session, source.meta),
+      evaluator,
       events,
     };
     await handler.exec(ctx);
   }
   session.address = prevAddress;
 }
-
-const DDV_SEPARATOR = "|";
 
 export async function renderText(
   text: string,
@@ -1503,19 +1503,20 @@ export async function renderText(
   if (isBlank(text) || text.length < 3) {
     return text;
   }
-  // 1. {{handlebars}} for interpolation
-  let result = renderTemplate(text, ctx.scope ?? {});
-  // 2. {$dollars$} for scripting
+  // {{handlebars}} for interpolation
+  let result = renderTemplate(text, ctx.scope);
+  // {$dollars$} for scripting
   result = await enhanceText(
     result,
     async (chunk: string) => {
-      return castToString(evalExpr(chunk, ctx.scope ?? {}, {}, ctx.rng!));
+      console.log(chunk, ctx.scope["g"]);
+      return castToString(await ctx.evaluator(chunk, ctx.scope));
     },
     DOLLAR
   );
-  // 3. "|" pipe for dynamic variation
-  result = ctx.rng.randomElement(result.split(DDV_SEPARATOR));
-  // 4. {%liquid%} for inline LLM calls
+  // [this|kind|of] dynamic variation
+  result = resolveBracketDDV(result, ctx);
+  // {%liquid%} for inline LLM calls
   result = await enhanceText(
     result,
     async (chunk: string) => {

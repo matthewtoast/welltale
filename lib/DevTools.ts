@@ -46,7 +46,7 @@ export async function syncStory(
     console.warn(`skip ${id}: finalize failed`);
     return false;
   }
-  console.info(`synced ${id}`);
+  console.info(`Synced Story ${id}`);
   return true;
 }
 

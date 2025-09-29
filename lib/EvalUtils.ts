@@ -4,7 +4,6 @@ import {
   arrayHelpers,
   createRandomHelpers,
   dateHelpers,
-  EvalResult,
   mathHelpers,
   Primitive,
   stringHelpers,
@@ -12,7 +11,7 @@ import {
 } from "./EvalMethods";
 import { PRNG } from "./RandHelpers";
 
-export type ExprEvalFunc = (...args: Primitive[]) => EvalResult;
+export type ExprEvalFunc = (...args: Primitive[]) => TSerial;
 
 function makeParser() {
   return new Parser({
@@ -28,11 +27,11 @@ export const evalExpr = (
   funcs: Record<string, ExprEvalFunc> = {},
   prng: PRNG,
   prev: Parser = makeParser()
-): EvalResult => {
+): TSerial => {
   const parser = getParser(funcs, prng, prev);
   const node = parser.parse(expr);
   try {
-    return node.evaluate(vars as any) as EvalResult;
+    return node.evaluate(vars as any) as TSerial;
   } catch (error) {
     console.warn(error);
     return false;

@@ -1,5 +1,5 @@
-import { processIncludes } from "./../lib/StoryCompiler";
-import { StoryNode } from "./../lib/StoryTypes";
+import { processIncludes } from "../lib/StoryCompiler";
+import { StoryNode } from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 async function test() {

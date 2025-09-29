@@ -1,30 +1,38 @@
-import { PRNG } from "./../lib/RandHelpers";
-import { BaseActionContext } from "./../lib/StoryEngine";
-import { extractInput } from "./../lib/StoryInput";
-import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
+import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
+import { PRNG } from "../lib/RandHelpers";
+import { BaseActionContext } from "../lib/StoryEngine";
+import { extractInput } from "../lib/StoryInput";
+import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { createDefaultSession, DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
-const rng = new PRNG("test");
-const mockProvider = new MockStoryServiceProvider();
-const baseContext: BaseActionContext = {
-  rng,
-  provider: mockProvider,
-  scope: {},
-  options: {
-    verbose: false,
-    seed: "test",
-    loop: 0,
-    ream: 100,
-    doGenerateSpeech: false,
-    doGenerateAudio: false,
-    maxCheckpoints: 20,
-    inputRetryMax: 3,
-    models: DEFAULT_LLM_SLUGS,
-  },
-};
-
 async function test() {
+  const rng = new PRNG("test");
+  const scriptRunner = await createRunner();
+  const funcs = buildDefaultFuncs({}, rng);
+  const mockProvider = new MockStoryServiceProvider();
+  const baseContext: BaseActionContext = {
+    session: createDefaultSession("test"),
+    rng,
+    provider: mockProvider,
+    scope: {},
+    evaluator: async (expr, scope) => {
+      return await evaluateScript(expr, scope, funcs, scriptRunner);
+    },
+    options: {
+      verbose: false,
+      seed: "test",
+      loop: 0,
+      ream: 100,
+      doGenerateSpeech: false,
+      doGenerateAudio: false,
+      maxCheckpoints: 20,
+      inputRetryMax: 3,
+      models: DEFAULT_LLM_SLUGS,
+    },
+  };
+
   expect(await extractInput("Bob", { input: "Bob" }, baseContext), {});
 
   expect(await extractInput("Bob", { key: "name" }, baseContext), {

@@ -5,12 +5,12 @@ import {
   SandboxOptions,
 } from "@sebastianwessel/quickjs";
 import { TSerial } from "../typings";
-import { EvalResult } from "./EvalMethods";
 import { ExprEvalFunc } from "./EvalUtils";
+import { NestedRecords } from "./StoryTypes";
+import { cleanSplit } from "./TextHelpers";
 
 const isIdent = (s: string) => /^[A-Za-z_$][\w$]*$/.test(s);
 
-// E.g.
 export type RunnerFunc = <T>(
   sandboxedFunction: SandboxFunction<T>,
   sandboxOptions?: SandboxOptions
@@ -21,14 +21,20 @@ export async function createRunner() {
   return runSandboxed;
 }
 
+const stmtLike =
+  /^(return|export|import|function|class|if|for|while|do|switch|try|catch|finally|var|let|const)\b/;
+
 export const evaluateScript = async (
   expr: string,
   vars: Record<string, TSerial>,
   funcs: Record<string, ExprEvalFunc> = {},
-  runner: RunnerFunc
-): Promise<EvalResult> => {
+  runner: RunnerFunc,
+  mount: NestedRecords = {}
+): Promise<TSerial> => {
   const valKeys = Object.keys(vars).filter(isIdent);
-  const funcKeys = Object.keys(funcs).filter(isIdent);
+  const funcKeys = Object.keys(funcs)
+    .filter(isIdent)
+    .filter((k) => !valKeys.includes(k));
 
   const env = {
     get: (k: string): TSerial => vars[k] ?? null,
@@ -42,15 +48,43 @@ export const evaluateScript = async (
     (valKeys.length ? `const {${valKeys.join(",")}}=env.__v;` : "") +
     (funcKeys.length ? `const {${funcKeys.join(",")}}=env.__f;` : "");
 
-  const code = `;(()=>{${prelude};return(()=>{${expr}})()})()`;
+  const lines = cleanSplit(expr, "\n");
+  const imports = lines.filter((l) => l.startsWith("import ")).join("\n");
+  const rest = lines.filter((l) => !l.startsWith("import "));
+  const bodyRaw = rest.join("\n");
 
-  const res = await runner(async ({ evalCode }) => evalCode(code), {
-    env,
-    allowFs: false,
-    allowFetch: false,
-    executionTimeout: 1000,
-  });
+  const isSingleLine = rest.length === 1;
+  const looksLikeStmt =
+    stmtLike.test(bodyRaw) ||
+    /;/.test(bodyRaw) ||
+    /^\w+\s*=/.test(bodyRaw) ||
+    /^\(.*\)\s*=>/.test(bodyRaw);
 
-  if (!res.ok) throw new Error(String(res.error));
-  return (res.data ?? null) as EvalResult;
+  const body = isSingleLine && !looksLikeStmt ? `return (${bodyRaw})` : bodyRaw;
+
+  const code = `${imports}\n;export default (async()=>{${prelude};${body}})()`;
+
+  try {
+    const res = await runner(async ({ evalCode }) => evalCode(code), {
+      env,
+      allowFs: false,
+      allowFetch: false,
+      executionTimeout: 1000,
+      memoryLimit: Math.pow(1024, 2) * 10, // MB
+      maxIntervalCount: 0,
+      maxTimeoutCount: 0,
+      maxStackSize: 10_000,
+      mountFs: { src: mount },
+    });
+
+    if (!res.ok) {
+      console.error(res.error);
+      return null;
+    }
+
+    return (res.data ?? null) as TSerial;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
 };

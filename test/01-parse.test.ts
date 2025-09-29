@@ -1,19 +1,17 @@
 import { camelCase } from "lodash";
 import zodToJsonSchema from "zod-to-json-schema";
-import { autoFindVoice } from "./../lib/ElevenLabsUtils";
-import { ELEVENLABS_PRESET_VOICES } from "./../lib/ElevenLabsVoices";
-import { castToTypeEnhanced } from "./../lib/EvalCasting";
-import { evalExpr } from "./../lib/EvalUtils";
-import {
-  parseFieldGroups,
-  parseFieldGroupsNested,
-} from "./../lib/InputHelpers";
-import { simplifySchema } from "./../lib/JSONHelpers";
-import { parseNumberOrNull } from "./../lib/MathHelpers";
-import { PRNG } from "./../lib/RandHelpers";
-import { BaseActionContext, renderText } from "./../lib/StoryEngine";
-import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS } from "./../lib/StoryTypes";
+import { autoFindVoice } from "../lib/ElevenLabsUtils";
+import { ELEVENLABS_PRESET_VOICES } from "../lib/ElevenLabsVoices";
+import { castToTypeEnhanced } from "../lib/EvalCasting";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
+import { parseFieldGroups, parseFieldGroupsNested } from "../lib/InputHelpers";
+import { simplifySchema } from "../lib/JSONHelpers";
+import { parseNumberOrNull } from "../lib/MathHelpers";
+import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
+import { PRNG } from "../lib/RandHelpers";
+import { BaseActionContext, renderText } from "../lib/StoryEngine";
+import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { createDefaultSession, DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
 import {
   enhanceText,
   generatePredictableKey,
@@ -22,48 +20,11 @@ import {
   parameterize,
   sha1,
   slugify,
-} from "./../lib/TextHelpers";
-import { parseSchemaString } from "./../lib/ZodHelpers";
+} from "../lib/TextHelpers";
+import { parseSchemaString } from "../lib/ZodHelpers";
 import { expect } from "./TestUtils";
 
-const rng = new PRNG("test");
-const mockProvider = new MockStoryServiceProvider();
-
 async function test() {
-  // Eval expressions
-  expect(evalExpr("2 + 2", {}, {}, rng), 4);
-  expect(evalExpr("2 + a", { a: 3 }, {}, rng), 5);
-  expect(evalExpr("1 or 3", {}, {}, rng), true);
-  expect(evalExpr("1 and false", {}, {}, rng), false);
-  expect(evalExpr("1 and true", {}, {}, rng), true);
-  expect(evalExpr("foo > 5", { foo: 4 }, {}, rng), false);
-  expect(
-    evalExpr(
-      "foo() + a",
-      { a: 3 },
-      {
-        foo() {
-          return 7;
-        },
-      },
-      rng
-    ),
-    10
-  );
-  expect(
-    evalExpr(
-      'empty(xxx) and not startsWith(lower(xxx), "x")',
-      { xxx: null },
-      {},
-      rng
-    ),
-    true
-  );
-
-  const state = { a: 0 };
-  evalExpr("a = 1", state, {}, rng);
-  expect(state, { a: 1 });
-
   // Schema parsing
   expect(simplifySchema(zodToJsonSchema(parseSchemaString("_"))), {
     type: "object",
@@ -165,11 +126,18 @@ async function test() {
   expect(camelCase("foo_bar"), "fooBar");
   expect(camelCase("FOO_BAR"), "fooBar");
 
-  // Template rendering (no escaping, dotted and bracket access)
+  const rng = new PRNG("test");
+  const scriptRunner = await createRunner();
+  const funcs = buildDefaultFuncs({}, rng);
+  const mockProvider = new MockStoryServiceProvider();
   const baseContext: BaseActionContext = {
+    session: createDefaultSession("test"),
     rng,
     provider: mockProvider,
     scope: {},
+    evaluator: async (expr, scope) => {
+      return await evaluateScript(expr, scope, funcs, scriptRunner);
+    },
     options: {
       verbose: false,
       seed: "test",
