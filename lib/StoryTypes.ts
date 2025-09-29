@@ -1,6 +1,7 @@
 import z from "zod";
 import { NonEmpty, TSerial } from "../typings";
-import { OP, SeamType } from "./StoryEngine";
+import { PRNG } from "./RandHelpers";
+import { StoryServiceProvider } from "./StoryServiceProvider";
 
 export type StoryCartridge = Record<string, Buffer | string>;
 
@@ -203,4 +204,59 @@ export function createDefaultSession(
       bags: {},
     },
   };
+}
+
+export const PLAYER_ID = "USER";
+
+export type PlayMediaOptions = {
+  media: string; // URL
+  volume: number | null;
+  fadeDurationMs: number | null; // Milliseconds
+  fadeAtMs: number | null; // Milliseconds
+  background: boolean | null;
+};
+
+export type OP =
+  | { type: "sleep"; duration: number }
+  | { type: "get-input"; timeLimit: number | null }
+  | ({ type: "play-media" } & PlayMediaOptions)
+  | ({
+      type: "play-event";
+      event: StoryEvent;
+    } & PlayMediaOptions)
+  | { type: "story-error"; reason: string }
+  | { type: "story-end" };
+
+export enum SeamType {
+  INPUT = "input", // Client is expected to send user input in next call
+  MEDIA = "media", // Server produced media to render
+  GRANT = "grant", // Client should call again to grant OK to next batch of work
+  ERROR = "error", // Error was encountered, could not continue
+  FINISH = "finish", // Story was completed
+}
+
+export type EvaluatorFunc = (
+  expr: string,
+  scope: Record<string, TSerial>
+) => Promise<TSerial>;
+
+export interface BaseActionContext {
+  session: StorySession;
+  rng: PRNG;
+  provider: StoryServiceProvider;
+  scope: { [key: string]: TSerial };
+  options: StoryOptions;
+  evaluator: EvaluatorFunc;
+}
+
+export interface ActionContext extends BaseActionContext {
+  origin: StoryNode;
+  node: StoryNode;
+  source: StorySource;
+  events: StoryEvent[];
+}
+
+export interface ActionResult {
+  ops: OP[];
+  next: { node: StoryNode } | null;
 }

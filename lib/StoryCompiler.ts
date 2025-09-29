@@ -1,6 +1,7 @@
 import { omit } from "lodash";
 import { TSerial } from "../typings";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
+import { renderText } from "./StoryEngine";
 import { applyMacros, collectMacros } from "./StoryMacro";
 import type { ParseSeverity } from "./StoryNodeHelpers";
 import {
@@ -12,8 +13,8 @@ import {
   parseXmlFragment,
   walkTree,
 } from "./StoryNodeHelpers";
-import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
+  BaseActionContext,
   NestedRecords,
   StoryCartridge,
   StoryNode,
@@ -21,7 +22,6 @@ import {
   VoiceSpec,
 } from "./StoryTypes";
 import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
-
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
 const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body", "macro"];
@@ -130,7 +130,7 @@ function buildStoryRoot(
 }
 
 export async function compileStory(
-  provider: StoryServiceProvider,
+  context: BaseActionContext,
   cartridge: StoryCartridge,
   options: CompileOptions
 ): Promise<StorySource> {
@@ -183,6 +183,15 @@ export async function compileStory(
     Object.assign(meta, omit(data, "pronunciations", "voices"));
   });
 
+  // Provide interpolation service to the metadata itself
+  const metaStr = JSON.stringify(meta);
+  Object.assign(context.scope, meta); // Provide meta's own variables
+  const renderedMetaStr = await renderText(metaStr, context);
+  const renderedMeta = safeJsonParse(renderedMetaStr);
+  if (renderedMeta) {
+    Object.assign(meta, renderedMeta);
+  }
+
   Object.keys(cartridge)
     .filter((k) => k.endsWith(".ts") || k.endsWith(".js"))
     .forEach((key) => {
@@ -231,7 +240,7 @@ export async function compileStory(
         if (options.verbose) {
           console.info(`Generating voice ${node.atts.id}...`);
         }
-        const { id } = await provider.generateVoice(text, {});
+        const { id } = await context.provider.generateVoice(text, {});
         voices[id] = {
           id,
           ref: node.atts.id,

@@ -4,7 +4,7 @@ import OpenAI from "openai";
 import { loadSstEnv } from "../env/env-sst";
 import { ELEVENLABS_PRESET_VOICES } from "../lib/ElevenLabsVoices";
 import { S3Cache } from "../lib/S3Cache";
-import { DefaultStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { DefaultStoryServiceProvider } from "../lib/DefaultStoryServiceProvider";
 
 const env = loadSstEnv();
 

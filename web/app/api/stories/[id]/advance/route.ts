@@ -9,7 +9,7 @@ import { safeJsonParseTyped } from "./../../../../../../lib/JSONHelpers";
 import { S3Cache } from "./../../../../../../lib/S3Cache";
 import { advanceStory } from "./../../../../../../lib/StoryEngine";
 import { createStoryRepo } from "./../../../../../../lib/StoryRepo";
-import { DefaultStoryServiceProvider } from "./../../../../../../lib/StoryServiceProvider";
+import { DefaultStoryServiceProvider } from "./../../../../../../lib/DefaultStoryServiceProvider";
 import { StoryOptions, StorySession } from "./../../../../../../lib/StoryTypes";
 
 export const runtime = "nodejs";

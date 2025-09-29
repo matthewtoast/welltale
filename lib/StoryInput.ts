@@ -3,7 +3,8 @@ import { omit } from "lodash";
 import { TSerial } from "../typings";
 import { castToString, castToTypeEnhanced } from "./EvalCasting";
 import { parseFieldGroups, parseFieldGroupsNested } from "./InputHelpers";
-import { BaseActionContext, normalizeModels } from "./StoryEngine";
+import { normalizeModels } from "./StoryEngine";
+import { BaseActionContext } from "./StoryTypes";
 import { isBlank } from "./TextHelpers";
 
 export const SPECIAL_INPUT_FIELD_ATTS = ["models", "key", "scope"];

@@ -7,11 +7,15 @@ import { buildDefaultFuncs } from "../lib/EvalMethods";
 import { parseFieldGroups, parseFieldGroupsNested } from "../lib/InputHelpers";
 import { simplifySchema } from "../lib/JSONHelpers";
 import { parseNumberOrNull } from "../lib/MathHelpers";
-import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
+import { createRunner } from "../lib/QuickJSUtils";
 import { PRNG } from "../lib/RandHelpers";
-import { BaseActionContext, renderText } from "../lib/StoryEngine";
+import { renderText } from "../lib/StoryEngine";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
-import { createDefaultSession, DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
+import {
+  BaseActionContext,
+  createDefaultSession,
+  DEFAULT_LLM_SLUGS,
+} from "../lib/StoryTypes";
 import {
   enhanceText,
   generatePredictableKey,
@@ -135,9 +139,7 @@ async function test() {
     rng,
     provider: mockProvider,
     scope: {},
-    evaluator: async (expr, scope) => {
-      return await evaluateScript(expr, scope, funcs, scriptRunner);
-    },
+    evaluator: async () => null,
     options: {
       verbose: false,
       seed: "test",

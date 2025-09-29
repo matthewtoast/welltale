@@ -15,15 +15,19 @@ import {
   terminalRenderOps,
 } from "../lib/LocalRunnerUtils";
 import { advanceToNext } from "../lib/StoryRunnerCore";
+import { DefaultStoryServiceProvider } from "./../lib/DefaultStoryServiceProvider";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
+import { PRNG } from "./../lib/RandHelpers";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
-import { OP } from "./../lib/StoryEngine";
+import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
 import {
-  DefaultStoryServiceProvider,
-  MockStoryServiceProvider,
-} from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS, StoryAdvanceResult } from "./../lib/StoryTypes";
+  BaseActionContext,
+  createDefaultSession,
+  DEFAULT_LLM_SLUGS,
+  OP,
+  StoryAdvanceResult,
+} from "./../lib/StoryTypes";
 import { railsTimestamp } from "./../lib/TextHelpers";
 
 const env = loadSstEnv();
@@ -150,7 +154,16 @@ async function runRepl() {
         }
       );
 
-  const sources = await compileStory(provider, cartridge, compileOptions);
+  const baseContext: BaseActionContext = {
+    session: createDefaultSession(gameId),
+    rng: new PRNG("repl"),
+    provider,
+    scope: {},
+    options: runnerOptions,
+    evaluator: async () => null,
+  };
+
+  const sources = await compileStory(baseContext, cartridge, compileOptions);
   const save = async () => await saveSessionToDisk(session, argv.sessionPath);
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);

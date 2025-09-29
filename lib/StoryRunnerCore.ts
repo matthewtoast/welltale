@@ -1,4 +1,4 @@
-import { advanceStory, OP, PLAYER_ID, SeamType } from "./StoryEngine";
+import { advanceStory } from "./StoryEngine";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import { createStoryStream } from "./StoryStream";
 import {
@@ -6,6 +6,9 @@ import {
   StoryOptions,
   StorySession,
   StorySource,
+  OP,
+  PLAYER_ID,
+  SeamType,
 } from "./StoryTypes";
 
 export async function advanceToNext(

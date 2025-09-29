@@ -1,7 +1,6 @@
 import { buildDefaultFuncs } from "../lib/EvalMethods";
 import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
 import { PRNG } from "../lib/RandHelpers";
-import { BaseActionContext } from "../lib/StoryEngine";
 import {
   collateText,
   findNodes,
@@ -11,6 +10,7 @@ import {
 } from "../lib/StoryNodeHelpers";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
 import {
+  BaseActionContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   StoryNode,

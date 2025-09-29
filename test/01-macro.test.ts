@@ -1,12 +1,40 @@
+import { PRNG } from "../lib/RandHelpers";
 import { compileStory } from "../lib/StoryCompiler";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
-import { StoryNode } from "../lib/StoryTypes";
+import {
+  BaseActionContext,
+  createDefaultSession,
+  DEFAULT_LLM_SLUGS,
+  StoryNode,
+} from "../lib/StoryTypes";
 import { createTestCartridge, expect } from "./TestUtils";
 
 async function compileMacroStory(xml: string): Promise<StoryNode> {
   const cartridge = createTestCartridge(xml);
   const provider = new MockStoryServiceProvider();
-  const compiled = await compileStory(provider, cartridge, {
+
+  const options = {
+    seed: "test-macro",
+    verbose: false,
+    ream: 100,
+    loop: 0,
+    maxCheckpoints: 20,
+    inputRetryMax: 3,
+    doGenerateSpeech: false,
+    doGenerateAudio: false,
+    models: DEFAULT_LLM_SLUGS,
+  };
+
+  const baseContext: BaseActionContext = {
+    session: createDefaultSession("macro-test"),
+    rng: new PRNG("test-macro", 0),
+    provider,
+    scope: {},
+    options,
+    evaluator: async () => null,
+  };
+
+  const compiled = await compileStory(baseContext, cartridge, {
     doCompileVoices: false,
   });
   return compiled.root;

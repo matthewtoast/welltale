@@ -8,6 +8,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadAppEnv } from "../env/env-app";
 import { advanceToNext, runUntilComplete } from "../lib/StoryRunnerCore";
+import { DefaultStoryServiceProvider } from "./../lib/DefaultStoryServiceProvider";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
 import {
@@ -16,13 +17,17 @@ import {
   RunnerOptions,
   terminalRenderOps,
 } from "./../lib/LocalRunnerUtils";
+import { PRNG } from "./../lib/RandHelpers";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
-import { OP, SeamType } from "./../lib/StoryEngine";
+import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
 import {
-  DefaultStoryServiceProvider,
-  MockStoryServiceProvider,
-} from "./../lib/StoryServiceProvider";
-import { DEFAULT_LLM_SLUGS, StoryAdvanceResult } from "./../lib/StoryTypes";
+  BaseActionContext,
+  createDefaultSession,
+  DEFAULT_LLM_SLUGS,
+  OP,
+  SeamType,
+  StoryAdvanceResult,
+} from "./../lib/StoryTypes";
 import { railsTimestamp } from "./../lib/TextHelpers";
 
 const env = loadAppEnv();
@@ -166,7 +171,16 @@ async function runAutorun() {
         }
       );
 
-  const sources = await compileStory(provider, cartridge, compileOptions);
+  const baseContext: BaseActionContext = {
+    session: createDefaultSession(gameId),
+    rng: new PRNG("auto"),
+    provider,
+    scope: {},
+    options: runnerOptions,
+    evaluator: async () => null,
+  };
+
+  const sources = await compileStory(baseContext, cartridge, compileOptions);
 
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);

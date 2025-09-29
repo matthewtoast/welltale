@@ -1,5 +1,4 @@
-import { SeamType } from "./StoryEngine";
-import { StoryAdvanceResult } from "./StoryTypes";
+import { StoryAdvanceResult, SeamType } from "./StoryTypes";
 
 type Resolver = (result: StoryAdvanceResult | null) => void;
 

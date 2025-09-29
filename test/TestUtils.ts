@@ -1,12 +1,15 @@
 import { isDeepStrictEqual } from "util";
 import { advanceToNextUntilBlocking } from "../lib/StoryRunnerCore";
 import { RunnerOptions } from "./../lib/LocalRunnerUtils";
+import { PRNG } from "./../lib/RandHelpers";
 import { compileStory } from "./../lib/StoryCompiler";
-import { OP, SeamType } from "./../lib/StoryEngine";
 import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
 import {
+  BaseActionContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
+  OP,
+  SeamType,
   StorySession,
   StorySource,
 } from "./../lib/StoryTypes";
@@ -91,7 +94,16 @@ export async function runTestStory(
     doPlayMedia: false,
   };
 
-  const sources = await compileStory(provider, cartridge, {
+  const baseContext: BaseActionContext = {
+    session: createDefaultSession("compile-test"),
+    rng: new PRNG("test-seed", 0),
+    provider,
+    scope: {},
+    options,
+    evaluator: async () => null,
+  };
+
+  const sources = await compileStory(baseContext, cartridge, {
     doCompileVoices: false,
   });
 

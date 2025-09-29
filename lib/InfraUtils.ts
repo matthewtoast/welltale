@@ -5,11 +5,21 @@ import { OpenAI } from "openai";
 import { Readable } from "stream";
 import { loadAppEnv } from "./../env/env-app";
 import { toBuffer, unzip } from "./BufferUtils";
+import { buildDefaultFuncs } from "./EvalMethods";
+import { createRunner, evaluateScript } from "./QuickJSUtils";
+import { PRNG } from "./RandHelpers";
 import { S3Cache } from "./S3Cache";
 import { compileStory } from "./StoryCompiler";
 import { createStoryRepo, uploadKey } from "./StoryRepo";
-import { DefaultStoryServiceProvider } from "./StoryServiceProvider";
-import { StoryCartridge } from "./StoryTypes";
+import { DefaultStoryServiceProvider } from "./DefaultStoryServiceProvider";
+import {
+  BaseActionContext,
+  DEFAULT_LLM_SLUGS,
+  EvaluatorFunc,
+  StoryCartridge,
+  StoryOptions,
+  createDefaultSession,
+} from "./StoryTypes";
 
 const env = loadAppEnv();
 const sharedS3 = new S3Client({});
@@ -47,7 +57,35 @@ export async function compileStoryJob(storyId: string) {
     }
   );
 
-  const compiled = await compileStory(provider, cartridge, {
+  const options: StoryOptions = {
+    seed: "compile",
+    verbose: true,
+    ream: 100,
+    loop: 0,
+    maxCheckpoints: 20,
+    inputRetryMax: 3,
+    doGenerateSpeech: false,
+    doGenerateAudio: false,
+    models: DEFAULT_LLM_SLUGS,
+  };
+
+  const rng = new PRNG("compile");
+  const scriptRunner = await createRunner();
+  const funcs = buildDefaultFuncs({}, rng);
+  const evaluator: EvaluatorFunc = async (expr, scope) => {
+    return await evaluateScript(expr, scope, funcs, scriptRunner);
+  };
+
+  const baseContext: BaseActionContext = {
+    session: createDefaultSession(storyId),
+    rng: new PRNG("compile", 0),
+    provider,
+    scope: {},
+    options,
+    evaluator,
+  };
+
+  const compiled = await compileStory(baseContext, cartridge, {
     doCompileVoices: true,
   });
 

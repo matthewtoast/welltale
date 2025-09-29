@@ -31,8 +31,15 @@ import {
 } from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
+  ActionContext,
+  ActionResult,
+  BaseActionContext,
   DEFAULT_LLM_SLUGS,
+  EvaluatorFunc,
   LLM_SLUGS,
+  OP,
+  PLAYER_ID,
+  SeamType,
   StoryAdvanceResult,
   StoryEvent,
   StoryNode,
@@ -51,62 +58,8 @@ import {
   snorm,
 } from "./TextHelpers";
 
-export const PLAYER_ID = "USER";
 export const HOST_ID = "HOST";
 const OUTRO_RETURN_ADDR = "__outro:return__";
-
-export type PlayMediaOptions = {
-  media: string; // URL
-  volume: number | null;
-  fadeDurationMs: number | null; // Milliseconds
-  fadeAtMs: number | null; // Milliseconds
-  background: boolean | null;
-};
-
-export type OP =
-  | { type: "sleep"; duration: number }
-  | { type: "get-input"; timeLimit: number | null }
-  | ({ type: "play-media" } & PlayMediaOptions)
-  | ({
-      type: "play-event";
-      event: StoryEvent;
-    } & PlayMediaOptions)
-  | { type: "story-error"; reason: string }
-  | { type: "story-end" };
-
-export type EvaluatorFunc = (
-  expr: string,
-  scope: Record<string, TSerial>
-) => Promise<TSerial>;
-
-export interface BaseActionContext {
-  session: StorySession;
-  rng: PRNG;
-  provider: StoryServiceProvider;
-  scope: { [key: string]: TSerial };
-  options: StoryOptions;
-  evaluator: EvaluatorFunc;
-}
-
-export interface ActionContext extends BaseActionContext {
-  origin: StoryNode;
-  node: StoryNode;
-  source: StorySource;
-  events: StoryEvent[];
-}
-
-export enum SeamType {
-  INPUT = "input", // Client is expected to send user input in next call
-  MEDIA = "media", // Server produced media to render
-  GRANT = "grant", // Client should call again to grant OK to next batch of work
-  ERROR = "error", // Error was encountered, could not continue
-  FINISH = "finish", // Story was completed
-}
-
-export interface ActionResult {
-  ops: OP[];
-  next: { node: StoryNode } | null;
-}
 
 interface ActionHandler {
   match: (node: StoryNode) => boolean;
@@ -132,7 +85,7 @@ export async function advanceStory(
     console.info(dumpTree(source.root));
   }
 
-  // The origin (if present) is the node the author wants to treat as the de-facto beginning of playback
+  // The origin (if present) is the node the author wants to treat as playback origin
   const origin =
     findNodes(source.root, (node) => node.type === "origin")[0] ?? source.root;
   const outro =
@@ -144,6 +97,7 @@ export async function advanceStory(
     return await evaluateScript(expr, scope, funcs, scriptRunner);
   };
 
+  // <var> etc may be declared at the top level so evaluate those sequentially
   if (session.turn === 1 && !session.resume) {
     await execNodes(
       source.root.kids.filter((node) =>

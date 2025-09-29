@@ -1,6 +1,12 @@
+import { PRNG } from "../lib/RandHelpers";
 import { compileStory, parseXmlFragment } from "../lib/StoryCompiler";
 import { dumpTree } from "../lib/StoryNodeHelpers";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import {
+  BaseActionContext,
+  createDefaultSession,
+  DEFAULT_LLM_SLUGS,
+} from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 async function go() {
@@ -44,7 +50,28 @@ async function go() {
 
   const p = new MockStoryServiceProvider();
 
-  const c1 = await compileStory(p, cartridge, {
+  const options = {
+    seed: "test-compile",
+    verbose: false,
+    ream: 100,
+    loop: 0,
+    maxCheckpoints: 20,
+    inputRetryMax: 3,
+    doGenerateSpeech: false,
+    doGenerateAudio: false,
+    models: DEFAULT_LLM_SLUGS,
+  };
+
+  const baseContext: BaseActionContext = {
+    session: createDefaultSession("compile-test"),
+    rng: new PRNG("test-compile", 0),
+    provider: p,
+    scope: {},
+    options,
+    evaluator: async () => null,
+  };
+
+  const c1 = await compileStory(baseContext, cartridge, {
     doCompileVoices: false,
   });
 
@@ -110,7 +137,17 @@ async function go() {
   `,
   };
   const p2 = new MockStoryServiceProvider();
-  const c2 = await compileStory(p, cart2, {
+
+  const baseContext2: BaseActionContext = {
+    session: createDefaultSession("compile-test-2"),
+    rng: new PRNG("test-compile-2", 0),
+    provider: p,
+    scope: {},
+    options,
+    evaluator: async () => null,
+  };
+
+  const c2 = await compileStory(baseContext2, cart2, {
     doCompileVoices: false,
   });
   expect(c2.root, {

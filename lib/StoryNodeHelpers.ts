@@ -1,6 +1,6 @@
 import { DOMParser } from "@xmldom/xmldom";
-import { BaseActionContext, renderAtts } from "./StoryEngine";
-import { StoryNode } from "./StoryTypes";
+import { renderAtts } from "./StoryEngine";
+import { BaseActionContext, StoryNode } from "./StoryTypes";
 import { isBlank, smoosh, snorm } from "./TextHelpers";
 
 export const TEXT_TAG = "#text";

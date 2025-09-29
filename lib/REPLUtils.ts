@@ -3,8 +3,7 @@ import readline from "readline";
 import { CAROT } from "../lib/LocalRunnerUtils";
 import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
 import { runWithPrefetch } from "../lib/StoryRunnerCore";
-import { OP, SeamType } from "./../lib/StoryEngine";
-import { StoryAdvanceResult } from "./StoryTypes";
+import { StoryAdvanceResult, OP, SeamType } from "./StoryTypes";
 
 export async function instantiateREPL(
   advance: (input: string | null) => Promise<StoryAdvanceResult>,

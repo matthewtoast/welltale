@@ -3,11 +3,12 @@ import { hideBin } from "yargs/helpers";
 import { loadDevEnv } from "../env/env-dev";
 import { RunnerOptions, terminalRenderOps } from "../lib/LocalRunnerUtils";
 import { instantiateREPL } from "../lib/REPLUtils";
-import { OP, PLAYER_ID } from "../lib/StoryEngine";
 import {
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   StoryAdvanceResult,
+  OP,
+  PLAYER_ID,
 } from "../lib/StoryTypes";
 import { apiAdvanceStory, apiFetchDevSessions } from "../lib/StoryWebAPI";
 import { cleanSplit } from "../lib/TextHelpers";
