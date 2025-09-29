@@ -2,8 +2,8 @@ import chalk from "chalk";
 import readline from "readline";
 import { CAROT } from "../lib/LocalRunnerUtils";
 import { isSkipActive, triggerSkip } from "../lib/SkipSignal";
-import { runWithPrefetch } from "../lib/StoryRunnerCore";
-import { StoryAdvanceResult, OP, SeamType } from "./StoryTypes";
+import { runWithPrefetch } from "./StoryRunnerCorePrefetch";
+import { OP, SeamType, StoryAdvanceResult } from "./StoryTypes";
 
 export async function instantiateREPL(
   advance: (input: string | null) => Promise<StoryAdvanceResult>,

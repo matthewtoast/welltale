@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "util";
-import { advanceToNextUntilBlocking } from "../lib/StoryRunnerCore";
+import { advanceToNextUntilBlocking } from "../lib/StoryRunnerCoreBlocking";
 import { RunnerOptions } from "./../lib/LocalRunnerUtils";
 import { PRNG } from "./../lib/RandHelpers";
 import { compileStory } from "./../lib/StoryCompiler";

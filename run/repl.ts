@@ -14,7 +14,7 @@ import {
   saveSessionToDisk,
   terminalRenderOps,
 } from "../lib/LocalRunnerUtils";
-import { advanceToNext } from "../lib/StoryRunnerCore";
+import { advanceToNext } from "../lib/StoryRunnerCoreBlocking";
 import { DefaultStoryServiceProvider } from "./../lib/DefaultStoryServiceProvider";
 import { loadDirRecursive } from "./../lib/FileUtils";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
