@@ -1,12 +1,12 @@
 import { isEmpty, set } from "lodash";
 import { NonEmpty, TSerial } from "../typings";
-import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
 import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
 import { castToString } from "./EvalCasting";
 import { buildDefaultFuncs } from "./EvalMethods";
 import { createRunner, evaluateScript } from "./QuickJSUtils";
 import { PRNG } from "./RandHelpers";
 import { ACTION_HANDLERS } from "./StoryActions";
+import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import { resolveBracketDDV } from "./StoryDDVHelpers";
 import { dumpTree, findNodes } from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";

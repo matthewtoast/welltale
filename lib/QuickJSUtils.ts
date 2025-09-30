@@ -24,12 +24,31 @@ export async function createRunner() {
 const stmtLike =
   /^(return|export|import|function|class|if|for|while|do|switch|try|catch|finally|var|let|const)\b/;
 
+export type EvalOptions = {
+  allowFs: boolean;
+  allowFetch: boolean;
+  executionTimeout: number;
+  memoryLimit: number;
+  maxIntervalCount: number;
+  maxTimeoutCount: number;
+  maxStackSize: number;
+};
+
 export const evaluateScript = async (
   expr: string,
   vars: Record<string, TSerial>,
   funcs: Record<string, ExprEvalFunc> = {},
   runner: RunnerFunc,
-  mount: NestedRecords = {}
+  mount: NestedRecords = {},
+  options: EvalOptions = {
+    allowFs: false,
+    allowFetch: false,
+    executionTimeout: 5_000,
+    memoryLimit: Math.pow(1024, 2) * 10, // MB
+    maxIntervalCount: 0,
+    maxTimeoutCount: 0,
+    maxStackSize: 10_000,
+  }
 ): Promise<TSerial> => {
   const valKeys = Object.keys(vars).filter(isIdent);
   const funcKeys = Object.keys(funcs)
@@ -67,13 +86,7 @@ export const evaluateScript = async (
   try {
     const res = await runner(async ({ evalCode }) => evalCode(code), {
       env,
-      allowFs: false,
-      allowFetch: false,
-      executionTimeout: 1000,
-      memoryLimit: Math.pow(1024, 2) * 10, // MB
-      maxIntervalCount: 0,
-      maxTimeoutCount: 0,
-      maxStackSize: 10_000,
+      ...options,
       mountFs: { src: mount },
     });
 

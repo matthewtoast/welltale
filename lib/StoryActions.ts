@@ -1,7 +1,6 @@
 import dedent from "dedent";
 import { isEmpty, omit } from "lodash";
 import { TSerial } from "../typings";
-import { makeCheckpoint, recordEvent } from "./CheckpointUtils";
 import {
   castToBoolean,
   castToTypeEnhanced,
@@ -13,6 +12,7 @@ import { parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { parseNumberOrNull } from "./MathHelpers";
 import { AIChatMessage } from "./OpenRouterUtils";
+import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import {
   countStackContainersBetween,
   HOST_ID,

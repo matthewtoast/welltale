@@ -7,17 +7,17 @@ import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadAppEnv } from "../env/env-app";
-import { advanceToNext } from "../lib/StoryRunnerCoreBlocking";
-import { runUntilComplete } from "../lib/StoryRunnerCorePrefetch";
-import { DefaultStoryServiceProvider } from "./../lib/DefaultStoryServiceProvider";
-import { loadDirRecursive } from "./../lib/FileUtils";
-import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
+import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
 import {
   CAROT,
   loadSessionFromDisk,
   RunnerOptions,
   terminalRenderOps,
-} from "./../lib/LocalRunnerUtils";
+} from "../lib/StoryLocalRunnerUtils";
+import { advanceToNext } from "../lib/StoryRunnerCoreBlocking";
+import { runUntilComplete } from "../lib/StoryRunnerCorePrefetch";
+import { loadDirRecursive } from "./../lib/FileUtils";
+import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
 import { PRNG } from "./../lib/RandHelpers";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
 import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
