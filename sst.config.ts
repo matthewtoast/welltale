@@ -5,6 +5,7 @@ import { Bucket, NextjsSite, Queue, Table } from "sst/constructs";
 const REQUIRED_ENV_VARS = [
   "APPLE_AUDIENCE",
   "AUTH_SECRET",
+  "AWS_PROFILE",
   "DEV_API_KEYS",
   "ELEVENLABS_API_KEY",
   "NODE_ENV",
