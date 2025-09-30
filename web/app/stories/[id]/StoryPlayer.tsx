@@ -1,7 +1,8 @@
-'use client'
+"use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react"
-import { runWithPrefetch } from "../../../../lib/StoryRunnerCorePrefetch"
+import { PlayIcon } from "@heroicons/react/24/solid";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { runWithPrefetch } from "../../../../lib/StoryRunnerCorePrefetch";
 import {
   DEFAULT_LLM_SLUGS,
   OP,
@@ -11,19 +12,24 @@ import {
   StoryOptions,
   StorySession,
   createDefaultSession,
-} from "../../../../lib/StoryTypes"
+} from "../../../../lib/StoryTypes";
 
 type Props = {
-  storyId: string
-  title: string
-}
+  storyId: string;
+  title: string;
+};
 
 export function StoryPlayer({ storyId, title }: Props) {
-  const [log, setLog] = useState<string[]>([])
-  const [phase, setPhase] = useState<"idle" | "running" | "waiting" | "finished" | "error">("idle")
-  const [input, setInput] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const sessionRef = useRef<StorySession>(createDefaultSession(`web-${storyId}`))
+  const [currentText, setCurrentText] = useState("");
+  const [currentSpeaker, setCurrentSpeaker] = useState("");
+  const [phase, setPhase] = useState<
+    "idle" | "running" | "waiting" | "finished" | "error"
+  >("idle");
+  const [input, setInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const sessionRef = useRef<StorySession>(
+    createDefaultSession(`web-${storyId}`)
+  );
   const optionsRef = useRef<StoryOptions>({
     verbose: false,
     seed: `web-${storyId}`,
@@ -34,34 +40,36 @@ export function StoryPlayer({ storyId, title }: Props) {
     maxCheckpoints: 20,
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
-  })
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  });
 
-  function addLog(message: string) {
-    setLog(prev => [...prev, message])
-  }
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Debug title
+  useEffect(() => {
+    console.log("StoryPlayer received title:", title, "for storyId:", storyId);
+  }, [title, storyId]);
 
   async function playAudio(url: string) {
     // Stop any existing audio
     if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current = null
+      audioRef.current.pause();
+      audioRef.current = null;
     }
 
     try {
-      const audio = new Audio(url)
-      audioRef.current = audio
-      audio.crossOrigin = "anonymous"
-      
-      await audio.play()
-      
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.crossOrigin = "anonymous";
+
+      await audio.play();
+
       // Wait for audio to finish
       await new Promise<void>((resolve) => {
-        audio.addEventListener('ended', () => resolve(), { once: true })
-        audio.addEventListener('error', () => resolve(), { once: true })
-      })
+        audio.addEventListener("ended", () => resolve(), { once: true });
+        audio.addEventListener("error", () => resolve(), { once: true });
+      });
     } catch (err) {
-      console.error("Audio play error:", err)
+      console.error("Audio play error:", err);
     }
   }
 
@@ -69,110 +77,111 @@ export function StoryPlayer({ storyId, title }: Props) {
     for (const op of ops) {
       switch (op.type) {
         case "play-event":
-          if (op.event.from) {
-            addLog(`${op.event.from}: ${op.event.body}`)
-          } else {
-            addLog(op.event.body)
-          }
+          setCurrentSpeaker(op.event.from || "");
+          setCurrentText(op.event.body);
           if (op.media) {
-            await playAudio(op.media)
+            await playAudio(op.media);
           }
-          break
-          
+          break;
+
         case "play-media":
-          addLog(`[Playing audio: ${op.media}]`)
-          await playAudio(op.media)
-          break
-          
+          if (op.media) {
+            await playAudio(op.media);
+          }
+          break;
+
         case "sleep":
-          await new Promise(resolve => setTimeout(resolve, op.duration))
-          break
-          
+          await new Promise((resolve) => setTimeout(resolve, op.duration));
+          break;
+
         case "get-input":
-          setPhase("waiting")
-          return
-          
+          setPhase("waiting");
+          return;
+
         case "story-end":
-          addLog("[Story complete]")
-          setPhase("finished")
-          return
-          
+          setCurrentText("The End");
+          setCurrentSpeaker("");
+          setPhase("finished");
+          return;
+
         case "story-error":
-          addLog(`[Error: ${op.reason}]`)
-          setPhase("error")
-          setError(op.reason)
-          return
-          
+          setPhase("error");
+          setError(op.reason);
+          return;
+
         default:
-          console.warn("Unknown op type:", op)
+          console.warn("Unknown op type:", op);
       }
     }
   }
 
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
     if (input !== null) {
-      sessionRef.current.input = { atts: {}, body: input, from: PLAYER_ID }
+      sessionRef.current.input = { atts: {}, body: input, from: PLAYER_ID };
     }
-    
+
     try {
       const res = await fetch(`/api/stories/${storyId}/advance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          session: sessionRef.current, 
-          options: optionsRef.current 
+        body: JSON.stringify({
+          session: sessionRef.current,
+          options: optionsRef.current,
         }),
-      })
-      
+      });
+
       if (!res.ok) {
-        throw new Error("Advance failed")
+        throw new Error("Advance failed");
       }
-      
-      const result = await res.json() as StoryAdvanceResult
-      sessionRef.current = result.session
-      return result
+
+      const result = (await res.json()) as StoryAdvanceResult;
+      sessionRef.current = result.session;
+      return result;
     } catch (err) {
-      console.error("Advance error:", err)
+      console.error("Advance error:", err);
       return {
         ops: [],
         session: sessionRef.current,
         seam: SeamType.ERROR,
         info: { reason: "Network error" },
         addr: sessionRef.current.address,
-      }
+      };
     }
   }
 
   async function handlePlay() {
-    if (phase === "running") return
-    
-    setPhase("running")
-    setError(null)
-    
-    const userInput = phase === "waiting" ? input.trim() : null
+    if (phase === "running") return;
+
+    setPhase("running");
+    setError(null);
+
+    const userInput = phase === "waiting" ? input.trim() : null;
     if (phase === "waiting") {
-      setInput("")
-      addLog(`> ${userInput}`)
+      setInput("");
+      setCurrentText(`> ${userInput}`);
+      setCurrentSpeaker("You");
+      // Brief pause to show user input
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    
-    const result = await runWithPrefetch(userInput, advance, showOps)
-    
+
+    const result = await runWithPrefetch(userInput, advance, showOps);
+
     if (result.seam === SeamType.INPUT) {
-      setPhase("waiting")
+      setPhase("waiting");
     } else if (result.seam === SeamType.FINISH) {
-      setPhase("finished")
+      setPhase("finished");
     } else if (result.seam === SeamType.ERROR) {
-      setPhase("error")
-      setError(result.info.reason || "Unknown error")
+      setPhase("error");
+      setError(result.info.reason || "Unknown error");
     } else {
-      setPhase("idle")
+      setPhase("idle");
     }
   }
 
   function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+    e.preventDefault();
     if (phase === "waiting" && input.trim()) {
-      handlePlay()
+      handlePlay();
     }
   }
 
@@ -180,64 +189,160 @@ export function StoryPlayer({ storyId, title }: Props) {
   useEffect(() => {
     return () => {
       if (audioRef.current) {
-        audioRef.current.pause()
+        audioRef.current.pause();
       }
-    }
-  }, [])
+    };
+  }, []);
+
+  const isInputActive = phase === "waiting";
+  const canPlay =
+    phase === "idle" || (phase === "waiting" && input.trim().length > 0);
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-stone-950 px-4 py-8 text-stone-100">
-      <div className="w-full max-w-3xl space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-stone-50">{title}</h1>
-          <div className="text-sm text-stone-400">Story ID: {storyId}</div>
+    <>
+      <style jsx global>{`
+        html,
+        body {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          font-family:
+            "Montserrat Alternates",
+            "Inter",
+            -apple-system,
+            BlinkMacSystemFont,
+            sans-serif;
+          background-color: #000;
+          color: #fff;
+        }
+
+        input,
+        textarea,
+        button {
+          font-family: inherit;
+        }
+
+        .play-button {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background-color: #fff;
+          color: #000;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .play-button:hover:not(:disabled) {
+          background-color: #e5e5e5;
+          transform: scale(1.05);
+        }
+
+        .play-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .story-input {
+          width: 100%;
+          background: rgba(255, 255, 255, 0.1);
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          border-radius: 25px;
+          padding: 16px 24px;
+          font-size: 18px;
+          color: #fff;
+          text-align: center;
+          outline: none;
+          transition: all 0.2s ease;
+        }
+
+        .story-input:focus {
+          border-color: #10b981;
+          background: rgba(255, 255, 255, 0.15);
+        }
+
+        .story-input:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .story-input::placeholder {
+          color: rgba(255, 255, 255, 0.5);
+        }
+
+        @media (max-width: 768px) {
+          .story-input {
+            font-size: 16px;
+            padding: 14px 20px;
+          }
+
+          .play-button {
+            width: 70px;
+            height: 70px;
+          }
+        }
+      `}</style>
+
+      <div className="flex h-screen w-full flex-col bg-black text-white overflow-hidden">
+        {/* Header */}
+        <div className="flex-none p-4 md:p-6 text-center">
+          <h1 className="text-lg md:text-xl font-light text-stone-400">
+            {title}
+          </h1>
         </div>
-        
-        <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-4">
-          <div className="flex items-center justify-between">
+
+        {/* Main content area */}
+        <div className="flex-1 flex items-center justify-center px-4 md:px-8">
+          <div className="max-w-4xl w-full text-center">
+            {currentSpeaker && (
+              <div className="text-sm md:text-base font-medium text-emerald-400 mb-4 uppercase tracking-widest">
+                {currentSpeaker}
+              </div>
+            )}
+            <div className="text-xl md:text-3xl lg:text-4xl font-light leading-relaxed">
+              {currentText || (phase === "idle" ? "Press play to begin" : "")}
+            </div>
+            {error && (
+              <div className="mt-8 text-rose-400 text-sm md:text-base">
+                Error: {error}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom controls */}
+        <div className="flex-none pb-8 md:pb-12 pt-4 md:pt-8">
+          {/* Play button */}
+          <div className="flex justify-center mb-6 md:mb-8">
             <button
-              type="button"
               onClick={handlePlay}
-              disabled={phase === "running" || phase === "finished"}
-              className="rounded-full bg-emerald-500 px-6 py-2 text-sm font-medium text-stone-950 transition hover:bg-emerald-400 disabled:opacity-50"
+              disabled={phase === "running" || !canPlay}
+              className="play-button"
+              type="button"
             >
-              {phase === "waiting" ? "Continue" : "Play"}
+              <PlayIcon style={{ width: "32px", height: "32px" }} />
             </button>
-            <div className="text-xs uppercase tracking-wide text-stone-500">{phase}</div>
+          </div>
+
+          {/* Input field */}
+          <div className="px-4 md:px-8 max-w-2xl mx-auto">
+            <form onSubmit={handleSubmit}>
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={!isInputActive}
+                className="story-input"
+                placeholder={isInputActive ? "Type your response..." : ""}
+                autoFocus={isInputActive}
+              />
+            </form>
           </div>
         </div>
-        
-        <div className="h-80 overflow-y-auto rounded-xl border border-stone-700 bg-stone-900/60 p-4 space-y-2">
-          {log.map((text, i) => (
-            <div key={i} className="text-sm text-stone-100 whitespace-pre-wrap">{text}</div>
-          ))}
-        </div>
-        
-        {phase === "waiting" && (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              className="w-full h-24 rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 resize-none focus:border-emerald-400 focus:outline-none"
-              placeholder="Enter your response..."
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={!input.trim()}
-              className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-stone-950 hover:bg-emerald-400 disabled:opacity-50"
-            >
-              Send
-            </button>
-          </form>
-        )}
-        
-        {error && (
-          <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-            {error}
-          </div>
-        )}
       </div>
-    </div>
-  )
+    </>
+  );
 }

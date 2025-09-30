@@ -70,10 +70,10 @@ async function loadStorySpec(dir: string): Promise<StorySpec | null> {
 
 function coerceStorySpec(value: any): StorySpec | null {
   return {
-    author: value?.meta?.author ?? "unknown",
-    title: value?.meta?.title ?? "unknown",
-    description: value?.meta?.description ?? "",
-    tags: Array.isArray(value?.meta?.tags) ? value.meta.tags : [],
+    author: value?.author ?? "unknown",
+    title: value?.title ?? "unknown",
+    description: value?.description ?? "",
+    tags: Array.isArray(value?.tags) ? value.tags : [],
   };
 }
 
