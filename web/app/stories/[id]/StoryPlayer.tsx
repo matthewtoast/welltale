@@ -12,42 +12,21 @@ import {
   StorySession,
   createDefaultSession,
 } from "../../../../lib/StoryTypes"
-import { useAudioBus } from "../../../hooks/useAudioBus"
-
-type LogItem =
-  | { id: string; type: "event"; from: string; body: string }
-  | { id: string; type: "media"; url: string }
-  | { id: string; type: "system"; text: string }
-
-type Ask = {
-  limit: number | null
-}
 
 type Props = {
   storyId: string
   title: string
 }
 
-type Phase =
-  | "idle"
-  | "running"
-  | "waiting"
-  | "paused"
-  | "finished"
-  | "error"
-
-function toReason(info: Record<string, string>): string {
-  const keys = Object.keys(info)
-  if (keys.length === 0) return "Unknown error"
-  const first = keys.find((key) => typeof info[key] === "string")
-  if (!first) return "Unknown error"
-  return info[first]
-}
-
-function buildOpts(seed: string): StoryOptions {
-  return {
+export function StoryPlayer({ storyId, title }: Props) {
+  const [log, setLog] = useState<string[]>([])
+  const [phase, setPhase] = useState<"idle" | "running" | "waiting" | "finished" | "error">("idle")
+  const [input, setInput] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const sessionRef = useRef<StorySession>(createDefaultSession(`web-${storyId}`))
+  const optionsRef = useRef<StoryOptions>({
     verbose: false,
-    seed,
+    seed: `web-${storyId}`,
     loop: 0,
     ream: 100,
     doGenerateSpeech: true,
@@ -55,214 +34,156 @@ function buildOpts(seed: string): StoryOptions {
     maxCheckpoints: 20,
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
-  }
-}
-
-function delay(ms: number): Promise<void> {
-  if (ms <= 0) return Promise.resolve()
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms)
   })
-}
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
-function nextId(counter: { value: number }): string {
-  counter.value += 1
-  return `${counter.value}`
-}
-
-function errorResult(session: StorySession, reason: string): StoryAdvanceResult {
-  return {
-    ops: [],
-    session,
-    seam: SeamType.ERROR,
-    info: { reason },
-    addr: session.address,
+  function addLog(message: string) {
+    setLog(prev => [...prev, message])
   }
-}
 
-export function StoryPlayer({ storyId, title }: Props) {
-  const audio = useAudioBus()
-  const [log, setLog] = useState<LogItem[]>([])
-  const [phase, setPhase] = useState<Phase>("idle")
-  const [busy, setBusy] = useState(false)
-  const [input, setInput] = useState("")
-  const [ask, setAsk] = useState<Ask | null>(null)
-  const [err, setErr] = useState<string | null>(null)
-  const sessRef = useRef<StorySession | null>(null)
-  const optRef = useRef<StoryOptions>(buildOpts(`web-${storyId}`))
-  const idRef = useRef<{ value: number }>({ value: 0 })
-  const liveRef = useRef(true)
-
-  useEffect(function mount() {
-    sessRef.current = createDefaultSession(`web-${storyId}`)
-    return function unmount() {
-      liveRef.current = false
-      audio.stop()
+  async function playAudio(url: string) {
+    // Stop any existing audio
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
     }
-  }, [audio, storyId])
 
-  function pushLog(item: LogItem) {
-    setLog((prev) => [...prev, item])
+    try {
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audio.crossOrigin = "anonymous"
+      
+      await audio.play()
+      
+      // Wait for audio to finish
+      await new Promise<void>((resolve) => {
+        audio.addEventListener('ended', () => resolve(), { once: true })
+        audio.addEventListener('error', () => resolve(), { once: true })
+      })
+    } catch (err) {
+      console.error("Audio play error:", err)
+    }
   }
 
   async function showOps(ops: OP[]): Promise<void> {
     for (const op of ops) {
-      if (!liveRef.current) return
-      if (op.type === "play-event") {
-        pushLog({
-          id: nextId(idRef.current),
-          type: "event",
-          from: op.event.from,
-          body: op.event.body,
-        })
-        if (op.background) {
-          void audio.play(op)
-          continue
-        }
-        await audio.play(op)
-        continue
-      }
-      if (op.type === "play-media") {
-        pushLog({
-          id: nextId(idRef.current),
-          type: "media",
-          url: op.media,
-        })
-        if (op.background) {
-          void audio.play(op)
-          continue
-        }
-        await audio.play(op)
-        continue
-      }
-      if (op.type === "sleep") {
-        await delay(op.duration)
-        continue
-      }
-      if (op.type === "get-input") {
-        setAsk({ limit: op.timeLimit })
-        continue
-      }
-      if (op.type === "story-end") {
-        pushLog({ id: nextId(idRef.current), type: "system", text: "Story complete" })
-        continue
-      }
-      if (op.type === "story-error") {
-        pushLog({ id: nextId(idRef.current), type: "system", text: op.reason })
-        continue
+      switch (op.type) {
+        case "play-event":
+          if (op.event.from) {
+            addLog(`${op.event.from}: ${op.event.body}`)
+          } else {
+            addLog(op.event.body)
+          }
+          if (op.media) {
+            await playAudio(op.media)
+          }
+          break
+          
+        case "play-media":
+          addLog(`[Playing audio: ${op.media}]`)
+          await playAudio(op.media)
+          break
+          
+        case "sleep":
+          await new Promise(resolve => setTimeout(resolve, op.duration))
+          break
+          
+        case "get-input":
+          setPhase("waiting")
+          return
+          
+        case "story-end":
+          addLog("[Story complete]")
+          setPhase("finished")
+          return
+          
+        case "story-error":
+          addLog(`[Error: ${op.reason}]`)
+          setPhase("error")
+          setError(op.reason)
+          return
+          
+        default:
+          console.warn("Unknown op type:", op)
       }
     }
   }
 
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
-    if (!sessRef.current) {
-      sessRef.current = createDefaultSession(`web-${storyId}`)
-    }
-    const session = sessRef.current
     if (input !== null) {
-      if (!session.input) {
-        session.input = { atts: {}, body: input, from: PLAYER_ID }
-      } else {
-        session.input.body = input
+      sessionRef.current.input = { atts: {}, body: input, from: PLAYER_ID }
+    }
+    
+    try {
+      const res = await fetch(`/api/stories/${storyId}/advance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          session: sessionRef.current, 
+          options: optionsRef.current 
+        }),
+      })
+      
+      if (!res.ok) {
+        throw new Error("Advance failed")
+      }
+      
+      const result = await res.json() as StoryAdvanceResult
+      sessionRef.current = result.session
+      return result
+    } catch (err) {
+      console.error("Advance error:", err)
+      return {
+        ops: [],
+        session: sessionRef.current,
+        seam: SeamType.ERROR,
+        info: { reason: "Network error" },
+        addr: sessionRef.current.address,
       }
     }
-    const res = await fetch(`/api/stories/${storyId}/advance`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ session, options: optRef.current }),
-    }).catch(() => null)
-    if (!res) {
-      console.warn("advance failed")
-      return errorResult(session, "Network error")
-    }
-    if (!res.ok) {
-      console.warn("advance status")
-      return errorResult(session, "Advance failed")
-    }
-    const data = (await res.json().catch(() => null)) as StoryAdvanceResult | null
-    if (!data) {
-      console.warn("advance parse")
-      return errorResult(session, "Invalid response")
-    }
-    sessRef.current = data.session
-    return data
   }
 
-  async function run() {
-    if (busy) return
-    setBusy(true)
-    setErr(null)
-    setAsk(null)
+  async function handlePlay() {
+    if (phase === "running") return
+    
     setPhase("running")
-    const payload = phase === "waiting" ? input.trim() : null
+    setError(null)
+    
+    const userInput = phase === "waiting" ? input.trim() : null
     if (phase === "waiting") {
       setInput("")
+      addLog(`> ${userInput}`)
     }
-    const result = await runWithPrefetch(payload, advance, showOps).catch(() => null)
-    if (!liveRef.current) return
-    if (!result) {
-      setPhase("error")
-      setErr("Playback failed")
-      setBusy(false)
-      return
-    }
+    
+    const result = await runWithPrefetch(userInput, advance, showOps)
+    
     if (result.seam === SeamType.INPUT) {
       setPhase("waiting")
-      setBusy(false)
-      return
-    }
-    if (result.seam === SeamType.FINISH) {
+    } else if (result.seam === SeamType.FINISH) {
       setPhase("finished")
-      setBusy(false)
-      return
-    }
-    if (result.seam === SeamType.ERROR) {
+    } else if (result.seam === SeamType.ERROR) {
       setPhase("error")
-      setErr(toReason(result.info))
-      setBusy(false)
-      return
+      setError(result.info.reason || "Unknown error")
+    } else {
+      setPhase("idle")
     }
-    setPhase("idle")
-    setBusy(false)
   }
 
-  function handleToggle() {
-    if (phase === "running" && busy) {
-      audio.stop()
-      setPhase("paused")
-      return
-    }
-    run()
-  }
-
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (phase !== "waiting") return
-    run()
+    if (phase === "waiting" && input.trim()) {
+      handlePlay()
+    }
   }
 
-  function renderLog(item: LogItem) {
-    if (item.type === "event") {
-      return (
-        <div key={item.id} className="flex flex-col gap-1">
-          <div className="text-sm font-semibold text-stone-200">{item.from}</div>
-          <div className="rounded-md bg-stone-800/60 px-3 py-2 text-sm text-stone-100">{item.body}</div>
-        </div>
-      )
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
     }
-    if (item.type === "media") {
-      return (
-        <div key={item.id} className="text-xs italic text-stone-400">Playing {item.url}</div>
-      )
-    }
-    return (
-      <div key={item.id} className="text-sm text-rose-400">{item.text}</div>
-    )
-  }
-
-  const isPlayDisabled = busy && phase !== "running"
-  const buttonLabel = phase === "running" && busy ? "Pause" : "Play"
+  }, [])
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-stone-950 px-4 py-8 text-stone-100">
@@ -271,46 +192,49 @@ export function StoryPlayer({ storyId, title }: Props) {
           <h1 className="text-3xl font-semibold text-stone-50">{title}</h1>
           <div className="text-sm text-stone-400">Story ID: {storyId}</div>
         </div>
-        <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-4 shadow-lg shadow-stone-950/50">
+        
+        <div className="rounded-xl border border-stone-800 bg-stone-900/60 p-4">
           <div className="flex items-center justify-between">
             <button
               type="button"
-              onClick={handleToggle}
-              disabled={isPlayDisabled}
+              onClick={handlePlay}
+              disabled={phase === "running" || phase === "finished"}
               className="rounded-full bg-emerald-500 px-6 py-2 text-sm font-medium text-stone-950 transition hover:bg-emerald-400 disabled:opacity-50"
             >
-              {buttonLabel}
+              {phase === "waiting" ? "Continue" : "Play"}
             </button>
             <div className="text-xs uppercase tracking-wide text-stone-500">{phase}</div>
           </div>
         </div>
-        <div className="h-80 overflow-y-auto rounded-xl border border-stone-800 bg-stone-900/40 p-4 space-y-4">
-          {log.map((item) => renderLog(item))}
+        
+        <div className="h-80 overflow-y-auto rounded-xl border border-stone-700 bg-stone-900/60 p-4 space-y-2">
+          {log.map((text, i) => (
+            <div key={i} className="text-sm text-stone-100 whitespace-pre-wrap">{text}</div>
+          ))}
         </div>
+        
         {phase === "waiting" && (
           <form onSubmit={handleSubmit} className="space-y-3">
-            <label className="block text-sm font-medium text-stone-200">Your Response</label>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="h-24 w-full resize-none rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 focus:border-emerald-400 focus:outline-none"
+              className="w-full h-24 rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-sm text-stone-100 resize-none focus:border-emerald-400 focus:outline-none"
+              placeholder="Enter your response..."
+              autoFocus
             />
-            <div className="flex items-center justify-between text-xs text-stone-500">
-              <div>
-                {ask && ask.limit !== null ? `Time limit: ${ask.limit} ms` : "No time limit"}
-              </div>
-              <button
-                type="submit"
-                className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-stone-950 hover:bg-emerald-400"
-              >
-                Send
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-stone-950 hover:bg-emerald-400 disabled:opacity-50"
+            >
+              Send
+            </button>
           </form>
         )}
-        {err && (
+        
+        {error && (
           <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-            {err}
+            {error}
           </div>
         )}
       </div>
