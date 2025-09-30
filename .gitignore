@@ -17,6 +17,7 @@ dist/
 # Environment variables
 .env.*
 *.secret.*
+web/.dev-session.json
 
 # Debug
 npm-debug.log*

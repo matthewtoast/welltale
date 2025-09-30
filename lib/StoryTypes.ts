@@ -260,3 +260,8 @@ export interface ActionResult {
   ops: OP[];
   next: { node: StoryNode } | null;
 }
+
+export interface ActionHandler {
+  match: (node: StoryNode) => boolean;
+  exec: (context: ActionContext) => Promise<ActionResult>;
+}

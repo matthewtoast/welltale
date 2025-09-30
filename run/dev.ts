@@ -109,11 +109,6 @@ async function setupFixtures(err: () => void) {
       description: "Sync stories with the server",
       default: false,
     })
-    .option("writeConfiguration", {
-      type: "boolean",
-      description: "Write iOS configurations",
-      default: false,
-    })
     .parserConfiguration({
       "camel-case-expansion": true,
       "strip-aliased": true,
@@ -131,21 +126,25 @@ async function setupFixtures(err: () => void) {
   }
   const { user: sessionUser, token: sessionToken } = devSessions[0];
 
-  if (argv.writeConfiguration) {
-    console.log("Writing iOS configuration");
-    const iosDir = join(root, "ios");
-    const configPath = join(iosDir, "Welltale", "Generated.xcconfig");
-    await mkdir(dirname(configPath), { recursive: true }).catch(() => {});
-    const lines = [
-      `DEV_SESSION_TOKEN = ${safeConfigValue(sessionToken, "_")}`,
-      `DEV_SESSION_USER_ID = ${safeConfigValue(sessionUser.id, "_")}`,
-      `DEV_SESSION_USER_PROVIDER = ${safeConfigValue(sessionUser.provider, "_")}`,
-      `DEV_SESSION_USER_EMAIL = ${safeConfigValue(sessionUser.email, "test@aisatsu.co")}`,
-      `DEV_SESSION_USER_ROLES = ${safeConfigValue(sessionUser.roles?.join(","), "user")}`,
-    ];
-    console.log("iOS vars", lines);
-    await writeFile(configPath, lines.join("\n") + "\n", "utf8");
-  }
+  console.log("Writing iOS configuration");
+  const iosDir = join(root, "ios");
+  const configPath = join(iosDir, "Welltale", "Generated.xcconfig");
+  await mkdir(dirname(configPath), { recursive: true }).catch(() => {});
+  const lines = [
+    `DEV_SESSION_TOKEN = ${safeConfigValue(sessionToken, "_")}`,
+    `DEV_SESSION_USER_ID = ${safeConfigValue(sessionUser.id, "_")}`,
+    `DEV_SESSION_USER_PROVIDER = ${safeConfigValue(sessionUser.provider, "_")}`,
+    `DEV_SESSION_USER_EMAIL = ${safeConfigValue(sessionUser.email, "test@aisatsu.co")}`,
+    `DEV_SESSION_USER_ROLES = ${safeConfigValue(sessionUser.roles?.join(","), "user")}`,
+  ];
+  console.log("iOS vars", lines);
+  await writeFile(configPath, lines.join("\n") + "\n", "utf8");
+
+  console.log("Writing web session");
+  const webDir = join(root, "web");
+  const webConfigPath = join(webDir, ".dev-session.json");
+  const webPayload = JSON.stringify({ token: sessionToken }, null, 2);
+  await writeFile(webConfigPath, webPayload + "\n", "utf8");
 
   if (argv.syncStories) {
     console.log("Syncing stories");
