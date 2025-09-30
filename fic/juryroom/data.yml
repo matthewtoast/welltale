@@ -1,6 +1,5 @@
-meta:
-  title: Jury Room
-  author: Matthew Trost
-  tags: [drama, courtroom, jury, social-commentary, suspense]
-  description: You're on the jury of a murder trial. Can you convince the other 11 jurors to acquit?
-  language: en
+title: Jury Room
+author: Matthew Trost
+tags: [drama, courtroom, jury, social-commentary, suspense]
+description: You're on the jury of a murder trial. Can you convince the other 11 jurors to acquit?
+language: en
