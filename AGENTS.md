@@ -31,6 +31,8 @@ Read README.md first.
 ## React
 
 - Modular, functional, strongly typed
+- Create presentational components that just render props
+  - Complex logical components should pass props to those presentational components
 - Generic components go under web/components/
 - Hooks go under web/hooks/
   - One hook per file

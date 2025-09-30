@@ -46,3 +46,6 @@ test/fixtures/sessions/*
 
 tmp
 .sst/
+
+*storybook.log
+storybook-static
