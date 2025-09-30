@@ -121,19 +121,17 @@ async function setupFixtures(err: () => void) {
     .help()
     .parse();
 
+  console.log("Fetching sessions");
+  const devSessions = await apiFetchDevSessions(
+    devEnv.WELLTALE_API_BASE,
+    cleanSplit(devEnv.DEV_API_KEYS, ",")
+  );
+  if (devSessions.length < 1) {
+    return err();
+  }
+  const { user: sessionUser, token: sessionToken } = devSessions[0];
+
   if (argv.writeConfiguration) {
-    console.log("Fetching sessions");
-    const devSessions = await apiFetchDevSessions(
-      devEnv.WELLTALE_API_BASE,
-      cleanSplit(devEnv.DEV_API_KEYS, ",")
-    );
-
-    if (devSessions.length < 1) {
-      return err();
-    }
-
-    const { user: sessionUser, token: sessionToken } = devSessions[0];
-
     console.log("Writing iOS configuration");
     const iosDir = join(root, "ios");
     const configPath = join(iosDir, "Welltale", "Generated.xcconfig");
@@ -147,20 +145,20 @@ async function setupFixtures(err: () => void) {
     ];
     console.log("iOS vars", lines);
     await writeFile(configPath, lines.join("\n") + "\n", "utf8");
+  }
 
-    if (argv.syncStories) {
-      console.log("Syncing stories");
-      const ficDir = join(root, "fic");
-      const cartridgeDirs = await listDirs(ficDir);
-      for (const storyId of cartridgeDirs) {
-        const storyDirPath = join(ficDir, storyId);
-        await syncStory(
-          devEnv.WELLTALE_API_BASE,
-          storyId,
-          storyDirPath,
-          sessionToken
-        );
-      }
+  if (argv.syncStories) {
+    console.log("Syncing stories");
+    const ficDir = join(root, "fic");
+    const cartridgeDirs = await listDirs(ficDir);
+    for (const storyId of cartridgeDirs) {
+      const storyDirPath = join(ficDir, storyId);
+      await syncStory(
+        devEnv.WELLTALE_API_BASE,
+        storyId,
+        storyDirPath,
+        sessionToken
+      );
     }
   }
 }
