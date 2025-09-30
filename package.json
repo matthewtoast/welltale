@@ -53,12 +53,14 @@
     "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@aws-sdk/util-dynamodb": "^3.864.0",
     "@elevenlabs/elevenlabs-js": "^2.14.0",
+    "@heroicons/react": "^2.2.0",
     "@jitl/quickjs-ng-wasmfile-release-sync": "^0.31.0",
     "@sebastianwessel/quickjs": "^3.0.0",
     "@types/express": "^5.0.3",
     "@types/handlebars": "^4.1.0",
     "@types/lodash": "^4.17.20",
     "@xmldom/xmldom": "^0.8.11",
+    "add": "^2.0.6",
     "chalk": "^5.6.0",
     "css-what": "^7.0.0",
     "dedent": "^1.6.0",
@@ -93,6 +95,7 @@
     "unzipper": "^0.12.3",
     "xml2js": "^0.6.2",
     "yargs": "17.7.2",
+    "yarn": "^1.22.22",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.24.6"
   }

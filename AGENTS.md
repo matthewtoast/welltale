@@ -21,8 +21,19 @@ Read README.md first.
 
 - Use yarn (not npm)
 - Run yarn typecheck after changes to check for type errors
-- Use function declaration style (`function foo() {...}`)
 - Never use 'any' type
+- Use function declaration style (`function foo() {...}`)
 - Don't add try/catch blocks
 - Don't throw; instead, log warning and return `null`
-- Avoid optional?: function arguments or object properties
+- Don't use optional?: function arguments or object properties
+- Don't use default exports _unless necessary_
+
+## React
+
+- Modular, functional, strongly typed
+- Generic components go under web/components/
+- Hooks go under web/hooks/
+  - One hook per file
+  - File named same as the hook
+- Tailwind for styling
+- Heroicons for icons

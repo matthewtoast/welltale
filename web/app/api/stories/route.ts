@@ -16,14 +16,6 @@ const storyRepo = createStoryRepo({
 
 export const runtime = "nodejs";
 
-type CreateBody = {
-  title: string;
-  author: string;
-  description: string;
-  tags: string[];
-  publish?: "draft" | "published";
-};
-
 export async function GET(req: Request) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
