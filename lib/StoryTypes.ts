@@ -2,6 +2,7 @@ import z from "zod";
 import { NonEmpty, TSerial } from "../typings";
 import { PRNG } from "./RandHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
+export { PLAYER_ID } from "./StoryConstants";
 
 export type StoryCartridge = Record<string, Buffer | string>;
 
@@ -205,8 +206,6 @@ export function createDefaultSession(
     },
   };
 }
-
-export const PLAYER_ID = "USER";
 
 export type PlayMediaOptions = {
   media: string; // URL

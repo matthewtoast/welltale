@@ -34,13 +34,8 @@ import {
   searchForNode,
   TEXT_CONTENT_TAGS,
 } from "./StoryNodeHelpers";
-import {
-  ActionHandler,
-  OP,
-  PLAYER_ID,
-  StoryEvent,
-  StoryNode,
-} from "./StoryTypes";
+import { PLAYER_ID } from "./StoryConstants";
+import { ActionHandler, OP, StoryEvent, StoryNode } from "./StoryTypes";
 import { cleanSplit, isBlank, snorm } from "./TextHelpers";
 
 export const ACTION_HANDLERS: ActionHandler[] = [

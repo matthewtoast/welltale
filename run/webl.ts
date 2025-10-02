@@ -7,9 +7,9 @@ import {
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   OP,
-  PLAYER_ID,
   StoryAdvanceResult,
 } from "../lib/StoryTypes";
+import { PLAYER_ID } from "../lib/StoryConstants";
 import { apiAdvanceStory, apiFetchDevSessions } from "../lib/StoryWebAPI";
 import { cleanSplit } from "../lib/TextHelpers";
 

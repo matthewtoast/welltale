@@ -1,8 +1,8 @@
 import { advanceStory } from "./StoryEngine";
 import { StoryServiceProvider } from "./StoryServiceProvider";
+import { PLAYER_ID } from "./StoryConstants";
 import {
   OP,
-  PLAYER_ID,
   SeamType,
   StoryAdvanceResult,
   StoryOptions,

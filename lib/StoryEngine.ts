@@ -10,7 +10,7 @@ import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import { resolveBracketDDV } from "./StoryDDVHelpers";
 import { dumpTree, findNodes } from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
-import { HOST_ID } from "./StoryConstants";
+import { HOST_ID, PLAYER_ID } from "./StoryConstants";
 import {
   ActionContext,
   BaseActionContext,
@@ -18,7 +18,6 @@ import {
   EvaluatorFunc,
   LLM_SLUGS,
   OP,
-  PLAYER_ID,
   SeamType,
   StoryAdvanceResult,
   StoryEvent,
@@ -36,7 +35,7 @@ import {
   isBlank,
   LIQUID,
 } from "./TextHelpers";
-export { HOST_ID } from "./StoryConstants";
+export { HOST_ID, PLAYER_ID } from "./StoryConstants";
 const OUTRO_RETURN_ADDR = "__outro:return__";
 
 let calls = 0;

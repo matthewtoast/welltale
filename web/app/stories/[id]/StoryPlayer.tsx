@@ -5,7 +5,6 @@ import { runWithPrefetch } from "../../../../lib/StoryRunnerCorePrefetch";
 import {
   DEFAULT_LLM_SLUGS,
   OP,
-  PLAYER_ID,
   SeamType,
   StoryAdvanceResult,
   StoryMeta,
@@ -13,6 +12,7 @@ import {
   StorySession,
   createDefaultSession,
 } from "../../../../lib/StoryTypes";
+import { PLAYER_ID } from "../../../../lib/StoryConstants";
 import { StoryPlayerUI } from "./StoryPlayerUI";
 
 export function StoryPlayer(props: StoryMeta) {
@@ -39,6 +39,7 @@ export function StoryPlayer(props: StoryMeta) {
   });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const backgroundAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   // Debug title
   useEffect(() => {
