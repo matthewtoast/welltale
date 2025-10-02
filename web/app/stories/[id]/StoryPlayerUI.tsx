@@ -3,11 +3,14 @@ import {
   faBackwardStep,
   faCog,
   faForwardStep,
+  faPaperPlane,
   faPause,
   faPlay,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { FormEvent } from "react";
+import { FormEvent, useEffect, useRef } from "react";
+import { textWithBracketsToSpans } from "../../../../lib/ReactHelpers";
+import { HOST_ID } from "../../../../lib/StoryConstants";
 import { StoryMeta } from "../../../../lib/StoryTypes";
 import { strToDeterministicRgba } from "../../../../lib/StyleHelpers";
 import { colors } from "../../../lib/colors";
@@ -61,6 +64,15 @@ export function StoryPlayerUI({
   const displayText =
     currentText || (phase === "idle" ? "Press play to begin" : "");
   const playDisabled = playing ? false : !canPlay;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "40px";
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.max(40, scrollHeight)}px`;
+    }
+  }, [input]);
 
   return (
     <>
@@ -150,20 +162,29 @@ export function StoryPlayerUI({
             textAlign: "center",
           }}
         >
-          {currentSpeaker ? (
+          {currentSpeaker && (
             <span
               style={{
                 fontWeight: "bold",
-                color: strToDeterministicRgba(currentSpeaker, 1),
+                color:
+                  currentSpeaker === HOST_ID
+                    ? "cyan"
+                    : currentSpeaker === "YOU"
+                      ? "lime"
+                      : strToDeterministicRgba(currentSpeaker, 1),
                 marginBottom: 6,
               }}
             >
               {currentSpeaker}
             </span>
-          ) : (
-            ""
           )}
-          <span style={{ lineHeight: 1.35 }}>{displayText}</span>
+          <span style={{ lineHeight: 1.35 }}>
+            {textWithBracketsToSpans(
+              currentText,
+              {},
+              { color: colors.GRAY_LIGHT, fontStyle: "italic" }
+            )}
+          </span>
         </Col>
         <Row
           style={{
@@ -254,27 +275,80 @@ export function StoryPlayerUI({
           <View expand></View>
         </Row>
         <Row expand></Row>
-        <View style={{ padding: "0 12px 24px" }}>
-          <form onSubmit={onSubmit} style={{ width: "100%" }}>
-            <input
-              type="text"
-              value={input || ""}
+        <View
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: "12px",
+            backgroundColor: colors.BLACK,
+          }}
+        >
+          <form
+            onSubmit={onSubmit}
+            style={{ position: "relative", width: "100%" }}
+          >
+            <textarea
+              ref={textareaRef}
+              value={input ?? ""}
               onChange={(e) => onInputChange(e.target.value)}
               disabled={!isInputActive}
+              spellCheck={false}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSubmit(e as any);
+                }
+              }}
               style={{
                 width: "100%",
-                borderRadius: "24px",
+                minHeight: "40px",
+                maxHeight: "120px",
+                borderRadius: "20px",
                 border: "none",
                 backgroundColor: colors.GRAY_NIGHT,
                 padding: "10px 14px",
+                paddingRight: input && isInputActive ? "46px" : "14px",
                 fontSize: "14px",
                 outline: "none",
                 color: isInputActive ? colors.WHITE : colors.GRAY_LIGHT,
                 opacity: !isInputActive ? 0.5 : 1,
+                resize: "none",
+                overflow: "auto",
+                fontFamily: "inherit",
+                lineHeight: 1.4,
               }}
               placeholder={isInputActive ? "Enter text" : "Please wait"}
               autoFocus={isInputActive}
             />
+            {input && isInputActive && (
+              <button
+                type="submit"
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  bottom: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 26,
+                  height: 26,
+                  borderRadius: "50%",
+                  paddingTop: 2,
+                  paddingRight: 8,
+                  border: "none",
+                  backgroundColor: colors.WHITE,
+                  cursor: "pointer",
+                }}
+                aria-label="Send"
+              >
+                <FontAwesomeIcon
+                  icon={faPaperPlane}
+                  style={{ color: colors.BLACK, width: 14, height: 14 }}
+                />
+              </button>
+            )}
           </form>
         </View>
       </Col>

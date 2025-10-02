@@ -10,6 +10,7 @@ import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import { resolveBracketDDV } from "./StoryDDVHelpers";
 import { dumpTree, findNodes } from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
+import { HOST_ID } from "./StoryConstants";
 import {
   ActionContext,
   BaseActionContext,
@@ -35,8 +36,7 @@ import {
   isBlank,
   LIQUID,
 } from "./TextHelpers";
-
-export const HOST_ID = "HOST";
+export { HOST_ID } from "./StoryConstants";
 const OUTRO_RETURN_ADDR = "__outro:return__";
 
 let calls = 0;

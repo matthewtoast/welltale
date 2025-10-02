@@ -100,7 +100,7 @@ export function StoryPlayer(props: StoryMeta) {
           return;
 
         case "story-end":
-          setCurrentText("The End");
+          setCurrentText("[the end]");
           setCurrentSpeaker("");
           setPhase("finished");
           return;
@@ -169,8 +169,8 @@ export function StoryPlayer(props: StoryMeta) {
     const userInput = previousPhase === "waiting" ? input.trim() : null;
     if (previousPhase === "waiting") {
       setInput("");
-      setCurrentText(`> ${userInput}`);
-      setCurrentSpeaker("You");
+      setCurrentText(`${userInput}`);
+      setCurrentSpeaker("YOU");
       // Brief pause to show user input
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }

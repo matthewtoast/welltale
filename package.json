@@ -12,18 +12,12 @@
     "test": "for f in $(find . -name '*.test.ts' -not -path './node_modules/*'); do echo \"Running $f\"; npx tsx \"$f\" || exit 1; done",
     "repl": "yarn ts ./run/repl.ts",
     "auto": "yarn ts ./run/auto.ts",
+    "dev": "yarn ts ./run/dev.ts --syncStories",
     "web:dev": "next dev web",
     "web:typecheck": "tsc -p web/tsconfig.typecheck.json --noEmit",
     "ios:typecheck": "xcodebuild -project ios/Welltale/Welltale.xcodeproj -scheme Welltale -sdk iphonesimulator build 2>&1 | grep -E \"(error:|warning:)\"",
     "web:sst:deploy": "sst deploy --stage prod",
     "web:sst:remove": "sst remove --stage prod"
-  },
-  "resolutions": {
-    "@aws-sdk/client-s3": "3.886.0",
-    "@aws-sdk/s3-request-presigner": "3.886.0",
-    "@aws-sdk/client-sqs": "3.886.0",
-    "@aws-sdk/client-dynamodb": "3.886.0",
-    "@aws-sdk/util-dynamodb": "3.886.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",
