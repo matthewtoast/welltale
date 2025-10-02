@@ -8,31 +8,27 @@ import {
   PLAYER_ID,
   SeamType,
   StoryAdvanceResult,
+  StoryMeta,
   StoryOptions,
   StorySession,
   createDefaultSession,
 } from "../../../../lib/StoryTypes";
 import { StoryPlayerUI } from "./StoryPlayerUI";
 
-type Props = {
-  storyId: string;
-  title: string;
-};
-
-export function StoryPlayer({ storyId, title }: Props) {
+export function StoryPlayer(props: StoryMeta) {
   const [currentText, setCurrentText] = useState("");
   const [currentSpeaker, setCurrentSpeaker] = useState("");
   const [phase, setPhase] = useState<
-    "idle" | "running" | "waiting" | "finished" | "error"
+    "idle" | "running" | "waiting" | "finished" | "error" | "paused"
   >("idle");
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const sessionRef = useRef<StorySession>(
-    createDefaultSession(`web-${storyId}`)
+    createDefaultSession(`web-${props.id}`)
   );
   const optionsRef = useRef<StoryOptions>({
     verbose: false,
-    seed: `web-${storyId}`,
+    seed: `web-${props.id}`,
     loop: 0,
     ream: 100,
     doGenerateSpeech: true,
@@ -46,8 +42,13 @@ export function StoryPlayer({ storyId, title }: Props) {
 
   // Debug title
   useEffect(() => {
-    console.log("StoryPlayer received title:", title, "for storyId:", storyId);
-  }, [title, storyId]);
+    console.log(
+      "StoryPlayer received title:",
+      props.title,
+      "for id:",
+      props.id
+    );
+  }, [props.title, props.id]);
 
   async function playAudio(url: string) {
     // Stop any existing audio
@@ -121,7 +122,7 @@ export function StoryPlayer({ storyId, title }: Props) {
     }
 
     try {
-      const res = await fetch(`/api/stories/${storyId}/advance`, {
+      const res = await fetch(`/api/stories/${props.id}/advance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -150,13 +151,23 @@ export function StoryPlayer({ storyId, title }: Props) {
   }
 
   async function handlePlay() {
-    if (phase === "running") return;
+    const previousPhase = phase;
+    if (previousPhase === "running") return;
+    if (previousPhase === "paused") {
+      if (audioRef.current) {
+        audioRef.current
+          .play()
+          .catch(() => console.warn("Audio resume failed"));
+      }
+      setPhase("running");
+      return;
+    }
 
     setPhase("running");
     setError(null);
 
-    const userInput = phase === "waiting" ? input.trim() : null;
-    if (phase === "waiting") {
+    const userInput = previousPhase === "waiting" ? input.trim() : null;
+    if (previousPhase === "waiting") {
       setInput("");
       setCurrentText(`> ${userInput}`);
       setCurrentSpeaker("You");
@@ -185,6 +196,33 @@ export function StoryPlayer({ storyId, title }: Props) {
     }
   }
 
+  function handlePause() {
+    if (phase !== "running") {
+      console.warn("Pause ignored: player not running");
+      return;
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    setPhase("paused");
+  }
+
+  function handleSeekBack() {
+    console.warn("Seek back not implemented");
+  }
+
+  function handleSeekForward() {
+    console.warn("Seek forward not implemented");
+  }
+
+  function handleBackNav() {
+    console.warn("Back navigation not implemented");
+  }
+
+  function handleOpenSettings() {
+    console.warn("Settings not implemented");
+  }
+
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
@@ -196,11 +234,13 @@ export function StoryPlayer({ storyId, title }: Props) {
 
   const isInputActive = phase === "waiting";
   const canPlay =
-    phase === "idle" || (phase === "waiting" && input.trim().length > 0);
+    phase === "idle" ||
+    phase === "paused" ||
+    (phase === "waiting" && input.trim().length > 0);
 
   return (
     <StoryPlayerUI
-      title={title}
+      {...props}
       currentText={currentText}
       currentSpeaker={currentSpeaker}
       phase={phase}
@@ -208,7 +248,14 @@ export function StoryPlayer({ storyId, title }: Props) {
       error={error}
       isInputActive={isInputActive}
       canPlay={canPlay}
+      canGoNext={false}
+      canGoPrev={false}
       onPlayClick={handlePlay}
+      onPauseClick={handlePause}
+      onBackClick={handleBackNav}
+      onSettingsClick={handleOpenSettings}
+      onPrevClick={handleSeekBack}
+      onNextClick={handleSeekForward}
       onInputChange={setInput}
       onSubmit={handleSubmit}
     />

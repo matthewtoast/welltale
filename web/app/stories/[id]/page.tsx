@@ -1,12 +1,9 @@
 import { headers } from "next/headers";
+import { StoryMeta } from "../../../../lib/StoryTypes";
 import { StoryPlayer } from "./StoryPlayer";
 
 type StoryPageProps = {
   params: Promise<{ id: string }>;
-};
-
-type StoryMeta = {
-  title: string;
 };
 
 type MetaRes = {
@@ -34,6 +31,8 @@ async function fetchStoryMeta(id: string): Promise<StoryMeta | null> {
 export default async function StoryPage({ params }: StoryPageProps) {
   const { id } = await params;
   const meta = await fetchStoryMeta(id);
-  const title = meta ? meta.title : `Story ${id}`;
-  return <StoryPlayer storyId={id} title={title} />;
+  if (meta) {
+    return <StoryPlayer {...meta} />;
+  }
+  return <></>;
 }

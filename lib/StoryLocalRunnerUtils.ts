@@ -4,7 +4,7 @@ import { dirname } from "path";
 import { sleep } from "./AsyncHelpers";
 import { safeJsonParse } from "./JSONHelpers";
 import { play, playWait } from "./LocalAudioUtils";
-import { createSkipHandle } from "./SkipSignal";
+import { createSkipHandle } from "./StoryREPLUtils";
 import { HOST_ID } from "./StoryEngine";
 import { createDefaultSession, StoryOptions, StorySession, OP, PlayMediaOptions } from "./StoryTypes";
 import {
