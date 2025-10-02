@@ -1,0 +1,3 @@
+#!/bin/bash
+export AWS_SDK_SUPPRESS_MAINTENANCE_MODE_MESSAGE=1
+exec "$@"

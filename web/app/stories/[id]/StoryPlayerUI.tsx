@@ -62,7 +62,7 @@ export function StoryPlayerUI({
 }: Props & StoryMeta) {
   const playing = phase === "running";
   const displayText =
-    currentText || (phase === "idle" ? "Press play to begin" : "");
+    currentText || (phase === "idle" ? "[Press play to begin]" : "");
   const playDisabled = playing ? false : !canPlay;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -180,7 +180,7 @@ export function StoryPlayerUI({
           )}
           <span style={{ lineHeight: 1.35 }}>
             {textWithBracketsToSpans(
-              currentText,
+              displayText,
               {},
               { color: colors.GRAY_LIGHT, fontStyle: "italic" }
             )}

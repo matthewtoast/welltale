@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { PLAYER_ID } from "../../../../lib/StoryConstants";
 import { runWithPrefetch } from "../../../../lib/StoryRunnerCorePrefetch";
 import {
   DEFAULT_LLM_SLUGS,
@@ -12,7 +13,6 @@ import {
   StorySession,
   createDefaultSession,
 } from "../../../../lib/StoryTypes";
-import { PLAYER_ID } from "../../../../lib/StoryConstants";
 import { StoryPlayerUI } from "./StoryPlayerUI";
 
 export function StoryPlayer(props: StoryMeta) {
@@ -27,7 +27,7 @@ export function StoryPlayer(props: StoryMeta) {
     createDefaultSession(`web-${props.id}`)
   );
   const optionsRef = useRef<StoryOptions>({
-    verbose: false,
+    verbose: true,
     seed: `web-${props.id}`,
     loop: 0,
     ream: 100,
@@ -51,8 +51,29 @@ export function StoryPlayer(props: StoryMeta) {
     );
   }, [props.title, props.id]);
 
-  async function playAudio(url: string) {
-    // Stop any existing audio
+  async function playAudio(url: string, background = false) {
+    if (background) {
+      // Background audio - don't block
+      const audio = new Audio(url);
+      audio.crossOrigin = "anonymous";
+      backgroundAudioRefs.current.set(url, audio);
+
+      audio
+        .play()
+        .catch((err) => console.error("Background audio error:", err));
+
+      audio.addEventListener(
+        "ended",
+        () => {
+          backgroundAudioRefs.current.delete(url);
+        },
+        { once: true }
+      );
+
+      return; // Don't wait
+    }
+
+    // Stop any existing foreground audio
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -82,13 +103,21 @@ export function StoryPlayer(props: StoryMeta) {
           setCurrentSpeaker(op.event.from || "");
           setCurrentText(op.event.body);
           if (op.media) {
-            await playAudio(op.media);
+            if (op.background) {
+              playAudio(op.media, true); // Don't await
+            } else {
+              await playAudio(op.media);
+            }
           }
           break;
 
         case "play-media":
           if (op.media) {
-            await playAudio(op.media);
+            if (op.background) {
+              playAudio(op.media, true); // Don't await
+            } else {
+              await playAudio(op.media);
+            }
           }
           break;
 
@@ -101,7 +130,7 @@ export function StoryPlayer(props: StoryMeta) {
           return;
 
         case "story-end":
-          setCurrentText("[the end]");
+          setCurrentText("[The end]");
           setCurrentSpeaker("");
           setPhase("finished");
           return;
@@ -205,6 +234,8 @@ export function StoryPlayer(props: StoryMeta) {
     if (audioRef.current) {
       audioRef.current.pause();
     }
+    // Pause all background audio
+    backgroundAudioRefs.current.forEach((audio) => audio.pause());
     setPhase("paused");
   }
 
@@ -230,6 +261,12 @@ export function StoryPlayer(props: StoryMeta) {
       if (audioRef.current) {
         audioRef.current.pause();
       }
+      // Stop all background audio
+      backgroundAudioRefs.current.forEach((audio) => {
+        audio.pause();
+        audio.src = "";
+      });
+      backgroundAudioRefs.current.clear();
     };
   }, []);
 

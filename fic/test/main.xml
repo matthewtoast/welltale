@@ -1,5 +1,11 @@
 <var name="time" value="{$ timestamp(2001, 1, 1) $}" type="number" />
 
+<music duration="10000" background="true">
+  Intro music for a cyberpunk film, dramatic, intense, high stakes
+</music>
+
+<sleep duration="3000" />
+
 <p>
   You're playing {{title}}, by {{author}}.
 </p>

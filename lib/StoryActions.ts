@@ -13,6 +13,7 @@ import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { parseNumberOrNull } from "./MathHelpers";
 import { AIChatMessage } from "./OpenRouterUtils";
 import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
+import { PLAYER_ID } from "./StoryConstants";
 import {
   countStackContainersBetween,
   HOST_ID,
@@ -34,7 +35,6 @@ import {
   searchForNode,
   TEXT_CONTENT_TAGS,
 } from "./StoryNodeHelpers";
-import { PLAYER_ID } from "./StoryConstants";
 import { ActionHandler, OP, StoryEvent, StoryNode } from "./StoryTypes";
 import { cleanSplit, isBlank, snorm } from "./TextHelpers";
 
@@ -888,6 +888,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     // Fallback: Any node not explicitly listed we'll skip over without visiting kids
+    /*
+      <voice> - compile time
+      <meta> - compile time
+      <pronunciation> - compile time
+    */
     match: () => true,
     exec: async (ctx) => {
       return {
