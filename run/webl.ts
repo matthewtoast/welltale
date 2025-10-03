@@ -1,6 +1,7 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadDevEnv } from "../env/env-dev";
+import { assignInput } from "../lib/StoryConstants";
 import { RunnerOptions, terminalRenderOps } from "../lib/StoryLocalRunnerUtils";
 import { instantiateREPL } from "../lib/StoryREPLUtils";
 import {
@@ -9,7 +10,6 @@ import {
   OP,
   StoryAdvanceResult,
 } from "../lib/StoryTypes";
-import { PLAYER_ID } from "../lib/StoryConstants";
 import { apiAdvanceStory, apiFetchDevSessions } from "../lib/StoryWebAPI";
 import { cleanSplit } from "../lib/TextHelpers";
 
@@ -84,13 +84,7 @@ async function go() {
   }
   async function save() {}
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
-    if (input !== null) {
-      if (!session.input) {
-        session.input = { atts: {}, body: input, from: PLAYER_ID };
-      } else {
-        session.input.body = input;
-      }
-    }
+    assignInput(session, input);
     const result = await apiAdvanceStory(
       devEnv.WELLTALE_API_BASE,
       argv.storyId!,

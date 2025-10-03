@@ -1,9 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { PLAYER_ID } from "../../../../lib/StoryConstants";
+import { assignInput } from "../../../../lib/StoryConstants";
 import { runWithPrefetch } from "../../../../lib/StoryRunnerCorePrefetch";
 import {
+  createDefaultSession,
   DEFAULT_LLM_SLUGS,
   OP,
   SeamType,
@@ -11,7 +12,6 @@ import {
   StoryMeta,
   StoryOptions,
   StorySession,
-  createDefaultSession,
 } from "../../../../lib/StoryTypes";
 import { StoryPlayerUI } from "./StoryPlayerUI";
 
@@ -137,9 +137,7 @@ export function StoryPlayer(props: StoryMeta) {
   }
 
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
-    if (input !== null) {
-      sessionRef.current.input = { atts: {}, body: input, from: PLAYER_ID };
-    }
+    assignInput(sessionRef.current, input);
 
     try {
       const res = await fetch(`/api/stories/${props.id}/advance`, {

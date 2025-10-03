@@ -1,6 +1,6 @@
+import { assignInput } from "./StoryConstants";
 import { advanceStory } from "./StoryEngine";
 import { StoryServiceProvider } from "./StoryServiceProvider";
-import { PLAYER_ID } from "./StoryConstants";
 import {
   OP,
   SeamType,
@@ -17,13 +17,7 @@ export async function advanceToNext(
   options: StoryOptions,
   provider: StoryServiceProvider
 ): Promise<StoryAdvanceResult> {
-  if (input !== null) {
-    if (!session.input) {
-      session.input = { atts: {}, body: input, from: PLAYER_ID };
-    } else {
-      session.input.body = input;
-    }
-  }
+  assignInput(session, input);
   const { ops, seam, info, addr } = await advanceStory(
     provider,
     sources,
