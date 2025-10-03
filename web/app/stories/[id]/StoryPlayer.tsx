@@ -258,12 +258,6 @@ export function StoryPlayer(props: StoryMeta) {
     };
   }, []);
 
-  const isInputActive = phase === "waiting";
-  const canPlay =
-    phase === "idle" ||
-    phase === "paused" ||
-    (phase === "waiting" && input.trim().length > 0);
-
   return (
     <StoryPlayerUI
       {...props}
@@ -272,8 +266,6 @@ export function StoryPlayer(props: StoryMeta) {
       phase={phase}
       input={input}
       error={error}
-      isInputActive={isInputActive}
-      canPlay={canPlay}
       canGoNext={false}
       canGoPrev={false}
       onPlayClick={handlePlay}

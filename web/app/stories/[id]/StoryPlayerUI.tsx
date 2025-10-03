@@ -25,8 +25,6 @@ type Props = {
   phase: "idle" | "running" | "waiting" | "finished" | "error" | "paused";
   input: string;
   error: string | null;
-  isInputActive: boolean;
-  canPlay: boolean;
   canGoNext: boolean;
   canGoPrev: boolean;
   onPlayClick: () => void;
@@ -47,8 +45,6 @@ export function StoryPlayerUI({
   phase,
   input,
   error,
-  isInputActive,
-  canPlay,
   canGoNext,
   canGoPrev,
   onPlayClick,
@@ -60,6 +56,8 @@ export function StoryPlayerUI({
   onInputChange,
   onSubmit,
 }: Props & StoryMeta) {
+  const isInputActive = phase === "waiting";
+  const canPlay = phase === "idle" || phase === "paused";
   const playing = phase === "running";
   const displayText =
     currentText || (phase === "idle" ? "[Press play to begin]" : "");
@@ -73,6 +71,12 @@ export function StoryPlayerUI({
       textareaRef.current.style.height = `${Math.max(40, scrollHeight)}px`;
     }
   }, [input]);
+
+  useEffect(() => {
+    if (isInputActive && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [isInputActive]);
 
   return (
     <>
@@ -109,20 +113,20 @@ export function StoryPlayerUI({
             style={{
               padding: "0 24px",
               textAlign: "center",
-              fontFamily: "Helvetica, Arial, sans-serif",
             }}
           >
             <View
               style={{
-                fontSize: "14px",
+                fontSize: "16px",
                 fontWeight: "bold",
-                color: colors.GRAY_DARK,
+                color: colors.WHITE,
+                marginBottom: 4,
               }}
             >
-              {title || "untitled"}
+              <span>{title || "untitled"}</span>
             </View>
-            <View style={{ fontSize: "12px", color: colors.GRAY_DARK }}>
-              {author || "anonymous"}
+            <View style={{ fontSize: "12px", color: colors.WHITE }}>
+              <span>{author || "anonymous"}</span>
             </View>
           </Col>
           <View expand></View>
@@ -189,7 +193,6 @@ export function StoryPlayerUI({
         <Row
           style={{
             gap: 10,
-            // justifyContent: "center",
             padding: "24px 24px",
             display: "flex",
             alignItems: "center",
@@ -320,7 +323,7 @@ export function StoryPlayerUI({
                 lineHeight: 1.4,
               }}
               placeholder={isInputActive ? "Enter text" : "Please wait"}
-              autoFocus={isInputActive}
+              autoFocus
             />
             {input && isInputActive && (
               <button

@@ -19,3 +19,7 @@
 <p>
   You said {{input}}.
 </p>
+
+<while cond="true">
+  <input />
+</while>
