@@ -74,6 +74,17 @@ export default {
         consumer: {
           function: {
             handler: "jobs/worker.handler",
+            copyFiles: [
+              {
+                from: "node_modules/@jitl/quickjs-ng-wasmfile-release-sync/dist/emscripten-module.wasm",
+                to: ".",
+              },
+            ],
+            nodejs: {
+              esbuild: {
+                external: ["@jitl/quickjs-ng-wasmfile-release-sync"],
+              },
+            },
             environment: {
               ...omit(env, "AWS_PROFILE"),
               CACHE_BUCKET: cacheBucket.bucketName,
