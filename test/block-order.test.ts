@@ -168,9 +168,9 @@ async function testBlockOrder() {
   const inputs = ["input1", "invalid1", "invalid2", "Xylophone"];
   const { ops, seam } = await runTestStory(xmlContent, inputs);
 
-  const eventOps = ops.filter((op) => op.type === "play-event");
+  const eventOps = ops.filter((op) => op.type === "play-media");
   const textEvents = eventOps.filter((op) => op.event && op.event.body);
-  const textBodies = textEvents.map((e) => e.event.body.trim());
+  const textBodies = textEvents.map((e) => e.event!.body.trim());
 
   const expectedOrder = [
     "A",

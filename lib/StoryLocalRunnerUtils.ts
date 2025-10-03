@@ -4,9 +4,15 @@ import { dirname } from "path";
 import { sleep } from "./AsyncHelpers";
 import { safeJsonParse } from "./JSONHelpers";
 import { play, playWait } from "./LocalAudioUtils";
-import { createSkipHandle } from "./StoryREPLUtils";
 import { HOST_ID } from "./StoryEngine";
-import { createDefaultSession, StoryOptions, StorySession, OP, PlayMediaOptions } from "./StoryTypes";
+import { createSkipHandle } from "./StoryREPLUtils";
+import {
+  createDefaultSession,
+  OP,
+  PlayMediaOptions,
+  StoryOptions,
+  StorySession,
+} from "./StoryTypes";
 import {
   AUDIO_MIMES,
   isBlank,
@@ -84,20 +90,6 @@ export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
     switch (op.type) {
       case "get-input":
         break;
-      case "play-event":
-        console.log(
-          chalk.cyan.bold(`${op.event.from || HOST_ID}:`) +
-            " " +
-            chalk.cyan(`${op.event.body}`)
-        );
-        if (options.doPlayMedia) {
-          if (op.background) {
-            await playMedia(op);
-          } else {
-            await runWithSkip((signal) => playMedia(op, signal));
-          }
-        }
-        break;
       case "story-end":
         console.log(chalk.magenta.italic("[end]"));
         return;
@@ -105,6 +97,13 @@ export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
         console.log(chalk.red.italic(`[error] ${op.reason}`));
         return;
       case "play-media":
+        if (op.event) {
+          console.log(
+            chalk.cyan.bold(`${op.event.from || HOST_ID}:`) +
+              " " +
+              chalk.cyan(`${op.event.body}`)
+          );
+        }
         if (options.doPlayMedia) {
           console.log(
             chalk.blueBright.italic(

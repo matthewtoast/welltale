@@ -17,9 +17,11 @@ async function testBlockOrder() {
 
   const inputs: string[] = [];
   const { ops, seam } = await runTestStory(xmlContent, inputs);
-  const eventOps = ops.filter((op) => op.type === "play-event");
+  const eventOps = ops.filter((op) => op.type === "play-media");
   const textEvents = eventOps.filter((op) => op.event && op.event.body);
-  const textBodies = textEvents.map((e) => e.event.body.trim());
+  const textBodies = textEvents
+    .filter((e) => e.event)
+    .map((e) => e.event!.body.trim());
   const expectedOrder = ["Hello boo", "The number is 24"];
   expect(textBodies.length, expectedOrder.length);
   for (let i = 0; i < expectedOrder.length; i++) {

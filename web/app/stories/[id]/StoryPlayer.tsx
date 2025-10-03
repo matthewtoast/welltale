@@ -89,19 +89,11 @@ export function StoryPlayer(props: StoryMeta) {
   async function showOps(ops: OP[]): Promise<void> {
     for (const op of ops) {
       switch (op.type) {
-        case "play-event":
-          setCurrentSpeaker(op.event.from || "");
-          setCurrentText(op.event.body);
-          if (op.media) {
-            if (op.background) {
-              playAudio(op.media, true); // Don't await
-            } else {
-              await playAudio(op.media);
-            }
-          }
-          break;
-
         case "play-media":
+          if (op.event) {
+            setCurrentSpeaker(op.event.from || "");
+            setCurrentText(op.event.body);
+          }
           if (op.media) {
             if (op.background) {
               playAudio(op.media, true); // Don't await

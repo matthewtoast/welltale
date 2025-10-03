@@ -338,7 +338,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           )
         : { url: "" };
       ops.push({
-        type: "play-event",
+        type: "play-media",
         media: url,
         event,
         volume: parseNumberOrNull(atts.volume),
@@ -665,7 +665,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             )
           : { url: "" };
         ops.push({
-          type: "play-event",
+          type: "play-media",
           media: media.url,
           event,
           volume,
@@ -746,6 +746,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       if (url) {
         ops.push({
           type: "play-media",
+          event: null,
           media: url,
           fadeAtMs: parseNumberOrNull(atts.fadeAt),
           fadeDurationMs: parseNumberOrNull(atts.fadeDuration),
@@ -765,7 +766,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const nextAfter = nextNode(ctx.node, ctx.source.root, false);
       const atts = await renderAtts(ctx.node.atts, ctx);
-      const tim = parseNumberOrNull(atts.timeLimit ?? atts.for);
       const attrMax = parseNumberOrNull(atts.retryMax);
       const max = Math.max(1, attrMax ?? ctx.options.inputRetryMax);
       if (ctx.session.inputLast && ctx.session.inputLast !== ctx.node.addr) {
@@ -824,7 +824,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             ops: [
               {
                 type: "get-input",
-                timeLimit: tim,
               },
             ],
             next: { node: ctx.node },
@@ -850,7 +849,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [
           {
             type: "get-input",
-            timeLimit: tim,
           },
         ],
         next: { node: ctx.node },

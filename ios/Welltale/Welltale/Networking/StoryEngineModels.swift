@@ -115,20 +115,13 @@ enum StoryOperation: Codable {
             let timeLimit = try container.decodeIfPresent(Int.self, forKey: .timeLimit)
             self = .getInput(timeLimit: timeLimit)
         case "play-media":
+            // let event = try container.decode(StoryEvent.self, forKey: .event)
             let media = try container.decode(String.self, forKey: .media)
             let background = try container.decodeIfPresent(Bool.self, forKey: .background)
             let volume = try container.decodeIfPresent(Double.self, forKey: .volume)
             let fadeAtMs = try container.decodeIfPresent(Int.self, forKey: .fadeAtMs)
             let fadeDurationMs = try container.decodeIfPresent(Int.self, forKey: .fadeDurationMs)
             self = .playMedia(media: media, background: background, volume: volume, fadeAtMs: fadeAtMs, fadeDurationMs: fadeDurationMs)
-        case "play-event":
-            let event = try container.decode(StoryEvent.self, forKey: .event)
-            let media = try container.decodeIfPresent(String.self, forKey: .media)
-            let background = try container.decodeIfPresent(Bool.self, forKey: .background)
-            let volume = try container.decodeIfPresent(Double.self, forKey: .volume)
-            let fadeAtMs = try container.decodeIfPresent(Int.self, forKey: .fadeAtMs)
-            let fadeDurationMs = try container.decodeIfPresent(Int.self, forKey: .fadeDurationMs)
-            self = .playEvent(event: event, media: media, background: background, volume: volume, fadeAtMs: fadeAtMs, fadeDurationMs: fadeDurationMs)
         case "story-error":
             let reason = try container.decode(String.self, forKey: .reason)
             self = .storyError(reason: reason)
@@ -152,14 +145,7 @@ enum StoryOperation: Codable {
         case .playMedia(let media, let background, let volume, let fadeAtMs, let fadeDurationMs):
             try container.encode("play-media", forKey: .type)
             try container.encode(media, forKey: .media)
-            try container.encodeIfPresent(background, forKey: .background)
-            try container.encodeIfPresent(volume, forKey: .volume)
-            try container.encodeIfPresent(fadeAtMs, forKey: .fadeAtMs)
-            try container.encodeIfPresent(fadeDurationMs, forKey: .fadeDurationMs)
-        case .playEvent(let event, let media, let background, let volume, let fadeAtMs, let fadeDurationMs):
-            try container.encode("play-event", forKey: .type)
             try container.encode(event, forKey: .event)
-            try container.encodeIfPresent(media, forKey: .media)
             try container.encodeIfPresent(background, forKey: .background)
             try container.encodeIfPresent(volume, forKey: .volume)
             try container.encodeIfPresent(fadeAtMs, forKey: .fadeAtMs)

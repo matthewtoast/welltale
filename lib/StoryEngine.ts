@@ -284,7 +284,6 @@ export async function advanceStory(
           return done(SeamType.FINISH, node.addr, {});
         case "story-error":
           return done(SeamType.ERROR, node.addr, { reason: last.reason });
-        case "play-event":
         case "play-media":
           return done(SeamType.MEDIA, node.addr, {});
         default:

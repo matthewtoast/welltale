@@ -77,9 +77,9 @@ the underlying prompt might be slightly different than llm:parse tailored more t
 
   const { ops, seam } = await runTestStory(xmlContent, ["hello there"]);
 
-  const eventOps = ops.filter((op) => op.type === "play-event");
+  const eventOps = ops.filter((op) => op.type === "play-media");
   const textEvents = eventOps.filter((op) => op.event && op.event.body);
-  const textBodies = textEvents.map((e) => e.event.body.trim());
+  const textBodies = textEvents.map((e) => e.event!.body.trim());
 
   expect(textBodies.length, 1);
   expect(textBodies[0], 'LLM tag demo. User said: "hello there"');

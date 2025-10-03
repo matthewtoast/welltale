@@ -217,12 +217,8 @@ export type PlayMediaOptions = {
 
 export type OP =
   | { type: "sleep"; duration: number }
-  | { type: "get-input"; timeLimit: number | null }
-  | ({ type: "play-media" } & PlayMediaOptions)
-  | ({
-      type: "play-event";
-      event: StoryEvent;
-    } & PlayMediaOptions)
+  | { type: "get-input" }
+  | ({ type: "play-media"; event: StoryEvent | null } & PlayMediaOptions)
   | { type: "story-error"; reason: string }
   | { type: "story-end" };
 

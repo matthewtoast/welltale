@@ -36,19 +36,21 @@ async function testDataParse() {
 `;
 
   const { ops, seam } = await runTestStory(xmlContent);
-  
-  const eventOps = ops.filter(op => op.type === "play-event");
-  const textEvents = eventOps.filter(op => op.event && op.event.body);
-  const textBodies = textEvents.map(e => e.event.body.trim());
-  
+
+  const eventOps = ops.filter((op) => op.type === "play-media");
+  const textEvents = eventOps.filter((op) => op.event && op.event.body);
+  const textBodies = textEvents
+    .filter((e) => e.event)
+    .map((e) => e.event!.body.trim());
+
   expect(textBodies.length, 4);
   expect(textBodies[0], "Start");
   expect(textBodies[1], "JSON5: a=1 b=2 c=hi");
   expect(textBodies[2], "YAML: name=Alice nums=four-five nk=v");
   expect(textBodies[3], "Done");
-  
+
   expect(seam, "finish");
-  
+
   console.log("✓ data-parse.test.ts passed");
 }
 

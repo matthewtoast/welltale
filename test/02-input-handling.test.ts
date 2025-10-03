@@ -27,9 +27,9 @@ async function testInputHandling() {
     "warrior",
   ]);
 
-  const eventOps1 = ops1.filter((op) => op.type === "play-event");
+  const eventOps1 = ops1.filter((op) => op.type === "play-media");
   const textEvents1 = eventOps1.filter((op) => op.event && op.event.body);
-  const textBodies1 = textEvents1.map((e) => e.event.body.trim());
+  const textBodies1 = textEvents1.map((e) => e.event!.body.trim());
 
   expect(textBodies1.length, 8);
   expect(textBodies1[0], "What's your name?");
@@ -51,9 +51,9 @@ async function testInputHandling() {
     "mage",
   ]);
 
-  const eventOps2 = ops2.filter((op) => op.type === "play-event");
+  const eventOps2 = ops2.filter((op) => op.type === "play-media");
   const textEvents2 = eventOps2.filter((op) => op.event && op.event.body);
-  const textBodies2 = textEvents2.map((e) => e.event.body.trim());
+  const textBodies2 = textEvents2.map((e) => e.event!.body.trim());
 
   expect(textBodies2[0], "What's your name?");
   expect(textBodies2[1], "Hello Bob!");
@@ -77,9 +77,9 @@ async function testInputHandling() {
     "matt, man",
   ]);
 
-  const eventOps3 = ops3.filter((op) => op.type === "play-event");
+  const eventOps3 = ops3.filter((op) => op.type === "play-media");
   const textEvents3 = eventOps3.filter((op) => op.event && op.event.body);
-  const textBodies3 = textEvents3.map((e) => e.event.body.trim());
+  const textBodies3 = textEvents3.map((e) => e.event!.body.trim());
 
   expect(textBodies3.length, 2);
   expect(textBodies3[0], "Tell me your name and gender");
