@@ -7,10 +7,10 @@ import { createRunner, evaluateScript } from "./QuickJSUtils";
 import { PRNG } from "./RandHelpers";
 import { ACTION_HANDLERS } from "./StoryActions";
 import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
+import { PLAYER_ID } from "./StoryConstants";
 import { resolveBracketDDV } from "./StoryDDVHelpers";
 import { dumpTree, findNodes } from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
-import { HOST_ID, PLAYER_ID } from "./StoryConstants";
 import {
   ActionContext,
   BaseActionContext,
@@ -575,7 +575,6 @@ export async function renderText(
   result = await enhanceText(
     result,
     async (chunk: string) => {
-      console.log(chunk, ctx.scope["g"]);
       return castToString(await ctx.evaluator(chunk, ctx.scope));
     },
     DOLLAR

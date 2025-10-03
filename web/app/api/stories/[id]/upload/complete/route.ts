@@ -28,13 +28,19 @@ export async function POST(req: Request, ctx: StoryCtx) {
     console.warn("missing queue");
     return NextResponse.json({ ok: false }, { status: 500 });
   }
+  console.log(`api:stories:complete ${id} user:${user.id}`);
   const meta = await storyRepo.getMeta(id);
   if (!meta) return NextResponse.json({ ok: false }, { status: 404 });
   meta.compile = "pending";
   meta.updatedAt = Date.now();
   await storyRepo.putMeta(meta);
+  console.log(`api:stories:complete:enqueue ${id} queue:${q}`);
   const c = new SQSClient({});
   const body = JSON.stringify({ type: "compile", id });
-  await c.send(new SendMessageCommand({ QueueUrl: q, MessageBody: body }));
+  const op = await c.send(
+    new SendMessageCommand({ QueueUrl: q, MessageBody: body })
+  );
+  console.log(`api:stories:complete:sent ${id}`);
+  console.log(op);
   return NextResponse.json({ ok: true }, { status: 200 });
 }

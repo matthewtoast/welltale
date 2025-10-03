@@ -62,6 +62,7 @@ export function createStoryRepo(input: {
   async function putCompiled(id: string, data: StorySource): Promise<void> {
     const k = compiledKey(id);
     const buf = Buffer.from(JSON.stringify(data));
+    console.log(`repo:putCompiled ${id} key:${k} bytes:${buf.byteLength}`);
     await uploadBufferToS3({
       client: s3,
       bucket: bucketName,
@@ -70,16 +71,22 @@ export function createStoryRepo(input: {
       contentType: "application/json",
       fallbackFileName: "compiled.json",
     });
+    console.log(`repo:putCompiled:done ${id}`);
   }
 
   async function getCompiled(id: string): Promise<StorySource | null> {
     const k = compiledKey(id);
+    console.log(`repo:getCompiled ${id} key:${k}`);
     const ok = await s3ObjectExists(s3, bucketName, k);
-    if (!ok) return null;
+    if (!ok) {
+      console.warn(`repo:getCompiled:missing ${id}`);
+      return null;
+    }
     const res = await s3.send(
       new GetObjectCommand({ Bucket: bucketName, Key: k })
     );
     const buf = await toBuffer(res.Body as Readable);
+    console.log(`repo:getCompiled:read ${id} bytes:${buf.byteLength}`);
     return JSON.parse(buf.toString());
   }
 

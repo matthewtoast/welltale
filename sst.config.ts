@@ -19,10 +19,16 @@ REQUIRED_ENV_VARS.forEach((key) => {
   }
   env[key] = process.env[key];
 });
+const region =
+  process.env.AWS_REGION ??
+  process.env.AWS_DEFAULT_REGION ??
+  process.env.SST_REGION ??
+  "us-east-1";
+if (!process.env.AWS_REGION) process.env.AWS_REGION = region;
 
 export default {
   config() {
-    return { name: "welltale-web", region: "us-east-1" };
+    return { name: "welltale-web", region };
   },
   stacks(app) {
     app.stack(function Site({ stack }) {
@@ -69,9 +75,9 @@ export default {
           function: {
             handler: "jobs/worker.handler",
             environment: {
-              ...env,
+              ...omit(env, "AWS_PROFILE"),
               CACHE_BUCKET: cacheBucket.bucketName,
-              JOBS_QUEUE_URL: "", // FIXME: The env depends on this being defined
+              JOBS_QUEUE_URL: "fake-queue-url-not-actually-used-in-this-env",
               STORIES_BUCKET: bucket.bucketName,
               STORIES_TABLE: table.tableName,
               USERS_TABLE: users.tableName,
@@ -85,7 +91,7 @@ export default {
         path: "web",
         permissions: [bucket, table, users],
         environment: {
-          ...env,
+          ...omit(env, "AWS_PROFILE"),
           CACHE_BUCKET: cacheBucket.bucketName,
           JOBS_QUEUE_URL: queue.queueUrl,
           STORIES_BUCKET: bucket.bucketName,
@@ -104,3 +110,13 @@ export default {
     });
   },
 } satisfies SSTConfig;
+
+function omit<T extends Record<string, any>>(obj: T, ...keys: string[]): T {
+  const res = {} as T;
+  Object.keys(obj).forEach((k) => {
+    if (!keys.includes(k)) {
+      res[k as keyof T] = obj[k];
+    }
+  });
+  return res;
+}

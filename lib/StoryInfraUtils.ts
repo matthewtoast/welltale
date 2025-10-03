@@ -32,13 +32,19 @@ const storyRepo = createStoryRepo({
 });
 
 export async function compileStoryJob(storyId: string) {
+  console.info(`[compile] Start ${storyId}`);
   const key = uploadKey(storyId);
+
+  console.info(`[compile] Fetch ${storyId} key:${key}`);
   const obj = await sharedS3.send(
     new GetObjectCommand({ Bucket: env.STORIES_BUCKET, Key: key })
   );
 
+  console.info(`[compile] Zip ${storyId}`);
   const zip = await toBuffer(obj.Body as Readable);
   const files = await unzip(zip);
+
+  console.info(`[compile] Files ${storyId} count:${Object.keys(files).length}`);
   const cartridge: StoryCartridge = {};
   for (const k of Object.keys(files)) cartridge[k] = files[k];
 
@@ -78,7 +84,7 @@ export async function compileStoryJob(storyId: string) {
 
   const baseContext: BaseActionContext = {
     session: createDefaultSession(storyId),
-    rng: new PRNG("compile", 0),
+    rng: new PRNG("compile"),
     provider,
     scope: {},
     options,
@@ -88,13 +94,17 @@ export async function compileStoryJob(storyId: string) {
   const compiled = await compileStory(baseContext, cartridge, {
     doCompileVoices: true,
   });
+  console.info(`[compile] Done ${storyId}`);
 
   await storyRepo.putCompiled(storyId, compiled);
+  console.info(`[compile] Save ${storyId}`);
 
   const meta = await storyRepo.getMeta(storyId);
+  console.info(`[compile] Meta`, meta);
   if (meta) {
     meta.compile = "ready";
     meta.updatedAt = Date.now();
     await storyRepo.putMeta(meta);
+    return;
   }
 }
