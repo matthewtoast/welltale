@@ -595,6 +595,8 @@ export async function renderText(
   return result;
 }
 
+export const NONRENDER_ATTS = ["id", "type", ".type", ".pattern"];
+
 export async function renderAtts(
   atts: Record<string, string>,
   ctx: BaseActionContext
@@ -602,8 +604,10 @@ export async function renderAtts(
   const out: Record<string, string> = {};
   for (const key in atts) {
     if (typeof atts[key] === "string") {
-      // Don't apply text rendering to .type attributes as they contain enum specs
-      if (key.endsWith(".type")) {
+      const nonrender = NONRENDER_ATTS.filter(
+        (s) => key === s || (s.startsWith(".") && key.endsWith(s))
+      );
+      if (nonrender.length > 0) {
         out[key] = atts[key];
       } else {
         out[key] = await renderText(atts[key], ctx);

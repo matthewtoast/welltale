@@ -158,6 +158,7 @@ export async function extractInput(
   // Step 3: Pattern validation
   if (fieldAtts.pattern) {
     const pattern = castToString(fieldAtts.pattern);
+    console.log(raw, value, pattern);
     if (!new RegExp(pattern).test(castToString(value))) {
       value = fallback;
     }

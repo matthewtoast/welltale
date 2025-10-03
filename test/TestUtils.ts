@@ -14,12 +14,18 @@ import {
   StorySource,
 } from "./../lib/StoryTypes";
 
-export function expect(a: unknown, b: unknown) {
-  const msg = `${JSON.stringify(a)} === ${JSON.stringify(b)}`;
+export function expect(a: unknown, b: unknown, doThrow: boolean = true) {
+  const ja = JSON.stringify(a);
+  const jb = JSON.stringify(b);
+  const msg = `${ja} === ${jb}`;
   if (isDeepStrictEqual(a, b)) {
     console.info("✅", msg);
   } else {
-    console.error("❌", msg);
+    if (doThrow) {
+      throw new Error(`${ja} isn't equal to ${jb}`);
+    } else {
+      console.error(`❌ ${ja} isn't equal to ${jb}`);
+    }
   }
 }
 

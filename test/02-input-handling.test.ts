@@ -31,84 +31,85 @@ async function testInputHandling() {
   const textEvents1 = eventOps1.filter((op) => op.event && op.event.body);
   const textBodies1 = textEvents1.map((e) => e.event.body.trim());
 
-  // expect(textBodies1.length, 8);
-  // expect(textBodies1[0], "What's your name?");
-  // expect(textBodies1[1], "Hello Alice!");
-  // expect(textBodies1[2], "What age are you?");
+  expect(textBodies1.length, 8);
+  expect(textBodies1[0], "What's your name?");
+  expect(textBodies1[1], "Hello Alice!");
+  expect(textBodies1[2], "What age are you?");
   expect(textBodies1[3], "You are 28 years old.");
-  //   expect(textBodies1[4], "What's your email?");
-  //   expect(textBodies1[5], "Your email is alice+foo@example.com.");
-  //   expect(textBodies1[6], "What class are you?");
-  //   expect(textBodies1[7], "You are a warrior!");
+  expect(textBodies1[4], "What's your email?");
+  expect(textBodies1[5], "Your email is alice+foo@example.com.");
+  expect(textBodies1[6], "What class are you?");
+  expect(textBodies1[7], "You are a warrior!");
 
-  //   expect(seam1, "finish");
+  expect(seam1, "finish");
 
-  //   console.log("Test 2: Input with defaults (blank age, invalid email)");
-  //   const { ops: ops2, seam: seam2 } = await runTestStory(xmlContent, [
-  //     "Bob",
-  //     "",
-  //     "invalid",
-  //     "mage",
-  //   ]);
+  console.log("Test 2: Input with defaults (blank age, invalid email)");
+  const { ops: ops2, seam: seam2 } = await runTestStory(xmlContent, [
+    "Bob",
+    "",
+    "invalid",
+    "mage",
+  ]);
 
-  //   const eventOps2 = ops2.filter((op) => op.type === "play-event");
-  //   const textEvents2 = eventOps2.filter((op) => op.event && op.event.body);
-  //   const textBodies2 = textEvents2.map((e) => e.event.body.trim());
+  const eventOps2 = ops2.filter((op) => op.type === "play-event");
+  const textEvents2 = eventOps2.filter((op) => op.event && op.event.body);
+  const textBodies2 = textEvents2.map((e) => e.event.body.trim());
 
-  //   expect(textBodies2[0], "What's your name?");
-  //   expect(textBodies2[1], "Hello Bob!");
-  //   expect(textBodies2[2], "What age are you?");
-  //   expect(textBodies2[3], "You are 25 years old.");
-  //   expect(textBodies2[4], "What's your email?");
-  //   expect(textBodies2[5], "Your email is user@example.com.");
-  //   expect(textBodies2[6], "What class are you?");
-  //   expect(textBodies2[7], "You are a mage!");
+  expect(textBodies2[0], "What's your name?");
+  expect(textBodies2[1], "Hello Bob!");
+  expect(textBodies2[2], "What age are you?");
+  expect(textBodies2[3], "You are 25 years old.");
+  expect(textBodies2[4], "What's your email?");
+  expect(textBodies2[5], "Your email is user@example.com.");
+  expect(textBodies2[6], "What class are you?");
+  expect(textBodies2[7], "You are a mage!");
 
-  //   expect(seam2, "finish");
+  expect(seam2, "finish");
 
-  //   console.log("Test 3: Multiple fields with LLM extraction");
-  //   const xmlContent3 = `
-  // <p>Tell me your name and gender</p>
-  // <input playerName.description="The player's first name" playerName.default="Blake" playerGender.description="The player's gender" playerGender.type="man|woman" playerGender.default="man" />
-  // <p>Hello {{playerName}}, you are a {{playerGender}}!</p>
-  // `;
+  console.log("Test 3: Multiple fields with LLM extraction");
+  const xmlContent3 = `
+  <p>Tell me your name and gender</p>
+  <input playerName.description="The player's first name" playerName.default="Blake" playerGender.description="The player's gender" playerGender.type="man|woman" playerGender.default="man" />
+  <p>Hello {{playerName}}, you are a {{playerGender}}!</p>
+  `;
 
-  //   const { ops: ops3, seam: seam3 } = await runTestStory(xmlContent3, [
-  //     "matt, man",
-  //   ]);
+  const { ops: ops3, seam: seam3 } = await runTestStory(xmlContent3, [
+    "matt, man",
+  ]);
 
-  //   const eventOps3 = ops3.filter((op) => op.type === "play-event");
-  //   const textEvents3 = eventOps3.filter((op) => op.event && op.event.body);
-  //   const textBodies3 = textEvents3.map((e) => e.event.body.trim());
+  const eventOps3 = ops3.filter((op) => op.type === "play-event");
+  const textEvents3 = eventOps3.filter((op) => op.event && op.event.body);
+  const textBodies3 = textEvents3.map((e) => e.event.body.trim());
 
-  //   expect(textBodies3.length, 2);
-  //   expect(textBodies3[0], "Tell me your name and gender");
-  //   expect(textBodies3[1], "Hello Mock playerName, you are a Mock playerGender!");
+  expect(textBodies3.length, 2);
+  expect(textBodies3[0], "Tell me your name and gender");
+  expect(textBodies3[1], "Hello Mock playerName, you are a Mock playerGender!");
 
-  //   expect(seam3, "finish");
+  expect(seam3, "finish");
 
-  //   console.log("Test 4: Input retry failure");
-  //   const xmlContent4 = `
-  // <p>Enter something</p>
-  // <input retryMax="2" />
-  // <p>Thanks</p>
-  // `;
+  console.log("Test 4: Input retry failure");
+  const xmlContent4 = `
+  <p>Enter something</p>
+  <input retryMax="2" />
+  <p>Thanks</p>
+  `;
 
-  //   const { ops: ops4, seam: seam4, session: session4 } = await runTestStory(
-  //     xmlContent4,
-  //     ["oops", "still wrong"]
-  //   );
+  const {
+    ops: ops4,
+    seam: seam4,
+    session: session4,
+  } = await runTestStory(xmlContent4, ["oops", "still wrong"]);
 
-  //   const errorOps = ops4.filter((op) => op.type === "story-error");
-  //   expect(errorOps.length, 1);
-  //   const addr4 = session4.inputLast ?? "";
-  //   expect(addr4, "0.1");
-  //   const expectedReason = `Input ${addr4} failed after 2 attempts`;
-  //   expect(errorOps[0]?.reason, expectedReason);
-  //   expect(seam4, "error");
-  //   expect(session4.inputTries[addr4], 2);
+  const errorOps = ops4.filter((op) => op.type === "story-error");
+  expect(errorOps.length, 1);
+  const addr4 = session4.inputLast ?? "";
+  expect(addr4, "0.1");
+  const expectedReason = `Input ${addr4} failed after 2 attempts`;
+  expect(errorOps[0]?.reason, expectedReason);
+  expect(seam4, "error");
+  expect(session4.inputTries[addr4], 2);
 
-  //   console.log("✓ input-handling.test.ts passed");
+  console.log("✓ input-handling.test.ts passed");
 }
 
 testInputHandling().catch(console.error);
