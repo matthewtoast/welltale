@@ -5,7 +5,8 @@ import { sleep } from "./AsyncHelpers";
 import { safeJsonParse } from "./JSONHelpers";
 import { play, playWait } from "./LocalAudioUtils";
 import { HOST_ID } from "./StoryEngine";
-import { createSkipHandle } from "./StoryREPLUtils";
+
+import { runWithSkip } from "./SkipHelpers";
 import {
   createDefaultSession,
   OP,
@@ -74,14 +75,6 @@ export async function playMedia(
       await playWait(media, options, signal);
     }
   }
-}
-
-async function runWithSkip<T>(
-  fn: (signal: AbortSignal) => Promise<T>
-): Promise<T> {
-  const h = createSkipHandle();
-  const p = fn(h.signal);
-  return p.finally(() => h.release());
 }
 
 export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
