@@ -39,7 +39,7 @@ export async function apiAuthTokenExchange(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ provider: "dev", token: key }),
   }).catch((err) => {
-    console.log(err);
+    console.error(err);
     return null;
   });
   if (!res) return null;

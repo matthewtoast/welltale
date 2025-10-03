@@ -21,7 +21,6 @@ export async function POST(req: Request, ctx: StoryCtx) {
     console.warn("missing bucket");
     return NextResponse.json({ ok: false }, { status: 500 });
   }
-  console.log(`api:stories:sign ${id} user:${user.id}`);
   const key = uploadKey(id);
   const cmd = new PutObjectCommand({
     Bucket: b,

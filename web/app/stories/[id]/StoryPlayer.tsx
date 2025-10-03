@@ -41,16 +41,6 @@ export function StoryPlayer(props: StoryMeta) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const backgroundAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  // Debug title
-  useEffect(() => {
-    console.log(
-      "StoryPlayer received title:",
-      props.title,
-      "for id:",
-      props.id
-    );
-  }, [props.title, props.id]);
-
   async function playAudio(url: string, background = false) {
     if (background) {
       // Background audio - don't block

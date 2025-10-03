@@ -34,7 +34,6 @@ export async function GET(req: Request, ctx: StoryCtx) {
   const params = await ctx.params;
   const id = params?.id;
   if (!id) return NextResponse.json({ ok: false }, { status: 400 });
-  console.log(`api:stories:get ${id} user:${user.id}`);
   const meta = await storyRepo.getMeta(id);
   return NextResponse.json({ meta }, { status: 200 });
 }
@@ -55,7 +54,6 @@ export async function POST(req: Request, ctx: StoryCtx) {
         : ulid();
   const meta = await storyRepo.getMeta(id);
   const now = Date.now();
-  console.log(`api:stories:post ${id} user:${user.id} meta:${meta ? "update" : "create"}`);
   if (!meta) {
     const next = {
       id,
