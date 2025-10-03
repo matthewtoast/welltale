@@ -70,8 +70,8 @@ export async function extractInput(
 
   const groups = parseFieldGroups(omit(atts, ...SPECIAL_INPUT_FIELD_ATTS));
   // The case of <input key="foo" />
-  if (Object.keys(groups).length < 1 && atts.key) {
-    groups[atts.key] = { type: "string" };
+  if (Object.keys(groups).length < 1 && (atts.name ?? atts.key ?? atts.id)) {
+    groups[atts.name ?? atts.key ?? atts.id] = { type: "string" };
   }
   const keys = Object.keys(groups);
 

@@ -212,7 +212,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     match: (node: StoryNode) => node.type === "var",
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
-      const key = atts.name ?? atts.var ?? atts.key ?? atts.id;
+      const key = atts.name ?? atts.key ?? atts.id;
       let rollup = (await marshallText(ctx.node, ctx)).trim();
       const value = await renderText(
         !isBlank(rollup) ? rollup : atts.value,

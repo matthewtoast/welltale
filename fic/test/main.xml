@@ -20,6 +20,10 @@
   You said {{input}}.
 </p>
 
-<while cond="true">
-  <input />
+<while cond="get('stuff') !== 'exit'">
+  <input id="stuff" />
 </while>
+
+<p>
+  After while loop.
+</p>

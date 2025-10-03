@@ -78,6 +78,18 @@ export function StoryPlayerUI({
     }
   }, [isInputActive]);
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (phase === "idle" && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        onPlayClick();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [phase, onPlayClick]);
+
   return (
     <>
       <style jsx global>{`
