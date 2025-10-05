@@ -257,6 +257,27 @@ export interface ActionResult {
 }
 
 export interface ActionHandler {
-  match: (node: StoryNode) => boolean;
-  exec: (context: ActionContext) => Promise<ActionResult>;
+  docs?: ActionHandlerDocs;
+  syntax?: ActionHandlerSyntax;
+  tags: string[]; // List of XML tag names that match this handler, e.g  "p" for <p>, etc.
+  exec: (context: ActionContext) => Promise<ActionResult>; // How the engine handles this tag
+}
+
+export interface ActionHandlerDocs {
+  desc: string; // Markdown describing what the tag is for, etc
+  ex: { code: string }[]; // Usage examples
+  cats: string[]; // Categories docs filtering, e.g. "control-flow", "output", etc
+}
+
+export interface ActionHandlerSyntax {
+  block?: boolean; // Whether this is a block tag or self-closing
+  atts: Record<
+    string,
+    {
+      type: "string" | "number" | "boolean";
+      desc: string;
+      default?: string;
+      req?: boolean; // Required or not
+    }
+  >;
 }

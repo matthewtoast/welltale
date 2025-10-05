@@ -2,8 +2,7 @@ import { DOMParser } from "@xmldom/xmldom";
 import { renderAtts } from "./StoryEngine";
 import { BaseActionContext, StoryNode } from "./StoryTypes";
 import { isBlank, smoosh, snorm } from "./TextHelpers";
-
-export const TEXT_TAG = "#text";
+import { TEXT_TAG, TEXT_CONTENT_TAGS, DESCENDABLE_TAGS } from "./StoryConstants";
 
 export type BaseNode = {
   type: string;
@@ -11,44 +10,6 @@ export type BaseNode = {
   kids: BaseNode[];
   text: string;
 };
-
-export const TEXT_CONTENT_TAGS = [
-  TEXT_TAG,
-  "text",
-  "p",
-  "span",
-  "b",
-  "strong",
-  "em",
-  "i",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-];
-
-export const DESCENDABLE_TAGS = [
-  "root",
-  "html",
-  "body",
-  "div",
-  "ul",
-  "ol",
-  "li",
-  "section",
-  "sec",
-  "pre",
-  "scope",
-  "origin",
-  // Common HTML tags we'll treat as playable content
-  "main",
-  "aside",
-  "article",
-  "details",
-  "summary",
-];
 
 const BLOCK_ELEMENTS = new Set([
   "p",

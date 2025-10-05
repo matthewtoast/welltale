@@ -14,6 +14,7 @@ import {
   StorySession,
 } from "../../../../lib/StoryTypes";
 import { StoryPlayerUI } from "./StoryPlayerUI";
+import { runWithSkip, triggerSkip, isSkipActive } from "../../../../lib/SkipHelpers";
 
 export function StoryPlayer(props: StoryMeta) {
   const [currentText, setCurrentText] = useState("");
@@ -23,6 +24,9 @@ export function StoryPlayer(props: StoryMeta) {
   >("idle");
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSkippable, setIsSkippable] = useState(false);
+  const [hasMoreOps, setHasMoreOps] = useState(false);
+  const skipAbortRef = useRef<AbortController | null>(null);
   const sessionRef = useRef<StorySession>(
     createDefaultSession(`web-${props.id}`)
   );
@@ -41,7 +45,7 @@ export function StoryPlayer(props: StoryMeta) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const backgroundAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  async function playAudio(url: string, background = false) {
+  async function playAudio(url: string, background = false, signal?: AbortSignal) {
     if (background) {
       // Background audio - don't block
       const audio = new Audio(url);
@@ -74,20 +78,47 @@ export function StoryPlayer(props: StoryMeta) {
       audioRef.current = audio;
       audio.crossOrigin = "anonymous";
 
+      // Handle abort signal
+      if (signal) {
+        const abortHandler = () => {
+          audio.pause();
+          audio.currentTime = 0;
+          audioRef.current = null;
+        };
+        signal.addEventListener("abort", abortHandler, { once: true });
+      }
+
       await audio.play();
 
-      // Wait for audio to finish
+      // Wait for audio to finish or be aborted
       await new Promise<void>((resolve) => {
-        audio.addEventListener("ended", () => resolve(), { once: true });
-        audio.addEventListener("error", () => resolve(), { once: true });
+        const cleanup = () => {
+          audioRef.current = null;
+          resolve();
+        };
+        
+        audio.addEventListener("ended", cleanup, { once: true });
+        audio.addEventListener("error", cleanup, { once: true });
+        
+        if (signal) {
+          signal.addEventListener("abort", cleanup, { once: true });
+        }
       });
     } catch (err) {
-      console.error("Audio play error:", err);
+      if (!signal?.aborted) {
+        console.error("Audio play error:", err);
+      }
     }
   }
 
   async function showOps(ops: OP[]): Promise<void> {
-    for (const op of ops) {
+    console.log("showOps called with", ops.length, "operations");
+    for (let i = 0; i < ops.length; i++) {
+      const op = ops[i];
+      const hasMore = i < ops.length - 1;
+      console.log(`Op ${i}/${ops.length - 1}: type=${op.type}, hasMore=${hasMore}`);
+      setHasMoreOps(hasMore);
+      
       switch (op.type) {
         case "play-media":
           if (op.event) {
@@ -95,16 +126,52 @@ export function StoryPlayer(props: StoryMeta) {
             setCurrentText(op.event.body);
           }
           if (op.media) {
+            console.log(`Playing media: ${op.media}, background=${op.background}`);
             if (op.background) {
               playAudio(op.media, true); // Don't await
             } else {
-              await playAudio(op.media);
+              // Wrap non-background audio in runWithSkip
+              console.log("Setting isSkippable=true for foreground audio");
+              setIsSkippable(true);
+              try {
+                await runWithSkip(async (signal) => {
+                  await playAudio(op.media, false, signal);
+                });
+              } catch (err) {
+                if ((err as any)?.name === 'AbortError') {
+                  console.log("Audio skipped");
+                } else {
+                  throw err;
+                }
+              } finally {
+                console.log("Setting isSkippable=false after audio");
+                setIsSkippable(false);
+              }
             }
           }
           break;
 
         case "sleep":
-          await new Promise((resolve) => setTimeout(resolve, op.duration));
+          setIsSkippable(true);
+          try {
+            await runWithSkip(async (signal) => {
+              await new Promise<void>((resolve) => {
+                const timeout = setTimeout(resolve, op.duration);
+                signal.addEventListener("abort", () => {
+                  clearTimeout(timeout);
+                  resolve();
+                }, { once: true });
+              });
+            });
+          } catch (err) {
+            if ((err as any)?.name === 'AbortError') {
+              console.log("Sleep skipped");
+            } else {
+              throw err;
+            }
+          } finally {
+            setIsSkippable(false);
+          }
           break;
 
         case "get-input":
@@ -126,6 +193,7 @@ export function StoryPlayer(props: StoryMeta) {
           console.warn("Unknown op type:", op);
       }
     }
+    setHasMoreOps(false);
   }
 
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
@@ -175,6 +243,8 @@ export function StoryPlayer(props: StoryMeta) {
 
     setPhase("running");
     setError(null);
+    setIsSkippable(false);
+    setHasMoreOps(false);
 
     const userInput = previousPhase === "waiting" ? input.trim() : null;
     if (previousPhase === "waiting") {
@@ -224,7 +294,13 @@ export function StoryPlayer(props: StoryMeta) {
   }
 
   function handleSeekForward() {
-    console.warn("Seek forward not implemented");
+    console.log(`handleSeekForward called: isSkippable=${isSkippable}, hasMoreOps=${hasMoreOps}`);
+    if (isSkippable && hasMoreOps) {
+      console.log("Triggering skip!");
+      triggerSkip();
+    } else {
+      console.warn(`Skip not available: isSkippable=${isSkippable}, hasMoreOps=${hasMoreOps}`);
+    }
   }
 
   function handleBackNav() {
@@ -250,6 +326,9 @@ export function StoryPlayer(props: StoryMeta) {
     };
   }, []);
 
+  const canGoNext = isSkippable && hasMoreOps;
+  console.log(`Render: isSkippable=${isSkippable}, hasMoreOps=${hasMoreOps}, canGoNext=${canGoNext}`);
+  
   return (
     <StoryPlayerUI
       {...props}
@@ -258,7 +337,7 @@ export function StoryPlayer(props: StoryMeta) {
       phase={phase}
       input={input}
       error={error}
-      canGoNext={false}
+      canGoNext={canGoNext}
       canGoPrev={false}
       onPlayClick={handlePlay}
       onPauseClick={handlePause}

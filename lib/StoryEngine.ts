@@ -192,7 +192,9 @@ export async function advanceStory(
       });
     }
 
-    const handler = ACTION_HANDLERS.find((h) => h.match(node))!;
+    const handler = ACTION_HANDLERS.find((h) => 
+      h.tags.length === 0 || h.tags.includes(node.type)
+    )!;
     const result = await handler.exec(ctx);
     out.push(...result.ops);
 
@@ -540,7 +542,9 @@ export async function execNodes(
   const events: StoryEvent[] = [];
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    const handler = ACTION_HANDLERS.find((h) => h.match(node));
+    const handler = ACTION_HANDLERS.find((h) => 
+      h.tags.length === 0 || h.tags.includes(node.type)
+    );
     if (!handler) {
       continue;
     }

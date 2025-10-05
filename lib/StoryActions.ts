@@ -29,18 +29,17 @@ import {
 } from "./StoryEngine";
 import { extractInput } from "./StoryInput";
 import {
-  DESCENDABLE_TAGS,
   extractReadableBlocks,
   marshallText,
   searchForNode,
-  TEXT_CONTENT_TAGS,
 } from "./StoryNodeHelpers";
+import { DESCENDABLE_TAGS, TEXT_CONTENT_TAGS } from "./StoryConstants";
 import { ActionHandler, OP, StoryEvent, StoryNode } from "./StoryTypes";
 import { cleanSplit, isBlank, snorm } from "./TextHelpers";
 
 export const ACTION_HANDLERS: ActionHandler[] = [
   {
-    match: (node) => node.type === "scope",
+    tags: ["scope"],
     exec: async (ctx) => {
       // Push a new scope onto the callStack when entering
       const returnAddress =
@@ -63,7 +62,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm:parse",
+    tags: ["llm:parse"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
@@ -90,7 +89,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm:tag",
+    tags: ["llm:tag"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
@@ -113,7 +112,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm:score",
+    tags: ["llm:score"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
@@ -139,7 +138,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm:generate",
+    tags: ["llm:generate"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
@@ -166,7 +165,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "llm:dialog",
+    tags: ["llm:dialog"],
     exec: async (ctx) => {
       const ops: OP[] = [];
       const next = nextNode(ctx.node, ctx.source.root, false);
@@ -209,7 +208,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "var",
+    tags: ["var"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const key = atts.name ?? atts.key ?? atts.id;
@@ -226,7 +225,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "code" || node.type === "script",
+    tags: ["code", "script"],
     exec: async (ctx) => {
       const text = await renderText(await marshallText(ctx.node, ctx), ctx);
       await ctx.evaluator(text, ctx.scope);
@@ -237,7 +236,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "data",
+    tags: ["data"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const url = atts.src ?? atts.href ?? atts.url;
@@ -283,8 +282,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node) =>
-      DESCENDABLE_TAGS.includes(node.type) && node.type !== "scope",
+    tags: DESCENDABLE_TAGS.filter(tag => tag !== "scope"),
     exec: async (ctx) => {
       // Auto-checkpoint on entering a section
       if (ctx.node.type === "sec") {
@@ -299,7 +297,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => TEXT_CONTENT_TAGS.includes(node.type),
+    tags: TEXT_CONTENT_TAGS,
     exec: async (ctx) => {
       const next = nextNode(ctx.node, ctx.source.root, false);
       const ops: OP[] = [];
@@ -355,7 +353,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "checkpoint",
+    tags: ["checkpoint"],
     exec: async (ctx) => {
       makeCheckpoint(ctx.session, ctx.options, ctx.events);
       ctx.events.length = 0;
@@ -363,7 +361,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "if",
+    tags: ["if"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let next;
@@ -392,7 +390,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "while",
+    tags: ["while"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let next;
@@ -409,7 +407,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "continue",
+    tags: ["continue"],
     exec: async (ctx) => {
       const w = nearestAncestorOfType(ctx.node, ctx.source.root, "while");
       if (!w) {
@@ -423,7 +421,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "break",
+    tags: ["break"],
     exec: async (ctx) => {
       const w = nearestAncestorOfType(ctx.node, ctx.source.root, "while");
       if (!w) {
@@ -441,7 +439,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "jump",
+    tags: ["jump"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let next: { node: StoryNode } | null = null;
@@ -464,7 +462,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "sleep",
+    tags: ["sleep"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       return {
@@ -481,14 +479,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     // Intro nodes process their children like any container
-    match: (node: StoryNode) => node.type === "intro",
+    tags: ["intro"],
     exec: async (ctx) => {
       const next = nextNode(ctx.node, ctx.source.root, true);
       return { ops: [], next };
     },
   },
   {
-    match: (node: StoryNode) => node.type === "outro",
+    tags: ["outro"],
     exec: async (ctx) => {
       const inOutroContext = ctx.session.stack.some(
         (frame) => frame.blockType === "outro"
@@ -505,7 +503,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     // Resume nodes are processed only when explicitly resuming, otherwise skipped
-    match: (node: StoryNode) => node.type === "resume",
+    tags: ["resume"],
     exec: async (ctx) => {
       // Check if we're in a resume context
       const inResumeContext = ctx.session.stack.some(
@@ -527,7 +525,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     // Blocks are only rendered if <yield>-ed to
-    match: (node: StoryNode) => node.type === "block",
+    tags: ["block"],
     exec: async (ctx) => {
       // Check if we're in a yield context (i.e., this block was yielded to)
       const inYieldContext =
@@ -548,7 +546,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "yield",
+    tags: ["yield"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const targetBlockId = atts.target ?? atts.to;
@@ -603,7 +601,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) => node.type === "read",
+    tags: ["read"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const url = atts.src ?? atts.href ?? atts.url;
@@ -683,11 +681,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) =>
-      node.type === "sound" ||
-      node.type === "audio" ||
-      node.type === "music" ||
-      node.type === "speech",
+    tags: ["sound", "audio", "music", "speech"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let url = atts.href ?? atts.url ?? atts.src;
@@ -761,8 +755,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node: StoryNode) =>
-      node.type === "input" || node.type === "textarea",
+    tags: ["input", "textarea"],
     exec: async (ctx) => {
       const nextAfter = nextNode(ctx.node, ctx.source.root, false);
       const atts = await renderAtts(ctx.node.atts, ctx);
@@ -856,7 +849,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    match: (node) => node.type === "log",
+    tags: ["log"],
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
@@ -891,7 +884,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       <meta> - compile time
       <pronunciation> - compile time
     */
-    match: () => true,
+    tags: [], // Empty array means this is the default handler
     exec: async (ctx) => {
       return {
         ops: [],
