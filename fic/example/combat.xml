@@ -1,0 +1,190 @@
+<!-- Combat system demonstrating advanced flow control and AI interaction -->
+
+<block id="goblin-combat">
+  <!-- Combat initialization -->
+  <var name="enemyHealth" value="{{enemies.goblin.health}}" type="number" />
+  <var name="enemyAttack" value="{{enemies.goblin.attack}}" type="number" />
+  <var name="combatRound" value="1" type="number" />
+  <var name="playerAction" value="" />
+  
+  <sound prompt="sword clashing, growling, combat sounds" duration="3000" background="true" />
+  
+  <p voice="goblin">
+    "You dare enter our sacred armory? Face me, {{playerClass}}!"
+  </p>
+  
+  <!-- 
+    Main combat loop demonstrating while, break, continue:
+    Remember: ALL content including combat status displays will be spoken aloud!
+    The "===" text formatting is for audio emphasis, not visual display.
+  -->
+  <while cond="health > 0 && enemyHealth > 0">
+    <div class="combat-round">
+      <p>
+        === Round {{combatRound}} ===
+      </p>
+      <p>
+        Your Health: {{health}} | Goblin Health: {{enemyHealth}}
+      </p>
+      
+      <!-- 
+        Player action input:
+        Input prompts pause audio playback until the player responds.
+      -->
+      <input 
+        playerAction.description="Choose your action: attack, defend, cast spell, or flee"
+        playerAction.default="attack" />
+      
+      <!-- 
+        Dynamic AI-generated enemy dialogue:
+        Creates personalized taunts that will be spoken with the goblin voice.
+      -->
+      <llm:dialog
+        from="Goblin Guard"
+        key="goblinTaunt"
+        context="Combat round {{combatRound}}, goblin has {{enemyHealth}} health, player chose to {{playerAction}}"
+      >
+        You are a fierce goblin guard protecting an ancient armory. 
+        You're fighting a {{playerClass}} who just chose to {{playerAction}}.
+        Respond with a short, menacing combat taunt (1-2 sentences).
+        Stay in character as a aggressive but not too intelligent goblin.
+      </llm:dialog>
+      
+      <!-- 
+        Process player action with conditional logic:
+        Each response branch creates different audio content for the player.
+      -->
+      <if cond='lower(playerAction) === "flee" || lower(playerAction) === "run"'>
+        <p>You attempt to flee the combat!</p>
+        <if cond="{$ coinToss(0.3) $}">
+          <p>You successfully escape!</p>
+          <set var="currentRoom" value="entry" />
+          <break />
+        </if>
+        <if cond="{$ !coinToss(0.3) $}">
+          <p>The goblin blocks your escape!</p>
+          <p voice="goblin">{{goblinTaunt}}</p>
+          <continue />
+        </if>
+      </if>
+      
+      <if cond='lower(playerAction) === "defend" || lower(playerAction) === "block"'>
+        <p>You raise your guard defensively.</p>
+        <var name="playerDamage" value="0" type="number" />
+      </if>
+      
+      <if cond='lower(playerAction) === "attack" || lower(playerAction) === "strike"'>
+        <!-- Calculate damage based on class strength -->
+        <script>
+          let damage = strength + randInt(1, 6);
+          if (inventory.includes("magic_sword")) {
+            damage += 5;
+            console.log("Magic sword bonus applied!");
+          }
+          enemyHealth = Math.max(0, enemyHealth - damage);
+        </script>
+        
+        <p>You strike for {$ damage $} damage!</p>
+        <if cond="inventory.includes('magic_sword')">
+          <p>Your enchanted blade glows with power!</p>
+        </if>
+      </if>
+      
+      <!-- Magic actions for mages -->
+      <if cond='includes(lower(playerAction), "spell") || includes(lower(playerAction), "magic")'>
+        <if cond="magic >= 5">
+          <scope>
+            <!-- Scoped variables for spell calculation -->
+            <var name="spellDamage" value="{$ magic * 2 + randInt(1, 8) $}" type="number" />
+            <var name="manaCost" value="2" type="number" />
+            
+            <p>You weave arcane energies into a bolt of force!</p>
+            <set var="enemyHealth" value="{$ Math.max(0, enemyHealth - spellDamage) $}" />
+            <set var="magic" value="{$ Math.max(0, magic - manaCost) $}" />
+            
+            <p>Your spell deals {{spellDamage}} damage! (Magic reduced to {{magic}})</p>
+            
+            <!-- Conditional effects based on enemy weakness -->
+            <if cond='enemies.goblin.weakness === "magic"'>
+              <p>The goblin is particularly vulnerable to magic!</p>
+              <set var="enemyHealth" value="{$ Math.max(0, enemyHealth - 5) $}" />
+            </if>
+          </scope>
+        </if>
+        <if cond="magic < 5">
+          <p>You don't have enough magical energy!</p>
+          <continue />
+        </if>
+      </if>
+      
+      <!-- Check if enemy is defeated -->
+      <if cond="enemyHealth <= 0">
+        <p>The goblin collapses, defeated!</p>
+        <p voice="goblin">"Curse you, {{playerName}}... the others will... avenge me..."</p>
+        <break />
+      </if>
+      
+      <!-- Enemy attack phase -->
+      <p voice="goblin">{{goblinTaunt}}</p>
+      
+      <!-- Calculate enemy damage -->
+      <var name="enemyDamageDealt" value="{{enemyAttack}}" type="number" />
+      
+      <!-- Reduce damage if player defended -->
+      <if cond='lower(playerAction) === "defend"'>
+        <set var="enemyDamageDealt" value="{$ Math.floor(enemyDamageDealt / 2) $}" />
+        <p>Your defense reduces the incoming damage!</p>
+      </if>
+      
+      <!-- Apply damage to player -->
+      <set var="health" value="{$ Math.max(0, health - enemyDamageDealt) $}" />
+      <p>The goblin attacks for {{enemyDamageDealt}} damage!</p>
+      
+      <!-- Check for player death -->
+      <if cond="health <= 0">
+        <p>You fall unconscious...</p>
+        <jump to="defeat-ending" />
+      </if>
+      
+      <!-- Use healing potion automatically if health is low -->
+      <if cond='health < 20 && inventory.includes("healing_potion")'>
+        <p>You quickly drink a healing potion!</p>
+        <script>
+          health = Math.min(100, health + items.healing_potion.value);
+          inventory = inventory.filter(item => item !== "healing_potion");
+        </script>
+        <p>You recover to {{health}} health!</p>
+      </if>
+      
+      <!-- Increment round counter -->
+      <set var="combatRound" value="{$ combatRound + 1 $}" />
+      
+      <!-- Pause between rounds -->
+      <sleep duration="1500" />
+    </div>
+  </while>
+</block>
+
+<!-- Defeat ending -->
+<outro id="defeat-ending">
+  <music duration="4000" background="true">
+    somber defeat music with echoing dungeon ambience
+  </music>
+  
+  <p>
+    The dungeon claims another victim...
+  </p>
+  
+  <p>
+    But legends speak of brave {{playerClass}}s who never give up.
+    Your adventure ends here, but the Enchanted Vault still holds its secrets.
+  </p>
+  
+  <p>
+    Try again, {{playerName}}. Perhaps a different approach will lead to victory.
+  </p>
+  
+  <p>
+    Game Over - Thank you for playing {{title}}!
+  </p>
+</outro>

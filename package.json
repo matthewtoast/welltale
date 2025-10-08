@@ -7,9 +7,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
     "ts": "npx tsx --",
+    "typecheck": "tsc --noEmit",
     "test": "for f in $(find . -name '*.test.ts' -not -path './node_modules/*'); do echo \"Running $f\"; npx tsx \"$f\" || exit 1; done",
+    "verify": "yarn typecheck && yarn test",
     "repl": "yarn ts ./run/repl.ts",
     "auto": "yarn ts ./run/auto.ts",
     "dev": "yarn ts ./run/dev.ts --syncStories",
