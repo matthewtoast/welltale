@@ -8,7 +8,6 @@ Read README.md first.
 - Keep variable names short
 - Write modular, elegant code
 - Don't add comments
-- Ask clarifying questions before making changes
 - Use pure functions with explicit arguments
 - Prefer early return over conditional
 - Array properties should default to empty arrays, not `null`
