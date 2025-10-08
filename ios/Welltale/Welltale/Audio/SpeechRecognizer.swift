@@ -1,10 +1,12 @@
 import Speech
 
 class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
-    private var bus: Int = 0
+    private var bus = 0
     private var size: UInt32 = 1024
     private var engine = AVAudioEngine()
-    private var requests: [SFSpeechAudioBufferRecognitionRequest] = []
+    private var requests: [UUID: SFSpeechAudioBufferRecognitionRequest] = [:]
+    private var tasks: [UUID: SFSpeechRecognitionTask] = [:]
+    private var streaming = false
 
     typealias SpeechRecognitionCallback = (_ transcripts: [String], _ isFinal: Bool, _ locale: LangLocale) -> Void
 
@@ -17,49 +19,63 @@ class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
     func stopStream() {
         engine.stop()
         engine.inputNode.removeTap(onBus: bus)
+        detach()
+        streaming = false
     }
 
     func startStream() throws {
+        if streaming {
+            return
+        }
+        engine.inputNode.removeTap(onBus: bus)
         engine.inputNode.installTap(
             onBus: bus,
             bufferSize: size,
             format: engine.inputNode.outputFormat(forBus: bus)
         ) { buffer, _ in
-            // Buffer will be passed to whatever requests happen to be present
-            self.requests.forEach { request in
+            self.requests.forEach { _, request in
                 request.append(buffer)
             }
         }
         engine.prepare()
-        // This throws if the app is in the background
         try engine.start()
+        streaming = true
     }
 
     func detach() {
-        let removals = requests
-        requests.removeAll() // Clear array before removing
-        removals.forEach { request in
-            request.endAudio()
+        let ids = Array(requests.keys)
+        ids.forEach { id in
+            finish(id: id, stopEngine: false)
         }
     }
 
     func attach(_ ll: LangLocale, callback: @escaping SpeechRecognitionCallback) throws {
-        var done = false
+        let id = UUID()
+        try attachInternal(id: id, ll: ll, stopEngine: true, callback: callback)
+    }
+
+    func startContinuous(_ ll: LangLocale, callback: @escaping SpeechRecognitionCallback) throws -> UUID {
+        let id = UUID()
+        try attachInternal(id: id, ll: ll, stopEngine: false, callback: callback)
+        return id
+    }
+
+    func stopContinuous(_ id: UUID) {
+        finish(id: id, stopEngine: false)
+    }
+
+    private func attachInternal(id: UUID, ll: LangLocale, stopEngine: Bool, callback: @escaping SpeechRecognitionCallback) throws {
         let identifier = langLocaleToString(ll)
         let locale = Locale(identifier: identifier)
-        print("[recog] attach", identifier, locale)
         guard let recognizer = SFSpeechRecognizer(locale: locale) else {
             return
         }
-        recognizer.supportsOnDeviceRecognition = true
         recognizer.defaultTaskHint = .dictation
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        requests.append(request)
-        var task: SFSpeechRecognitionTask?
-        task = recognizer.recognitionTask(with: request) { result, error in
-            if done || self.requests.count < 1 {
-                task?.cancel()
+        requests[id] = request
+        let task = recognizer.recognitionTask(with: request) { result, error in
+            if self.requests[id] == nil {
                 return
             }
             if let result = result {
@@ -68,11 +84,26 @@ class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
                 callback(Array(Set([bestString] + alternatives)), result.isFinal, ll)
             }
             if error != nil || (result?.isFinal ?? false) {
-                done = true
-                self.engine.stop()
-                self.engine.inputNode.removeTap(onBus: self.bus)
-                task?.cancel()
+                DispatchQueue.main.async {
+                    self.finish(id: id, stopEngine: stopEngine)
+                }
             }
+        }
+        tasks[id] = task
+    }
+
+    private func finish(id: UUID, stopEngine: Bool) {
+        guard requests[id] != nil else {
+            return
+        }
+        requests[id]?.endAudio()
+        requests[id] = nil
+        tasks[id]?.cancel()
+        tasks[id] = nil
+        if stopEngine {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: bus)
+            streaming = false
         }
     }
 }

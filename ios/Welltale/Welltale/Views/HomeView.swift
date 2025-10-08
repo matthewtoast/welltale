@@ -16,6 +16,11 @@ struct HomeView: View {
                         .textInputAutocapitalization(.never)
                         .disableAutocorrection(true)
                 }
+                Section("Tools") {
+                    NavigationLink(destination: SpeechTestView()) {
+                        Label("Speech Test", systemImage: "waveform")
+                    }
+                }
                 Section {
                     if isLoading && stories.isEmpty {
                         HStack {

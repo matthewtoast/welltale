@@ -4,7 +4,16 @@
 <dict>
 	<key>DevSessionToken</key>
 	<string>$(DEV_SESSION_TOKEN)</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Speech recognition access is required to transcribe your voice during stories.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Microphone access is required to capture your voice for speech recognition.</string>
 	<key>WelltaleAPIBase</key>
 	<string>$(WELLTALE_API_BASE)</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+        <string>voice</string>
+    </array>
 </dict>
 </plist>

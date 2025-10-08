@@ -1,13 +1,19 @@
 import AVFoundation
 import SwiftUI
 
-class AudioPlayer {
+@MainActor
+final class AudioPlayer {
     private var players: [UUID: AVPlayer] = [:]
     private var completions: [UUID: (Result<Void, Error>) -> Void] = [:]
+    private var observers: [UUID: [NSObjectProtocol]] = [:]
 
     func pausePlayback() {
-        for (id, _) in players {
-            players[id]?.pause()
+        let ids = Array(players.keys)
+        for id in ids {
+            if let player = players[id] {
+                player.pause()
+            }
+            complete(id: id, result: .success(()))
         }
     }
 
@@ -19,13 +25,9 @@ class AudioPlayer {
         let id = UUID()
         let player = AVPlayer(url: url)
         player.volume = volume
+        configurePlayer(player)
         players[id] = player
-
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(playerDidFinishPlaying(_:)),
-                                               name: .AVPlayerItemDidPlayToEndTime,
-                                               object: player.currentItem)
-
+        observe(player: player, id: id)
         player.play()
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -45,13 +47,9 @@ class AudioPlayer {
         let id = UUID()
         let player = AVPlayer(url: url)
         player.volume = volume
+        configurePlayer(player)
         players[id] = player
-
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(playerDidFinishPlaying(_:)),
-                                               name: .AVPlayerItemDidPlayToEndTime,
-                                               object: player.currentItem)
-
+        observe(player: player, id: id)
         player.play()
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -72,21 +70,47 @@ class AudioPlayer {
         }
     }
 
+    private func configurePlayer(_ player: AVPlayer) {
+        player.automaticallyWaitsToMinimizeStalling = true
+        player.allowsExternalPlayback = true
+    }
 
-    @objc private func playerDidFinishPlaying(_ notification: Notification) {
-        guard let item = notification.object as? AVPlayerItem,
-              let id = players.first(where: { $0.value.currentItem === item })?.key
-        else {
+    private func observe(player: AVPlayer, id: UUID) {
+        var tokens: [NSObjectProtocol] = []
+        if let item = player.currentItem {
+            let endToken = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
+                self?.complete(id: id, result: .success(()))
+            }
+            tokens.append(endToken)
+
+            let failToken = NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: item, queue: .main) { [weak self] notification in
+                let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
+                let fallback = NSError(domain: "AudioPlayer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Playback failed"])
+                self?.complete(id: id, result: .failure(error ?? fallback))
+            }
+            tokens.append(failToken)
+
+            let stallToken = NotificationCenter.default.addObserver(forName: .AVPlayerItemPlaybackStalled, object: item, queue: .main) { _ in
+                player.play()
+            }
+            tokens.append(stallToken)
+        }
+        observers[id] = tokens
+    }
+
+    private func complete(id: UUID, result: Result<Void, Error>) {
+        guard let completion = completions[id] else {
+            cleanupPlayer(id: id)
             return
         }
-
-        completions[id]?(.success(()))
+        completions[id] = nil
         cleanupPlayer(id: id)
+        completion(result)
     }
 
     private func cleanupPlayer(id: UUID) {
-        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: players[id]?.currentItem)
+        observers[id]?.forEach { NotificationCenter.default.removeObserver($0) }
+        observers[id] = nil
         players[id] = nil
-        completions[id] = nil
     }
 }
