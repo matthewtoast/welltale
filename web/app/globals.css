@@ -47,3 +47,94 @@ button {
 [disabled] {
   cursor: not-allowed;
 }
+
+/* Basic Prism.js dark theme styles */
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #e0e0e0;
+  background: none;
+  text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+  font-family: 'Courier New', monospace;
+  font-size: 1em;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+  tab-size: 4;
+  hyphens: none;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #666;
+}
+
+.token.punctuation {
+  color: #8a8a8a;
+}
+
+.token.tag,
+.token.namespace,
+.token.deleted {
+  color: #4a9eff;
+}
+
+.token.attr-name {
+  color: #66d9ff;
+}
+
+.token.string,
+.token.char,
+.token.attr-value,
+.token.regex,
+.token.variable {
+  color: #a8e6cf;
+}
+
+.token.operator,
+.token.entity,
+.token.url {
+  color: #ffcc95;
+}
+
+.token.atrule,
+.token.keyword {
+  color: #ff9f9f;
+}
+
+.token.function,
+.token.class-name {
+  color: #66d9ff;
+}
+
+.token.expression {
+  color: #66d9ff;
+}
+
+.token.ai-prompt {
+  color: #ff9f9f;
+}
+
+.token.number,
+.token.boolean,
+.token.constant,
+.token.symbol {
+  color: #ffb366;
+}
+
+.token.variable {
+  color: #ffcc95;
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+
+.token.italic {
+  font-style: italic;
+}
