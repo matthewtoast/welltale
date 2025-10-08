@@ -1,8 +1,8 @@
 import { DOMParser } from "@xmldom/xmldom";
-import { renderAtts } from "./StoryEngine";
+import { LOOP_TAGS, TEXT_CONTENT_TAGS, TEXT_TAG } from "./StoryConstants";
+import { renderAtts } from "./StoryRenderMethods";
 import { BaseActionContext, StoryNode } from "./StoryTypes";
 import { isBlank, smoosh, snorm } from "./TextHelpers";
-import { TEXT_TAG, TEXT_CONTENT_TAGS, DESCENDABLE_TAGS } from "./StoryConstants";
 
 export type BaseNode = {
   type: string;
@@ -313,4 +313,127 @@ export function dumpTree(node: BaseNode | null, indent = ""): string {
   }
 
   return lines.join("\n");
+}
+
+export function nextNode(
+  curr: StoryNode,
+  root: StoryNode,
+  useKids: boolean
+): { node: StoryNode } | null {
+  // Given a node and the root of its tree, find the "next" node.
+  // If useKids is true and current node has children, it's the first child
+  if (useKids && curr.kids.length > 0) {
+    return { node: curr.kids[0] };
+  }
+  // Find parent and check for next sibling
+  const parent = parentNodeOf(curr, root);
+  if (!parent) {
+    return null;
+  }
+  const siblingIndex = parent.kids.findIndex((k) => k.addr === curr.addr);
+  if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
+    return { node: parent.kids[siblingIndex + 1] };
+  }
+  if (LOOP_TAGS.includes(parent.type)) {
+    return { node: parent };
+  }
+  // No more siblings, check if parent is a block that should end here
+  if (parent.type === "block") {
+    // If we're at the end of a block, don't continue to its siblings
+    // The block handler or yield return logic should handle what comes next
+    return null;
+  }
+  // Otherwise recurse up the tree
+  return nextNode(parent, root, false);
+}
+
+export function parentNodeOf(
+  node: StoryNode,
+  root: StoryNode
+): StoryNode | null {
+  if (node.addr === root.addr) return null;
+  return (
+    findNodes(root, (n) => {
+      return n.kids.some((k) => k.addr === node.addr);
+    })[0] ?? null
+  );
+}
+
+export function nearestAncestorOfType(
+  node: StoryNode,
+  root: StoryNode,
+  type: string
+): StoryNode | null {
+  let p = parentNodeOf(node, root);
+  while (p) {
+    if (p.type === type) return p;
+    p = parentNodeOf(p, root);
+  }
+  return null;
+}
+
+export function isStackContainerType(t: string): boolean {
+  return (
+    t === "block" ||
+    t === "scope" ||
+    t === "intro" ||
+    t === "resume" ||
+    t === "outro" ||
+    t === "error"
+  );
+}
+
+export function countStackContainersBetween(
+  node: StoryNode,
+  ancestor: StoryNode,
+  root: StoryNode
+): number {
+  let count = 0;
+  let p = parentNodeOf(node, root);
+  while (p && p.addr !== ancestor.addr) {
+    if (isStackContainerType(p.type)) count += 1;
+    p = parentNodeOf(p, root);
+  }
+  return count;
+}
+
+export function wouldEscapeCurrentBlock(
+  currentNode: StoryNode,
+  nextNode: StoryNode,
+  root: StoryNode
+): boolean {
+  // Find the closest container ancestor that uses the stack
+  let node: StoryNode | null = currentNode;
+  let blockAncestor: StoryNode | null = null;
+
+  while (node) {
+    if (
+      node.type === "block" ||
+      node.type === "scope" ||
+      node.type === "intro" ||
+      node.type === "resume" ||
+      node.type === "outro" ||
+      node.type === "error"
+    ) {
+      blockAncestor = node;
+      break;
+    }
+    node = parentNodeOf(node, root);
+  }
+
+  if (!blockAncestor) {
+    return false;
+  }
+
+  // Check if next node would escape the current container
+  const blockPrefix = blockAncestor.addr + ".";
+  return !nextNode.addr.startsWith(blockPrefix);
+}
+
+export function skipBlock(
+  blockNode: StoryNode,
+  root: StoryNode
+): { node: StoryNode } | null {
+  // Skip past the entire block by going to its next sibling
+  return nextNode(blockNode, root, false);
 }

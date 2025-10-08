@@ -263,10 +263,21 @@ export interface ActionHandler {
   exec: (context: ActionContext) => Promise<ActionResult>; // How the engine handles this tag
 }
 
+export type ActionHandlerCategory =
+  | "control_flow" // This tag is used for control flow
+  | "ai" // This tag's inner text content is used as a promp
+  | "http" // This tag makes an external HTTP call
+  | "compile_time" // This tag is processed at compile time
+  | "render" // This tag's inner text is rendered (i.e. played back to) the player
+  | "descendable" // This is a container type tag that can include any other type tag
+  | "media" // This tag is used to render media to the player
+  | "dev" // This tag is used during authoring to help development of stories
+  | "state"; // This tag results in the story state being written to
+
 export interface ActionHandlerDocs {
   desc: string; // Markdown describing what the tag is for, etc
-  ex: { code: string }[]; // Usage examples
-  cats: string[]; // Categories docs filtering, e.g. "control-flow", "output", etc
+  ex: { code: string; note?: string }[]; // Usage examples
+  cats: ActionHandlerCategory[]; // Categories docs filtering, e.g. "control-flow", "output", etc
 }
 
 export interface ActionHandlerSyntax {

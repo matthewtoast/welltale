@@ -1,124 +1,130 @@
-import { ActionHandler } from "./StoryTypes";
 
-const uniq = (xs: string[]) => [...new Set(xs)];
-const flat = <T>(x: T[][]) => x.reduce((a, b) => a.concat(b), [] as T[]);
-const mdEscape = (s: string) => s.replace(/\|/g, "\\|");
-const first = (s?: string) => s?.split("\n")[0] ?? "";
+export interface TemplateSyntaxDoc {
+  syntax: string;
+  description: string;
+  examples: { code: string; note?: string }[];
+}
 
-export const buildSnippet = (tag: string, s?: ActionHandler["syntax"]) => {
-  const atts = Object.entries(s?.atts ?? {}).filter(([, a]) => a.req);
-  const attrs = atts
-    .map(([k, a], i) => `${k}="\${${i + 1}:${a.default ?? k}}"`)
-    .join(" ");
-  return s?.block
-    ? `<${tag}${attrs ? " " + attrs : ""}>\n  $0\n</${tag}>`
-    : `<${tag}${attrs ? " " + attrs : ""} />`;
-};
-
-export const mdForHandler = (h: ActionHandler) => {
-  const tag = h.tags[0] ?? "";
-  const desc = h.docs?.desc ?? "";
-  const rows = Object.entries(h.syntax?.atts ?? {})
-    .map(
-      ([k, a]) =>
-        `| ${k} | ${a.type} | ${a.req ? "yes" : "no"} | ${a.default ?? ""} | ${mdEscape(a.desc)} |`
-    )
-    .join("\n");
-  const atts = rows
-    ? `## Attributes\n| name | type | required | default | desc |\n|---|---|---|---|---|\n${rows}\n`
-    : "";
-  const ex = (h.docs?.ex ?? [])
-    .map((e) => `\n\`\`\`xml\n${e.code}\n\`\`\``)
-    .join("\n");
-  const cats = h.docs?.cats?.length
-    ? `\n**Categories:** ${h.docs?.cats.join(", ")}`
-    : "";
-  return [`# ${tag}`, desc, atts, ex, cats].filter(Boolean).join("\n\n");
-};
-
-export const mdAll = (hs: ActionHandler[]) => {
-  const m = new Map<string, string>();
-  hs.forEach((h) => {
-    if (h.tags.length) m.set(h.tags[0], mdForHandler(h));
-  });
-  return Object.fromEntries(m);
-};
-
-export const textMateGrammar = (hs: ActionHandler[]) => {
-  const kws = uniq(flat(hs.map((h) => h.tags)))
-    .sort()
-    .join("|");
-  return {
-    $schema:
-      "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-    name: "DSL",
-    scopeName: "source.dsl",
-    patterns: [
-      { name: "comment.line.number-sign.dsl", match: "#.*$" },
-      { name: "string.quoted.double.dsl", begin: '"', end: '"' },
-      { name: "constant.numeric.dsl", match: "\\b\\d+(?:\\.\\d+)?\\b" },
-      { name: "entity.name.tag.dsl", match: `</?(?:${kws})\\b` },
+export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
+  {
+    syntax: "{{variable}}",
+    description:
+      "Insert variable values into your text. Variables can be set using <var> tags or input from users.",
+    examples: [
+      {
+        code: `<var name="playerName" value="Alex" />
+<p>Welcome, {{playerName}}!</p>`,
+        note: "Plays: Welcome, Alex!",
+      },
+      {
+        code: `<input name.description="your character's name" />
+<p>Hello {{name}}, ready for adventure?</p>`,
+        note: "Uses the name entered by the user",
+      },
     ],
-  };
-};
+  },
+  {
+    syntax: "{$ expression $}",
+    description:
+      "Evaluate JavaScript expressions and insert the result. You can do math, call functions, or create logic.",
+    examples: [
+      {
+        code: `<var name="health" value="80" type="number" />
+<var name="maxHealth" value="100" type="number" />
+<p>Health: {$ health $}/{$ maxHealth $} ({$ Math.round(health/maxHealth * 100) $}%)</p>`,
+        note: "Plays: Health: 80/100 (80%)",
+      },
+      {
+        code: `<var name="inventory" value="{$ ['sword', 'shield', 'potion'] $}" />
+<p>You have {$ inventory.length $} items: {$ inventory.join(', ') $}</p>`,
+        note: "Plays: You have 3 items: sword, shield, potion",
+      },
+      {
+        code: `<p>It's {$ new Date().getHours() < 12 ? 'morning' : 'afternoon' $}!</p>`,
+        note: "Plays different text based on current time",
+      },
+    ],
+  },
+  {
+    syntax: "[random|variations]",
+    description:
+      "Create dynamic text variations that change each time they're encountered. Use pipe symbols to separate options. Add ^ for cycling through options in order, or ~ for shuffled rotation.",
+    examples: [
+      {
+        code: `<p>The weather is [sunny|cloudy|rainy|stormy] today.</p>`,
+        note: "Randomly selects one weather option each time",
+      },
+      {
+        code: `<p>Day [^1|2|3|4|5]: The adventure continues...</p>`,
+        note: "Cycles through days in order: 1, 2, 3, 4, 5, 1, 2...",
+      },
+      {
+        code: `<p>You hear [~a distant roar|footsteps echoing|wind whistling|branches creaking].</p>`,
+        note: "Shuffles all sounds, plays each once before reshuffling",
+      },
+      {
+        code: `<var name="playerClass" value="warrior" />
+<p>As a {{playerClass}}, you [feel confident|steel yourself|prepare for battle].</p>`,
+        note: "Variations can be used with other template syntax",
+      },
+    ],
+  },
+  {
+    syntax: "{% prompt %}",
+    description:
+      "Generate text using AI based on your prompt. The AI creates content that fits naturally into your story.",
+    examples: [
+      {
+        code: `<p>{% Describe the eerie atmosphere of an abandoned castle at midnight %}</p>`,
+        note: "AI generates atmospheric description",
+      },
+      {
+        code: `<var name="location" value="forest" />
+<p>You can hear the sound of {% Create a mysterious sound effect description for a {{location}} setting %}</p>`,
+        note: "AI generates description using the location variable",
+      },
+      {
+        code: `<var name="health" value="20" type="number" />
+<p>"{% Describe how a character feels, in the first person, when their health is {$ health $} out of 100 %}", he said.</p>`,
+        note: "AI uses calculated values in the description",
+      },
+    ],
+  },
 
-export const vscodeCompletions = (hs: ActionHandler[]) => {
-  const items = flat(
-    hs.map((h) =>
-      h.tags.map((t) => {
-        const s = buildSnippet(t, h.syntax);
-        const atts = h.syntax?.atts ?? {};
-        const attLines = Object.entries(atts)
-          .map(
-            ([k, a]) =>
-              `- \`${k}\`: ${a.type}${a.req ? " (required)" : ""}${a.default ? ` = ${a.default}` : ""}${a.desc ? ` — ${a.desc}` : ""}`
-          )
-          .join("\n");
-        const doc = [
-          `**${t}**`,
-          first(h.docs?.desc),
-          attLines ? "\n**Attributes**\n" + attLines : "",
-        ]
-          .filter(Boolean)
-          .join("\n");
-        return {
-          label: t,
-          kind: 14,
-          insertTextRules: 4,
-          insertText: s,
-          detail: first(h.docs?.desc),
-          documentation: doc,
-        };
-      })
-    )
-  );
-  return items;
-};
-
-export const vscodeHovers = (hs: ActionHandler[]) => {
-  const pairs = flat(
-    hs.map((h) =>
-      h.tags.map((t) => {
-        const atts = h.syntax?.atts ?? {};
-        const attLines = Object.entries(atts)
-          .map(
-            ([k, a]) =>
-              `- \`${k}\`: ${a.type}${a.req ? " (required)" : ""}${a.default ? ` = ${a.default}` : ""}${a.desc ? ` — ${a.desc}` : ""}`
-          )
-          .join("\n");
-        const md = [
-          `**${t}**`,
-          first(h.docs?.desc),
-          attLines ? "\n**Attributes**\n" + attLines : "",
-        ]
-          .filter(Boolean)
-          .join("\n");
-        return [t, md] as const;
-      })
-    )
-  );
-  return Object.fromEntries(pairs);
-};
-
-export const keywords = (hs: ActionHandler[]) =>
-  uniq(flat(hs.map((h) => h.tags))).sort();
+  {
+    syntax: "Attribute values",
+    description:
+      "Most tag attributes can use variables and expressions, not just the content inside tags.",
+    examples: [
+      {
+        code: `<var name="npcName" value="Wizard" />
+<var name="npcVoice" value="Merlin" />
+<p from="{{npcName}}" voice="{{npcVoice}}">Welcome to my tower!</p>`,
+        note: "The speaker and voice are determined by variables",
+      },
+      {
+        code: `<var name="volume" value="0.8" type="number" />
+<sound volume="{$ volume * 0.5 $}">Thunder rumbling in distance</sound>`,
+        note: "Volume is calculated from a variable",
+      },
+    ],
+  },
+  {
+    syntax: "Processing order",
+    description:
+      "Templates are processed in this specific order: (1) {{variables}} first, (2) {$ expressions $} second, (3) [random|variations] third, (4) {% AI prompts %} last. Later patterns can use results from earlier ones.",
+    examples: [
+      {
+        code: `<var name="playerClass" value="warrior" />
+<var name="strength" value="15" type="number" />
+<p>{% Describe a {{playerClass}} with {$ strength $} strength points [charging into battle|preparing for combat] %}</p>`,
+        note: "Variables → expressions → variations → AI generation",
+      },
+      {
+        code: `<var name="weather" value="stormy" />
+<p>The {{weather}} night is [eerily quiet|full of tension] as {% describe the mood when it's {$ weather === 'stormy' ? 'very dark' : 'peaceful' $} %}</p>`,
+        note: "Each template type builds on the previous ones in order",
+      },
+    ],
+  },
+];

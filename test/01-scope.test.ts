@@ -1,7 +1,8 @@
 import { buildDefaultFuncs } from "../lib/EvalMethods";
 import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
 import { PRNG } from "../lib/RandHelpers";
-import { createScope, renderText } from "../lib/StoryEngine";
+import { createScope } from "../lib/StoryEngine";
+import { renderText } from "../lib/StoryRenderMethods";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
 import {
   BaseActionContext,

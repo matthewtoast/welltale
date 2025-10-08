@@ -1,7 +1,6 @@
 import { omit } from "lodash";
 import { TSerial } from "../typings";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
-import { renderText } from "./StoryEngine";
 import { applyMacros, collectMacros } from "./StoryMacro";
 import type { ParseSeverity } from "./StoryNodeHelpers";
 import {
@@ -13,6 +12,7 @@ import {
   parseXmlFragment,
   walkTree,
 } from "./StoryNodeHelpers";
+import { renderText } from "./StoryRenderMethods";
 import {
   BaseActionContext,
   NestedRecords,
@@ -219,8 +219,8 @@ export async function compileStory(
     }
   });
   findNodes(root, (node) => node.type === "pronunciation").forEach((node) => {
-    if (!isBlank(node.atts.word) && !isBlank(node.atts.pronuncation)) {
-      pronunciations[node.atts.word] = node.atts.pronuncation;
+    if (!isBlank(node.atts.word) && !isBlank(node.atts.pronunciation)) {
+      pronunciations[node.atts.word] = node.atts.pronunciation;
       if (options.verbose) {
         console.info("Found <pronunciation>", node.atts);
       }

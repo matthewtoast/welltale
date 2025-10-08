@@ -1,6 +1,5 @@
-import { isEmpty, set } from "lodash";
-import { NonEmpty, TSerial } from "../typings";
-import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
+import { isEmpty } from "lodash";
+import { TSerial } from "../typings";
 import { castToString } from "./EvalCasting";
 import { buildDefaultFuncs } from "./EvalMethods";
 import { createRunner, evaluateScript } from "./QuickJSUtils";
@@ -8,15 +7,15 @@ import { PRNG } from "./RandHelpers";
 import { ACTION_HANDLERS } from "./StoryActions";
 import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import { PLAYER_ID } from "./StoryConstants";
-import { resolveBracketDDV } from "./StoryDDVHelpers";
-import { dumpTree, findNodes } from "./StoryNodeHelpers";
+import {
+  dumpTree,
+  findNodes,
+  wouldEscapeCurrentBlock,
+} from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   ActionContext,
-  BaseActionContext,
-  DEFAULT_LLM_SLUGS,
   EvaluatorFunc,
-  LLM_SLUGS,
   OP,
   SeamType,
   StoryAdvanceResult,
@@ -25,17 +24,8 @@ import {
   StoryOptions,
   StorySession,
   StorySource,
-  VoiceSpec,
 } from "./StoryTypes";
-import { renderTemplate } from "./Template";
-import {
-  cleanSplit,
-  DOLLAR,
-  enhanceText,
-  isBlank,
-  LIQUID,
-} from "./TextHelpers";
-export { HOST_ID, PLAYER_ID } from "./StoryConstants";
+import { cleanSplit } from "./TextHelpers";
 const OUTRO_RETURN_ADDR = "__outro:return__";
 
 let calls = 0;
@@ -192,8 +182,8 @@ export async function advanceStory(
       });
     }
 
-    const handler = ACTION_HANDLERS.find((h) => 
-      h.tags.length === 0 || h.tags.includes(node.type)
+    const handler = ACTION_HANDLERS.find(
+      (h) => h.tags.length === 0 || h.tags.includes(node.type)
     )!;
     const result = await handler.exec(ctx);
     out.push(...result.ops);
@@ -294,165 +284,6 @@ export async function advanceStory(
   }
 }
 
-export const LOOP_TAGS = ["while"];
-
-export function normalizeModels(
-  options: StoryOptions,
-  attms: string | undefined,
-  defaultModels: NonEmpty<(typeof LLM_SLUGS)[number]> = DEFAULT_LLM_SLUGS
-): NonEmpty<(typeof LLM_SLUGS)[number]> {
-  const models: (typeof LLM_SLUGS)[number][] = [...options.models];
-  const want = cleanSplit(attms, ",")
-    .filter((m) => (LLM_SLUGS as readonly string[]).includes(m))
-    .reverse();
-  for (const w of want) models.unshift(w as (typeof LLM_SLUGS)[number]);
-  const out = (models.length > 0 ? models : [...defaultModels]) as NonEmpty<
-    (typeof LLM_SLUGS)[number]
-  >;
-  return out;
-}
-
-export function publicAtts<T extends Record<string, any>>(atts: T): T {
-  const out: Record<string, any> = {};
-  for (const key in atts) {
-    if (!key.startsWith("$") && !key.startsWith("_")) {
-      out[key] = atts[key];
-    }
-  }
-  return out as T;
-}
-
-export function skipBlock(
-  blockNode: StoryNode,
-  root: StoryNode
-): { node: StoryNode } | null {
-  // Skip past the entire block by going to its next sibling
-  return nextNode(blockNode, root, false);
-}
-
-export function nextNode(
-  curr: StoryNode,
-  root: StoryNode,
-  useKids: boolean
-): { node: StoryNode } | null {
-  // Given a node and the root of its tree, find the "next" node.
-  // If useKids is true and current node has children, it's the first child
-  if (useKids && curr.kids.length > 0) {
-    return { node: curr.kids[0] };
-  }
-  // Find parent and check for next sibling
-  const parent = parentNodeOf(curr, root);
-  if (!parent) {
-    return null;
-  }
-  const siblingIndex = parent.kids.findIndex((k) => k.addr === curr.addr);
-  if (siblingIndex >= 0 && siblingIndex < parent.kids.length - 1) {
-    return { node: parent.kids[siblingIndex + 1] };
-  }
-  if (LOOP_TAGS.includes(parent.type)) {
-    return { node: parent };
-  }
-  // No more siblings, check if parent is a block that should end here
-  if (parent.type === "block") {
-    // If we're at the end of a block, don't continue to its siblings
-    // The block handler or yield return logic should handle what comes next
-    return null;
-  }
-  // Otherwise recurse up the tree
-  return nextNode(parent, root, false);
-}
-
-export function parentNodeOf(
-  node: StoryNode,
-  root: StoryNode
-): StoryNode | null {
-  if (node.addr === root.addr) return null;
-  return (
-    findNodes(root, (n) => {
-      return n.kids.some((k) => k.addr === node.addr);
-    })[0] ?? null
-  );
-}
-
-export function nearestAncestorOfType(
-  node: StoryNode,
-  root: StoryNode,
-  type: string
-): StoryNode | null {
-  let p = parentNodeOf(node, root);
-  while (p) {
-    if (p.type === type) return p;
-    p = parentNodeOf(p, root);
-  }
-  return null;
-}
-
-export function isStackContainerType(t: string): boolean {
-  return (
-    t === "block" ||
-    t === "scope" ||
-    t === "intro" ||
-    t === "resume" ||
-    t === "outro" ||
-    t === "error"
-  );
-}
-
-export function countStackContainersBetween(
-  node: StoryNode,
-  ancestor: StoryNode,
-  root: StoryNode
-): number {
-  let count = 0;
-  let p = parentNodeOf(node, root);
-  while (p && p.addr !== ancestor.addr) {
-    if (isStackContainerType(p.type)) count += 1;
-    p = parentNodeOf(p, root);
-  }
-  return count;
-}
-
-export function wouldEscapeCurrentBlock(
-  currentNode: StoryNode,
-  nextNode: StoryNode,
-  root: StoryNode
-): boolean {
-  // Find the closest container ancestor that uses the stack
-  let node: StoryNode | null = currentNode;
-  let blockAncestor: StoryNode | null = null;
-
-  while (node) {
-    if (
-      node.type === "block" ||
-      node.type === "scope" ||
-      node.type === "intro" ||
-      node.type === "resume" ||
-      node.type === "outro" ||
-      node.type === "error"
-    ) {
-      blockAncestor = node;
-      break;
-    }
-    node = parentNodeOf(node, root);
-  }
-
-  if (!blockAncestor) {
-    return false;
-  }
-
-  // Check if next node would escape the current container
-  const blockPrefix = blockAncestor.addr + ".";
-  return !nextNode.addr.startsWith(blockPrefix);
-}
-
-export function setState(
-  state: Record<string, TSerial>,
-  key: string,
-  value: TSerial
-): void {
-  set(state, key, value);
-}
-
 export function createScope(
   session: StorySession,
   extra: Record<string, TSerial>
@@ -542,8 +373,8 @@ export async function execNodes(
   const events: StoryEvent[] = [];
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    const handler = ACTION_HANDLERS.find((h) => 
-      h.tags.length === 0 || h.tags.includes(node.type)
+    const handler = ACTION_HANDLERS.find(
+      (h) => h.tags.length === 0 || h.tags.includes(node.type)
     );
     if (!handler) {
       continue;
@@ -563,63 +394,4 @@ export async function execNodes(
     await handler.exec(ctx);
   }
   session.address = prevAddress;
-}
-
-export async function renderText(
-  text: string,
-  ctx: BaseActionContext
-): Promise<string> {
-  if (isBlank(text) || text.length < 3) {
-    return text;
-  }
-  // {{handlebars}} for interpolation
-  let result = renderTemplate(text, ctx.scope);
-  // {$dollars$} for scripting
-  result = await enhanceText(
-    result,
-    async (chunk: string) => {
-      return castToString(await ctx.evaluator(chunk, ctx.scope));
-    },
-    DOLLAR
-  );
-  // [this|kind|of] dynamic variation
-  result = resolveBracketDDV(result, ctx);
-  // {%liquid%} for inline LLM calls
-  result = await enhanceText(
-    result,
-    async (chunk: string) => {
-      return await ctx.provider!.generateText(chunk, {
-        models: ctx.options?.models ?? DEFAULT_LLM_SLUGS,
-        useWebSearch: false,
-      });
-    },
-    LIQUID
-  );
-  return result;
-}
-
-export const NONRENDER_ATTS = ["id", "type", ".type", ".pattern"];
-
-export async function renderAtts(
-  atts: Record<string, string>,
-  ctx: BaseActionContext
-) {
-  const out: Record<string, string> = {};
-  for (const key in atts) {
-    if (typeof atts[key] === "string") {
-      const nonrender = NONRENDER_ATTS.filter(
-        (s) => key === s || (s.startsWith(".") && key.endsWith(s))
-      );
-      if (nonrender.length > 0) {
-        out[key] = atts[key];
-      } else {
-        out[key] = await renderText(atts[key], ctx);
-      }
-    }
-  }
-  return out;
-}
-
-export function userVoicesAndPresetVoices(userVoices: VoiceSpec[]) {
-  return [...userVoices, ...ELEVENLABS_PRESET_VOICES];
 }

@@ -9,7 +9,7 @@ import { simplifySchema } from "../lib/JSONHelpers";
 import { parseNumberOrNull } from "../lib/MathHelpers";
 import { createRunner } from "../lib/QuickJSUtils";
 import { PRNG } from "../lib/RandHelpers";
-import { renderText } from "../lib/StoryEngine";
+import { renderText } from "../lib/StoryRenderMethods";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
 import {
   BaseActionContext,

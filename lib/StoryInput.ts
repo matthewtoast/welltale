@@ -3,7 +3,7 @@ import { omit } from "lodash";
 import { TSerial } from "../typings";
 import { castToString, castToTypeEnhanced } from "./EvalCasting";
 import { parseFieldGroups, parseFieldGroupsNested } from "./InputHelpers";
-import { normalizeModels } from "./StoryEngine";
+import { normalizeModels } from "./StoryConstants";
 import { BaseActionContext } from "./StoryTypes";
 import { isBlank } from "./TextHelpers";
 
