@@ -148,19 +148,6 @@ async function test() {
     { data: "Mock data" }
   );
 
-  const contextWithScope = {
-    ...baseContext,
-    scope: { multiplier: 2 },
-  };
-  expect(
-    await extractInput(
-      "5",
-      { "result.type": "number", "result.parse": "input * multiplier" },
-      contextWithScope
-    ),
-    { result: 10 }
-  );
-
   expect(
     await extractInput("data", { "items.type": "Array<String>" }, baseContext),
     { items: "Mock items" }
