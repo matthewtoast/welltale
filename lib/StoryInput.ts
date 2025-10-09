@@ -144,17 +144,6 @@ export async function extractInput(
     value = fallback;
   }
 
-  // Step 2: Parse expression if specified
-  if (fieldAtts.parse) {
-    value = await ctx.evaluator(castToString(fieldAtts.parse), {
-      ...ctx.scope,
-      input: value,
-    });
-    if (isBlank(value)) {
-      value = fallback;
-    }
-  }
-
   // Step 3: Pattern validation
   if (fieldAtts.pattern) {
     const pattern = castToString(fieldAtts.pattern);

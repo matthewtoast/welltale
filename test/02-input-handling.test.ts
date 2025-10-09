@@ -7,7 +7,7 @@ async function testInputHandling() {
 <p>Hello {{name}}!</p>
 
 <p>What age are you?</p>
-<input age.type="number" age.parse="clamp(toNumber(input), 1, 120)" age.default="25" />
+<input age.type="number" age.default="25" />
 <p>You are {{age}} years old.</p>
 
 <p>What's your email?</p>

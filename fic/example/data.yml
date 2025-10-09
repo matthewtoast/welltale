@@ -5,3 +5,13 @@ description: This is an example Welltale story in a fantasy setting that shows h
 
 pronunciations:
   Trost: Troast
+
+# Game data
+player:
+  starting_gold: 35
+  starting_inventory: ["bread"]
+
+shop:
+  potion: 30
+  compass: 50
+  sword: 20

@@ -2,17 +2,7 @@
 
 <!-- UNUSED TAGS IN THIS STORY:
 Container/Descendable tags:
-- scope (creates isolated variable scope)
-- block (reusable content blocks)
-- llm:parse (extract structured data from text)
-- llm:tag (classify text into categories)
 - llm:dialog (AI character responses)
-- while (loops with break/continue)
-- yield (invoke a block with parameters)
-- checkpoint (manual save point)
-- var (define/update variables)
-- data (load JSON/YAML data)
-- when (conditional text rendering inside text tags)
 - include
 -->
 
@@ -52,7 +42,6 @@ Container/Descendable tags:
   </p>
 </resume>
 
-
 <!--
   The <origin> tag defines your story's actual starting point. It only plays once per story.
   It plays after the <intro> tag; or, if no <intro> tag is present, it played first.
@@ -65,8 +54,8 @@ Container/Descendable tags:
   </p>
   
   <p voice="narrator">
-    You've arrived at an ancient crossroads in the wildnerness. The sun is setting.
-    Two paths lie before you: one leads into a dark forest, the other into a deep chasm.
+    You've arrived at an ancient crossroads in the wilderness. The sun is setting.
+    Two paths lie before you: one leads into a dark forest, the other toward a misty swamp.
     Which path do you choose?
   </p>
 
@@ -84,23 +73,22 @@ Container/Descendable tags:
   <llm:score
     key="choice"
     woods="the player chooses the woods"
-    chasm="the player chooses the chasm">
-    The player has a choice between visiting the woods and the chasm. Based on their input, which do they choos
+    swamp="the player chooses the swamp">
+    The player has a choice between visiting the woods and the swamp. Based on their input, which do they choose?
     {{input}}
   </llm:score>
 
-  <>
-  <if cond="choice.woods > choice.chasm">
+  <if cond="choice.woods > choice.swamp">
     <p voice="narrator">
-      You make your way down the path into the darkening foest.
+      You make your way down the path into the darkening forest.
     </p>
     <jump to="woods" />
   </if>
 
   <p voice="narrator">
-    You begin the treacherous descent into the chasm.
+    You trudge toward the misty swamp ahead.
   </p>
-  <jump to="chasm" />
+  <jump to="swamp" />
 </origin>
 
 <!--
@@ -126,6 +114,12 @@ Container/Descendable tags:
     You see {% short, suspenseful description of a dark forest in present tense %}.
   </narrator>
 
+  <!--
+    The <checkpoint> tag indicates a point to which the player may rewind the story.
+    Every visit to an <input> also creates a checkpoint, but you can use <checkpoint> to explicitly create one.
+  -->
+  <checkpoint />
+
   <narrator>
     From somewhere within the thicket of trees, you hear a strange voice.
   </narrator>
@@ -139,6 +133,7 @@ Container/Descendable tags:
     <set attr="voice" value="wretch" />
   </macro>
 
+  <!-- Custom tags created by macros inherit all the attributes we set. -->
   <wretch>
     Who goes there...?
   </wretch>
@@ -196,7 +191,7 @@ Container/Descendable tags:
     </wretch>
     <narrator>
       With your life (and toes) intact, you continue through the forest.
-      Eventually the woods thin and you find yourself in an open field...
+      Eventually the woods thin and you find yourself in an open field.
     </narrator>
 
     <!-- An <else> block can be placed inside of an <if> tag for more complex conditional support. --->
@@ -209,6 +204,7 @@ Container/Descendable tags:
         Before you know it, you find yourself in the clutches of this strange creature.
         Giggling, it begins taking off your shoes.
       </narrator>
+      <!-- The <sound> tag generates or plays sound effects. -->
       <sound duration="5000">
         Grotesque sound of a mouth chewing and gnawing on meat and gristle
       </sound>
@@ -216,17 +212,245 @@ Container/Descendable tags:
     </else>
   </if>
 
+  <!-- The <jump> tag navigates to another section by its id. -->
   <jump to="outpost" />
 </div>
 
-<div id="chasm">
-  <!-- TODO -->
+<div id="swamp">
+  <!-- The <data> tag loads structured data (JSON or YAML) and stores it in a state variable. -->
+  <data key="unrhymable" format="yaml">
+    - orange
+    - silver
+    - purple
+    - month
+    - ninth
+    - pint
+    - wolf
+    - opus
+    - dangerous
+    - marathon
+    - discombobulate
+    - rhythm
+  </data>
+
+  <narrator>
+    You wade into a murky swamp.
+    The water reaches your knees, and something moves in the fog ahead.
+    Soon, a large, slimy creature emerges from the muck.
+  </narrator>
+
+  <voice id="rhymer">
+    Swamp creature that speaks only in rhyme, melodic voice, slightly mischievous
+  </voice>
+  <macro match="rhymer">
+    <rename to="p" />
+    <set attr="voice" value="rhymer" />
+  </macro>
+
+  <rhymer>
+    Speak a word, and I'll reply in rhyme.
+    I'll keep you here till the end of time.
+  </rhymer>
+
+  <narrator>
+    You try to pass the creature, but it blocks your way.
+    Perhaps something you say will cause it to let you pass.
+  </narrator>
+
+  <!-- The <var> tag declares or updates a state variable with a name, value, and optional type. -->
+  <var name="rhymeTurns" value="0" type="number" />
+
+  <!-- The <while> tag creates a loop that continues while its condition is true. -->
+  <while cond="rhymeTurns < 10">
+    <input />
+    
+    <llm:parse
+      key="playerWord"
+      lastWord="the last word the player said">
+      {{input}}
+    </llm:parse>
+
+    <!-- Use <script> to check if the player said an unrhymable word and increment the turn counter. -->
+    <script>
+      const word = playerWord.lastWord?.toLowerCase() || "";
+      const isUnrhymable = unrhymable.some(w => word.includes(w));
+      set("stumped", isUnrhymable);
+      set("rhymeTurns", rhymeTurns + 1);
+    </script>
+
+    <if cond="stumped">
+      <rhymer>
+        [confused] {{playerWord.lastWord}}? But that word... I cannot...
+        My rhyming power, I have forgot!
+      </rhymer>
+      <narrator>
+        The creature stumbles backward, thoroughly befuddled.
+        You quickly wade past while it mutters to itself.
+        Eventually the swamp ends and you find yourself in an open field.
+      </narrator>
+      <!-- The <break> tag exits the current loop immediately. -->
+      <break />
+    </if>
+    <else>
+      <rhymer>
+        {% Create a short rhyming response to "{{playerWord.lastWord}}" that blocks the path %}
+      </rhymer>
+      <if cond="rhymeTurns >= 5">
+        <narrator>
+          Perhaps you should try a word that's harder to rhyme...
+        </narrator>
+      </if>
+    </else>
+  </while>
+
+  <jump to="outpost" />
 </div>
 
 <div id="outpost">
+  <!-- Initialize player's inventory from external data file -->
+  <script>
+    set("gold", player.starting_gold);
+    set("inventory", player.starting_inventory);
+  </script>
+
   <narrator>
-    There is a stone outpost here with a small wooden door.
+    There is a stone outpost here with a small wooden door. You push it open and find a merchant inside.
   </narrator>
+
+  <voice id="merchant">
+    Jovial merchant, slight Eastern European accent, persuasive
+  </voice>
+  <macro match="merchant">
+    <rename to="p" />
+    <set attr="voice" value="merchant" />
+  </macro>
+
+  <merchant>
+    [enthusiastically] Ah, a customer! Welcome, welcome! I have many fine wares for sale!
+  </merchant>
+
+  <!-- Define reusable transaction blocks -->
+  <block id="buy-item">
+    <if cond="gold >= price">
+      <merchant>
+        Excellent choice! The {{item}} is yours for {{price}} gold.
+      </merchant>
+      <script>
+        // Write to session state to persist beyond block scope
+        ctx.session.state.gold = gold - price;
+        ctx.session.state.inventory = [...inventory, item];
+      </script>
+      <narrator>
+        You purchase the {{item}}. You now have {{gold}} gold remaining.
+      </narrator>
+    </if>
+    <else>
+      <merchant>
+        [apologetically] Ah, but you need {{price}} gold for the {{item}}. You only have {{gold}}.
+      </merchant>
+    </else>
+  </block>
+
+  <block id="sell-item">
+    <script>
+      const hasItem = inventory.includes(item);
+      set("hasItem", hasItem);
+    </script>
+    <if cond="hasItem">
+      <merchant>
+        I'll give you {{price}} gold for your {{item}}.
+      </merchant>
+      <script>
+        // Write to session state to persist beyond block scope
+        ctx.session.state.gold = gold + price;
+        ctx.session.state.inventory = inventory.filter(i => i !== item);
+      </script>
+      <narrator>
+        You sell the {{item}}. You now have {{gold}} gold.
+      </narrator>
+    </if>
+    <else>
+      <merchant>
+        [confused] But you don't have a {{item}} to sell me!
+      </merchant>
+    </else>
+  </block>
+
+  <merchant>
+    I buy and sell items: {$ Object.entries(shop).map(([name, price]) => `${name} for ${price} gold`).join(', ') $}.
+    What catches your eye?
+  </merchant>
+
+  <narrator>
+    You have {{gold}} gold. Your inventory contains {$ inventory.join(', ') $}.
+    What would you like to do?
+  </narrator>
+
+  <var name="merchantDone" value="false" type="boolean" />
+
+  <while cond="!merchantDone">
+    <input />
+
+    <!-- Use the <llm:tag> tag to classify the player's intent -->
+    <llm:tag
+      key="intent"
+      buy_potion="wants to buy a potion"
+      buy_compass="wants to buy a compass"
+      buy_sword="wants to buy a sword"
+      sell_potion="wants to sell a potion"
+      sell_compass="wants to sell a compass"
+      sell_sword="wants to sell a sword"
+      leave="wants to leave or is done shopping">
+      {{input}}
+    </llm:tag>
+
+    <if cond="intent.includes('buy_potion')">
+      <yield to="buy-item" item="potion" price="{$ shop.potion $}" />
+    </if>
+    
+    <if cond="intent.includes('buy_compass')">
+      <yield to="buy-item" item="compass" price="{$ shop.compass $}" />
+    </if>
+
+    <if cond="intent.includes('buy_sword')">
+      <yield to="buy-item" item="sword" price="{$ shop.sword $}" />
+    </if>
+
+    <if cond="intent.includes('sell_potion')">
+      <yield to="sell-item" item="potion" price="{$ shop.potion $}" />
+    </if>
+
+    <if cond="intent.includes('sell_compass')">
+      <yield to="sell-item" item="compass" price="{$ shop.compass $}" />
+    </if>
+
+    <if cond="intent.includes('sell_sword')">
+      <yield to="sell-item" item="sword" price="{$ shop.sword $}" />
+    </if>
+
+    <if cond="intent.includes('leave') || intent.length === 0">
+      <merchant>
+        [cheerfully] Come back anytime, friend! Safe travels!
+      </merchant>
+      <var name="merchantDone" value="true" type="boolean" />
+    </if>
+    <else>
+      <if cond="!intent.includes('buy') && !intent.includes('sell')">
+        <narrator>
+          Anything else? You can buy items, sell items, or leave.
+        </narrator>
+      </if>
+    </else>
+  </while>
+
+  <narrator>
+    You leave the outpost and continue on your journey.
+    
+    <!-- TODO -->
+  </narrator>
+  
+  <!-- The <end> tag ends the story and causes the game to exit. -->
+  <end />
 </div>
 
 <div id="dead">
