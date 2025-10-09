@@ -8,10 +8,38 @@ pronunciations:
 
 # Game data
 player:
-  starting_gold: 35
-  starting_inventory: ["bread"]
+  gold: 35
+  inventory: ["bread"]
 
 shop:
   potion: 30
   compass: 50
   sword: 20
+
+macros:
+  - match: merchant
+    rename:
+      to: p
+    set:
+      attr: voice
+      value: merchant
+  - match: rhymer
+    rename:
+      to: p
+    set:
+      attr: voice
+      value: rhymer
+  - match: wretch
+    rename:
+      to: p
+    set:
+      attr: voice
+      value: wretch
+
+voices:
+  merchant:
+    prompt: Jovial merchant in a fantasy setting, slight Eastern European accent, persuasive
+  rhymer:
+    prompt: Swamp creature that speaks only in rhyme, melodic voice, slightly mischievous
+  wretch:
+    prompt: A wretched forest creature, lowly British accent, voice like a whisper through clenched teeth, with undertones of a frog’s croak

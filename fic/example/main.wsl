@@ -124,16 +124,7 @@ Container/Descendable tags:
     From somewhere within the thicket of trees, you hear a strange voice.
   </narrator>
 
-  <!-- You can define <voice> and <macro> tags anywhere in your story that you find convenient. -->
-  <voice id="wretch">
-    A wretched forest creature, lowly British accent, voice like a whisper through clenched teeth, with undertones of a frog’s croak
-  </voice>
-  <macro match="wretch">
-    <rename to="p" />
-    <set attr="voice" value="wretch" />
-  </macro>
-
-  <!-- Custom tags created by macros inherit all the attributes we set. -->
+  <!-- Macros and voices can also be defined in your data files; see data.yml for how <wretch> is defined -->
   <wretch>
     Who goes there...?
   </wretch>
@@ -239,14 +230,7 @@ Container/Descendable tags:
     Soon, a large, slimy creature emerges from the muck.
   </narrator>
 
-  <voice id="rhymer">
-    Swamp creature that speaks only in rhyme, melodic voice, slightly mischievous
-  </voice>
-  <macro match="rhymer">
-    <rename to="p" />
-    <set attr="voice" value="rhymer" />
-  </macro>
-
+  <!-- Macros and voices can also be defined in your data files; see data.yml -->
   <rhymer>
     Speak a word, and I'll reply in rhyme.
     I'll keep you here till the end of time.
@@ -317,14 +301,7 @@ Container/Descendable tags:
     There is a stone outpost here with a small wooden door. You push it open and find a merchant inside.
   </narrator>
 
-  <voice id="merchant">
-    Jovial merchant, slight Eastern European accent, persuasive
-  </voice>
-  <macro match="merchant">
-    <rename to="p" />
-    <set attr="voice" value="merchant" />
-  </macro>
-
+  <!-- Macros and voices can also be defined in your data files; see data.yml for how <merchant> is defined -->
   <merchant>
     [enthusiastically] Ah, a customer! Welcome, welcome! I have many fine wares for sale!
   </merchant>

@@ -46,8 +46,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         Creates a new state variable scope for child elements. State variables defined within the scope are
         isolated and don't affect the parent scope. Useful for temporary variables, loop iterations,
         or any situation where you want to prevent variable pollution.
-
-        The only other element that provides scope is \`<block>\`.
       `,
       ex: [
         {

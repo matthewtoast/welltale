@@ -191,6 +191,38 @@ export const stringHelpers: Record<string, (...args: any[]) => P> = {
   split: (v: P, sep: P) => toStr(v).split(toStr(sep)) as any,
   reverseStr: (v: P) => toStr(v).split("").reverse().join(""),
   length: (v: P) => (Array.isArray(v) ? v.length : toStr(v).length),
+
+  // Natural language helpers
+  listize: (arr: P[], sep?: P, lastSep?: P) => {
+    const t = toArr(arr).map(toStr);
+    if (!t.length) return "";
+    if (t.length === 1) return t[0];
+    const s = toStr(sep ?? ", ");
+    const l = toStr(lastSep ?? " and ");
+    return t.slice(0, -1).join(s) + l + t[t.length - 1];
+  },
+  pluralize: (word: P, count: P, pluralForm?: P) => {
+    const w = toStr(word);
+    const n = num(count);
+    if (n === 1) return w;
+    return pluralForm == null ? w + "s" : toStr(pluralForm);
+  },
+  ordinalize: (n: P) => {
+    const v = Math.abs(num(n));
+    const s = ["th", "st", "nd", "rd"];
+    const v10 = v % 100;
+    return v + (s[(v10 - 20) % 10] || s[v10] || s[0]);
+  },
+  quote: (v: P, quoteChar?: P) => {
+    const q = toStr(quoteChar ?? '"');
+    return q + toStr(v) + q;
+  },
+  unquote: (v: P, quoteChar?: P) => {
+    const s = toStr(v);
+    const q = toStr(quoteChar ?? '"');
+    if (s.startsWith(q) && s.endsWith(q)) return s.slice(1, -1);
+    return s;
+  },
 };
 
 const isString = (v: unknown): v is string => typeof v === "string";
