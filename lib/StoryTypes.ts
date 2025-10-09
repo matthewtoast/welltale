@@ -46,6 +46,13 @@ const StoryEventSchema = z.object({
   tags: z.array(z.string()),
 });
 
+export const SessionStackObj = z.object({
+  returnAddress: z.string(),
+  writeableScope: z.record(z.any()).nullable(),
+  readableScope: z.record(z.any()).nullable(),
+  blockType: z.enum(["scope", "yield", "intro", "resume", "outro"]).optional(),
+});
+
 export const StoryCheckpointSchema = z.object({
   addr: z.string().nullable(),
   turn: z.number(),
@@ -54,15 +61,7 @@ export const StoryCheckpointSchema = z.object({
   state: z.record(z.any()),
   meta: z.record(z.any()),
   outroDone: z.boolean().optional(),
-  stack: z.array(
-    z.object({
-      returnAddress: z.string(),
-      scope: z.record(z.any()).nullable(),
-      blockType: z
-        .enum(["scope", "yield", "intro", "resume", "outro"])
-        .optional(),
-    })
-  ),
+  stack: z.array(SessionStackObj),
   events: z.array(StoryEventSchema),
 });
 
@@ -70,6 +69,8 @@ export const DDVStateSchema = z.object({
   cycles: z.record(z.number()),
   bags: z.record(z.object({ order: z.array(z.number()), idx: z.number() })),
 });
+
+export type TSessionStackObj = z.infer<typeof SessionStackObj>;
 
 export const StorySessionSchema = z.object({
   id: z.string(),
@@ -88,15 +89,7 @@ export const StorySessionSchema = z.object({
     z.null(),
   ]),
   outroDone: z.boolean().default(false),
-  stack: z.array(
-    z.object({
-      returnAddress: z.string(),
-      scope: z.record(z.any()).nullable(),
-      blockType: z
-        .enum(["scope", "yield", "intro", "resume", "outro"])
-        .optional(),
-    })
-  ),
+  stack: z.array(SessionStackObj),
   state: z.record(z.any()),
   checkpoints: z.array(StoryCheckpointSchema),
   meta: z.record(z.any()),

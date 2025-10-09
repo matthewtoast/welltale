@@ -73,9 +73,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const returnAddress =
         nextNode(ctx.node, ctx.source.root, false)?.node.addr ??
         ctx.origin.addr;
+      const readableWriteableScope = {};
       ctx.session.stack.push({
         returnAddress,
-        scope: {},
+        writeableScope: readableWriteableScope,
+        readableScope: readableWriteableScope,
         blockType: "scope",
       });
       // Enter the scope (process children)
@@ -1552,15 +1554,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const next = nextNode(ctx.node, ctx.source.root, false);
         returnAddress = next?.node.addr ?? ctx.origin.addr;
       }
-      const scope: { [key: string]: TSerial } = {};
+      const readableScope: { [key: string]: TSerial } = {};
       for (const [key, value] of Object.entries(
         omit(atts, "to", "return", "returnTo")
       )) {
-        setState(scope, key, value);
+        setState(readableScope, key, value);
       }
       ctx.session.stack.push({
         returnAddress,
-        scope,
+        writeableScope: null,
+        readableScope,
         blockType: "yield",
       });
       // Instead of jumping to the block's children, jump to the block itself

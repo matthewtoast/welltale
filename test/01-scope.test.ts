@@ -8,6 +8,7 @@ import {
   BaseActionContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
+  TSessionStackObj,
 } from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
@@ -61,7 +62,8 @@ async function go() {
   const introSession = createDefaultSession("intro");
   introSession.stack.push({
     returnAddress: "0",
-    scope: null,
+    writeableScope: null,
+    readableScope: null,
     blockType: "intro",
   });
   const introScope = createScope(introSession, {});
@@ -69,31 +71,34 @@ async function go() {
   expect(introSession.state.introVar, "intro");
 
   const mixedSession = createDefaultSession("mixed");
-  const scopeFrame = {
+  const scopeFrame: TSessionStackObj = {
     returnAddress: "1",
-    scope: {} as { [key: string]: unknown },
+    writeableScope: {} as { [key: string]: unknown },
+    readableScope: {} as { [key: string]: unknown },
     blockType: "scope" as const,
   };
   mixedSession.stack.push(scopeFrame);
   mixedSession.stack.push({
     returnAddress: "2",
-    scope: null,
+    writeableScope: null,
+    readableScope: null,
     blockType: "intro",
   });
   const mixedScope = createScope(mixedSession, {});
   mixedScope.blockVar = "block";
-  expect(scopeFrame.scope.blockVar, "block");
+  expect(scopeFrame.writeableScope!.blockVar, "block");
 
   const yieldSession = createDefaultSession("yield");
-  const yieldFrame = {
+  const yieldFrame: TSessionStackObj = {
     returnAddress: "3",
-    scope: {} as { [key: string]: unknown },
+    writeableScope: {} as { [key: string]: unknown },
+    readableScope: {} as { [key: string]: unknown },
     blockType: "yield" as const,
   };
   yieldSession.stack.push(yieldFrame);
   const yieldScope = createScope(yieldSession, {});
   yieldScope.param = "value";
-  expect(yieldFrame.scope.param, "value");
+  expect(yieldFrame.writeableScope!.param, "value");
 }
 
 go();

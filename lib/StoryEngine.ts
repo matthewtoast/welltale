@@ -82,7 +82,8 @@ export async function advanceStory(
     if (resume) {
       session.stack.push({
         returnAddress: session.address || origin.addr,
-        scope: null,
+        writeableScope: null,
+        readableScope: null,
         blockType: "resume",
       });
       session.address = resume.addr;
@@ -95,7 +96,8 @@ export async function advanceStory(
     if (intro) {
       session.stack.push({
         returnAddress: origin.addr,
-        scope: null,
+        writeableScope: null,
+        readableScope: null,
         blockType: "intro",
       });
       session.address = intro.addr;
@@ -256,7 +258,8 @@ export async function advanceStory(
             session.outroDone = true;
             session.stack.push({
               returnAddress: OUTRO_RETURN_ADDR,
-              scope: null,
+              writeableScope: null,
+              readableScope: null,
               blockType: "outro",
             });
             session.address = outro.addr;
@@ -290,9 +293,9 @@ export function createScope(
 ): { [key: string]: TSerial } {
   function findWritableScope(): { [key: string]: TSerial } | null {
     for (let i = session.stack.length - 1; i >= 0; i--) {
-      const scope = session.stack[i].scope;
-      if (scope) {
-        return scope;
+      const writeableScope = session.stack[i].writeableScope;
+      if (writeableScope) {
+        return writeableScope;
       }
     }
     return null;
@@ -301,9 +304,10 @@ export function createScope(
   return new Proxy({} as { [key: string]: TSerial }, {
     get(target, prop: string) {
       for (let i = session.stack.length - 1; i >= 0; i--) {
-        const scope = session.stack[i].scope;
-        if (scope && prop in scope) {
-          return scope[prop];
+        const eitherScope =
+          session.stack[i].writeableScope ?? session.stack[i].readableScope;
+        if (eitherScope && prop in eitherScope) {
+          return eitherScope[prop];
         }
       }
       // Return null here instead of undefined so we can reference unknown vars in evalExpr w/o throwing
@@ -327,7 +331,7 @@ export function createScope(
     ownKeys(target) {
       const keys: string[] = [];
       for (let i = session.stack.length - 1; i >= 0; i--) {
-        const scope = session.stack[i].scope;
+        const scope = session.stack[i].writeableScope;
         for (const key in scope) {
           keys.push(key);
         }
@@ -339,7 +343,7 @@ export function createScope(
     },
     getOwnPropertyDescriptor(target, prop: string) {
       for (let i = session.stack.length - 1; i >= 0; i--) {
-        const scope = session.stack[i].scope;
+        const scope = session.stack[i].writeableScope;
         if (scope && prop in scope) {
           return {
             configurable: true,
