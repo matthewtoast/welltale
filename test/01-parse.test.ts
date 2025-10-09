@@ -146,6 +146,7 @@ async function test() {
       loop: 0,
       ream: 100,
       doGenerateAudio: false,
+      doGenerateImage: false,
       maxCheckpoints: 20,
       inputRetryMax: 3,
       models: DEFAULT_LLM_SLUGS,

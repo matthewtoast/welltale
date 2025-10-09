@@ -126,6 +126,7 @@ async function runRepl() {
     loop: 0,
     maxCheckpoints: 20,
     inputRetryMax: 3,
+    doGenerateImage: false,
     models: DEFAULT_LLM_SLUGS,
     doGenerateAudio: argv.doGenerateAudio,
     doPlayMedia: argv.doPlayMedia,

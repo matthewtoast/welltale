@@ -3,7 +3,7 @@ import { NonEmpty, TSerial } from "../typings";
 import type { FetchOptions } from "./HTTPHelpers";
 import { safeJsonParse } from "./JSONHelpers";
 import type { AIChatMessage } from "./OpenRouterUtils";
-import type { VoiceSpec } from "./StoryTypes";
+import type { VoiceSpec, ImageModelSlug, ImageAspectRatio } from "./StoryTypes";
 import { LLM_SLUGS } from "./StoryTypes";
 import { parameterize } from "./TextHelpers";
 
@@ -16,6 +16,11 @@ export type BaseGenerateOptions = {
 export type GenerateTextCompletionOptions = BaseGenerateOptions & {
   models: NonEmpty<Model>;
   useWebSearch: boolean;
+};
+
+export type GenerateImageOptions = BaseGenerateOptions & {
+  model: ImageModelSlug;
+  aspectRatio?: ImageAspectRatio;
 };
 
 export type SpeechSpec = {
@@ -55,6 +60,10 @@ export interface StoryServiceProvider {
     prompt: string,
     options: BaseGenerateOptions
   ): Promise<{ id: string }>;
+  generateImage(
+    prompt: string,
+    options: GenerateImageOptions
+  ): Promise<{ url: string }>;
   generateChat(
     messages: AIChatMessage[],
     options: BaseGenerateOptions
@@ -115,6 +124,13 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     options: BaseGenerateOptions
   ): Promise<{ id: string }> {
     return { id: `mock-voice-${parameterize(prompt)}` };
+  }
+
+  async generateImage(
+    prompt: string,
+    options: GenerateImageOptions
+  ): Promise<{ url: string }> {
+    return { url: "https://example.com/mock-image.png" };
   }
 
   async generateChat(

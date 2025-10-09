@@ -12,6 +12,7 @@ import {
 import { fetch, FetchOptions } from "./HTTPHelpers";
 import {
   generateChatResponse,
+  generateImage,
   generateJson,
   generateJsonWithWeb,
   generateText,
@@ -21,6 +22,7 @@ import type { VoiceSpec } from "./StoryTypes";
 import { generatePredictableKey, parameterize } from "./TextHelpers";
 import type {
   BaseGenerateOptions,
+  GenerateImageOptions,
   GenerateTextCompletionOptions,
   SpeechSpec,
   StoryServiceProvider,
@@ -240,6 +242,53 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       await this.config.cache.set(key, buf, "text/plain");
     }
     return { id: res.voiceId };
+  }
+
+  async generateImage(
+    prompt: string,
+    options: GenerateImageOptions
+  ): Promise<{ url: string }> {
+    const useCache = !this.options.disableCache && !options.disableCache;
+    const idemp = `${prompt}:${options.model}:${options.aspectRatio || ""}`;
+    if (this.options.verbose) {
+      console.info(`Generate Image ~> ${idemp}`);
+    }
+    const key = generatePredictableKey("img", idemp, "png");
+    if (useCache) {
+      const cached = await this.config.cache.get(key);
+      if (cached) {
+        const url = await this.config.cache.set(key, cached, "image/png");
+        return { url };
+      }
+    }
+    const result = await generateImage(
+      this.config.openai,
+      prompt,
+      options.model,
+      options.aspectRatio
+    );
+    if (!result || !result.images || result.images.length === 0) {
+      console.warn("Failed to generate image");
+      return { url: "" };
+    }
+    const firstImage = result.images[0];
+    if (!firstImage?.image_url?.url) {
+      console.warn("Invalid image response format");
+      return { url: "" };
+    }
+    const dataUrl = firstImage.image_url.url;
+    if (!dataUrl.startsWith("data:image/")) {
+      console.warn("Invalid image data URL format");
+      return { url: "" };
+    }
+    const base64Data = dataUrl.split(",")[1];
+    if (!base64Data) {
+      console.warn("Invalid base64 image data");
+      return { url: "" };
+    }
+    const imageBuffer = Buffer.from(base64Data, "base64");
+    const url = await this.config.cache.set(key, imageBuffer, "image/png");
+    return { url };
   }
 
   async generateChat(

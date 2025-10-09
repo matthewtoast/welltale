@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { marked } from "marked";
 import { ActionHandlerCategory } from "../../../lib/StoryTypes";
 import styles from "./docs.module.css";
 
@@ -63,6 +64,16 @@ function collectCategories(handlers: HandlerEntry[]): ActionHandlerCategory[] {
     });
   });
   return Array.from(set).sort();
+}
+
+function processMarkdown(text: string): string {
+  // Use sync version for inline processing
+  try {
+    return marked.parseInline(text, { async: false }) as string;
+  } catch (error) {
+    console.warn("Failed to process markdown:", error);
+    return text;
+  }
 }
 
 function filterHandlers(
@@ -143,9 +154,10 @@ export default function DocsClient({ handlers }: DocsClientProps) {
           <div key={handler.primaryTag} className={styles.tagCard}>
             <div className={styles.tagHeader}>
               <h3 className={styles.tagName}>&lt;{handler.primaryTag}&gt;</h3>
-              <p className={styles.tagDescription}>
-                {handler.description.split("\n")[0]}
-              </p>
+              <div 
+                className={styles.tagDescription}
+                dangerouslySetInnerHTML={{ __html: processMarkdown(handler.description) }}
+              />
             </div>
 
             <div className={styles.tagDetails}>

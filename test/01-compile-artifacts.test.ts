@@ -53,6 +53,7 @@ voices:
     maxCheckpoints: 20,
     inputRetryMax: 3,
     doGenerateAudio: true,
+    doGenerateImage: false,
     models: DEFAULT_LLM_SLUGS,
   };
 

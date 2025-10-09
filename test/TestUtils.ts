@@ -95,6 +95,7 @@ export async function runTestStory(
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
     doGenerateAudio: false,
+    doGenerateImage: false,
     doPlayMedia: false,
   };
   const baseContext: BaseActionContext = {

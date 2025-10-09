@@ -127,12 +127,38 @@ export const DEFAULT_LLM_SLUGS: NonEmpty<(typeof LLM_SLUGS)[number]> = [
 
 export const LLMSlugSchema = z.enum(LLM_SLUGS);
 
+export const IMAGE_MODEL_SLUGS = [
+  "google/gemini-2.5-flash-image-preview",
+  // Add more models here as they become available on OpenRouter
+  // Potential future additions: black-forest-labs/flux-1-dev, etc.
+] as const;
+
+export const IMAGE_ASPECT_RATIOS = [
+  "1:1",
+  "2:3", 
+  "3:2",
+  "3:4",
+  "4:3",
+  "4:5",
+  "5:4", 
+  "9:16",
+  "16:9",
+  "21:9",
+] as const;
+
+export type ImageModelSlug = (typeof IMAGE_MODEL_SLUGS)[number];
+export type ImageAspectRatio = (typeof IMAGE_ASPECT_RATIOS)[number];
+
+export const ImageModelSlugSchema = z.enum(IMAGE_MODEL_SLUGS);
+export const ImageAspectRatioSchema = z.enum(IMAGE_ASPECT_RATIOS);
+
 export const StoryOptionsSchema = z.object({
   verbose: z.boolean(),
   seed: z.string(),
   loop: z.number(),
   ream: z.number(),
   doGenerateAudio: z.boolean(),
+  doGenerateImage: z.boolean(),
   maxCheckpoints: z.number().default(20),
   inputRetryMax: z.number().default(3),
   models: z
@@ -211,6 +237,7 @@ export type OP =
   | { type: "sleep"; duration: number }
   | { type: "get-input" }
   | ({ type: "play-media"; event: StoryEvent | null } & PlayMediaOptions)
+  | { type: "show-media"; media: string; event: StoryEvent | null }
   | { type: "story-error"; reason: string }
   | { type: "story-end" };
 

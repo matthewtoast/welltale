@@ -1,12 +1,18 @@
+# Data files (.yml, .yaml, or .json) define story metadata and configuration.
+# The engine automatically loads all data files in your story directory.
+
+# Basic story metadata - this is displayed in your public story listing
 title: Example Quest
 author: Matthew Trost
 tags: [example, fantasy]
 description: This is an example Welltale story in a fantasy setting that shows how to use all Welltale Story Language features
 
+# Pronunciation mappings for the speech engine - for any less common words or fantastical terms
 pronunciations:
   Trost: Troast
 
-# Game data
+# Game data - you can define any custom data your story needs and reference it
+# in template patterns like {{player.gold}} or scripts like <code>shop.potion * 3</code>
 player:
   gold: 35
   inventory: ["bread"]
@@ -16,6 +22,8 @@ shop:
   compass: 50
   sword: 20
 
+# Macros can be defined in data files or directly in story files using <macro> tags
+# These transform your tags based on rules to make story authoring easier
 macros:
   - match: merchant
     rename:
@@ -36,10 +44,11 @@ macros:
       attr: voice
       value: wretch
 
+# Voices can be defined in data files or directly in story files using <voice> tags
 voices:
   merchant:
     prompt: Jovial merchant in a fantasy setting, slight Eastern European accent, persuasive
   rhymer:
     prompt: Swamp creature that speaks only in rhyme, melodic voice, slightly mischievous
   wretch:
-    prompt: A wretched forest creature, lowly British accent, voice like a whisper through clenched teeth, with undertones of a frog’s croak
+    prompt: A wretched forest creature, lowly British accent, voice like a whisper through clenched teeth

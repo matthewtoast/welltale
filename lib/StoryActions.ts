@@ -35,7 +35,14 @@ import {
   skipBlock,
 } from "./StoryNodeHelpers";
 import { renderAtts, renderText } from "./StoryRenderMethods";
-import { ActionHandler, OP, StoryEvent, StoryNode } from "./StoryTypes";
+import {
+  ActionHandler,
+  ImageAspectRatio,
+  ImageModelSlug,
+  OP,
+  StoryEvent,
+  StoryNode,
+} from "./StoryTypes";
 import { cleanSplit, isBlank, snorm } from "./TextHelpers";
 
 export const ACTION_HANDLERS: ActionHandler[] = [
@@ -1816,9 +1823,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       if (!url) {
         const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
         const prompt = (
-          !isBlank(rollup)
-            ? rollup
-            : (atts.make ?? atts.prompt ?? atts.description)
+          !isBlank(rollup) ? rollup : (atts.prompt ?? atts.description)
         ).trim();
         if (!isBlank(prompt)) {
           if (ctx.options.doGenerateAudio) {
@@ -1872,6 +1877,95 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         volume: parseNumberOrNull(atts.volume),
         background: castToBoolean(atts.background),
       });
+      return {
+        ops,
+        next,
+      };
+    },
+  },
+  {
+    tags: ["image", "img"],
+    docs: {
+      desc: dedent`
+        Displays images in the story.
+
+        If a \`src\`, \`href\`, or \`url\` attribute is given, it displays that image directly.
+
+        Otherwise the prompt (inner text content) is used to generate an image using AI.
+      `,
+      ex: [
+        {
+          code: dedent`
+            <!-- Display from URL -->
+            <image src="https://example.com/castle.jpg" />
+            <img url="https://example.com/portrait.png" />
+            
+            <!-- AI-generated images -->
+            <image model="google/gemini-2.5-flash-image-preview" aspectRatio="16:9">
+              A majestic castle on a hilltop at sunset, fantasy art style
+            </image>
+            
+            <img aspectRatio="1:1">
+              Portrait of a wise old wizard with a long white beard
+            </img>
+          `,
+        },
+      ],
+      cats: ["media"],
+    },
+    syntax: {
+      block: true,
+      atts: {
+        src: {
+          type: "string",
+          desc: "URL of image file to display (aliases: href, url)",
+          req: false,
+        },
+        model: {
+          type: "string",
+          desc: "Image generation model to use for AI-generated images",
+          req: false,
+        },
+        aspectRatio: {
+          type: "string",
+          desc: "Aspect ratio for AI-generated images (e.g., '16:9', '1:1')",
+          req: false,
+        },
+        prompt: {
+          type: "string",
+          desc: "Description for AI image generation (aliases: make, description)",
+          req: false,
+        },
+      },
+    },
+    exec: async (ctx) => {
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      let url = atts.href ?? atts.url ?? atts.src ?? "";
+      const next = nextNode(ctx.node, ctx.source.root, false);
+      const ops: OP[] = [];
+
+      if (!url) {
+        const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
+        const prompt = (
+          !isBlank(rollup) ? rollup : (atts.prompt ?? atts.description)
+        ).trim();
+        if (!isBlank(prompt) && ctx.options.doGenerateImage) {
+          const result = await ctx.provider.generateImage(prompt, {
+            model:
+              (atts.model as ImageModelSlug) ??
+              "google/gemini-2.5-flash-image-preview",
+            aspectRatio: atts.aspectRatio as ImageAspectRatio,
+          });
+          url = result.url;
+        }
+      }
+
+      ops.push({
+        type: "show-media",
+        media: url,
+        event: null,
+      });
+
       return {
         ops,
         next,

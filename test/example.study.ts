@@ -30,6 +30,7 @@ async function testTestStory() {
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
     doGenerateAudio: false,
+    doGenerateImage: false,
     doPlayMedia: false,
   };
   const provider = new DefaultStoryServiceProvider(

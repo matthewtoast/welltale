@@ -1,7 +1,7 @@
 import dedent from "dedent";
 import OpenAI from "openai";
 import { NonEmpty, TSerial } from "../typings";
-import { LLM_SLUGS } from "./StoryTypes";
+import { LLM_SLUGS, ImageModelSlug, ImageAspectRatio } from "./StoryTypes";
 
 type OpenAIChatModel = (typeof LLM_SLUGS)[number];
 
@@ -158,4 +158,30 @@ export async function fetchModerations(openai: OpenAI, input: string) {
     }[];
   }>;
   return payload;
+}
+
+export async function generateImage(
+  openai: OpenAI,
+  prompt: string,
+  model: ImageModelSlug,
+  aspectRatio?: ImageAspectRatio
+) {
+  const imageConfig = aspectRatio ? { image_config: { aspect_ratio: aspectRatio } } : {};
+  const r = await openai.chat.completions.create({
+    model,
+    messages: [{ role: "user", content: prompt }],
+    modalities: ["image", "text"],
+    ...imageConfig,
+  } as any);
+  
+  const choice = r.choices?.[0];
+  if (!choice?.message) return null;
+  
+  const images = (choice.message as any).images;
+  const content = choice.message.content || "";
+  
+  return {
+    images: images || [],
+    content,
+  };
 }

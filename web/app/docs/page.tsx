@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { ACTION_HANDLERS } from "../../../lib/StoryActions";
 import { TEMPLATE_SYNTAX } from "../../../lib/StoryDocs";
 import { CodeBlock } from "../../components/CodeBlock";
@@ -14,6 +16,18 @@ const QUICKSTART_CODE = `<p>Welcome to your adventure!</p>
 
 <music duration="10000">Epic orchestral music for the start of an adventure</music>
 <p>Your journey starts now...</p>`;
+
+function readExampleFiles() {
+  try {
+    const exampleDir = path.join(process.cwd(), "fic", "example");
+    const dataContent = fs.readFileSync(path.join(exampleDir, "data.yml"), "utf-8");
+    const storyContent = fs.readFileSync(path.join(exampleDir, "main.wsl"), "utf-8");
+    return { dataContent, storyContent };
+  } catch (error) {
+    console.warn("Could not read example files:", error);
+    return { dataContent: null, storyContent: null };
+  }
+}
 
 function buildHandlerEntries(): HandlerEntry[] {
   return ACTION_HANDLERS.reduce<HandlerEntry[]>((list, handler) => {
@@ -60,6 +74,7 @@ function buildHandlerEntries(): HandlerEntry[] {
 
 export default function DocsPage() {
   const handlerEntries = buildHandlerEntries();
+  const { dataContent, storyContent } = readExampleFiles();
 
   return (
     <div className={styles.docsContainer}>
@@ -71,6 +86,11 @@ export default function DocsPage() {
           and templating patterns. Out of the box, WSL is connected to speech-,
           sound-, and text-generation AI tools, making new kinds of interactive,
           audio-based storytelling possible.
+        </p>
+        <p className={styles.exampleLink}>
+          📖 <a href="#complete-example" className={styles.anchorLink}>
+            See a complete example story
+          </a> at the bottom of this page.
         </p>
       </header>
 
@@ -140,6 +160,51 @@ export default function DocsPage() {
       </section>
 
       <DocsClient handlers={handlerEntries} />
+
+      {(dataContent || storyContent) && (
+        <section id="complete-example" className={styles.completeExample}>
+          <h2 className={styles.sectionTitle}>Complete Example</h2>
+          <p className={styles.sectionDescription}>
+            Below is a complete interactive story that demonstrates most WSL features.
+            A Welltale story can comprise multiple files in any directory structure you prefer.
+            The engine loads and combines all files together - data files (.yml/.yaml/.json) 
+            for configuration and metadata, and story files (.wsl/.xml) for the actual content and logic.
+          </p>
+
+          {dataContent && (
+            <div className={styles.exampleFile}>
+              <h3 className={styles.fileName}>data.yml</h3>
+              <p className={styles.fileDescription}>
+                Story metadata and configuration. You can define story data, custom voices, 
+                and macros in data files. Voices and macros can also be defined directly 
+                in your story files - it's flexible.
+              </p>
+              <CodeBlock
+                code={dataContent}
+                language="yaml"
+                className={styles.codeBlock}
+                theme="github-dark"
+              />
+            </div>
+          )}
+
+          {storyContent && (
+            <div className={styles.exampleFile}>
+              <h3 className={styles.fileName}>main.wsl</h3>
+              <p className={styles.fileDescription}>
+                The story content and interactive logic. This is where your actual 
+                story unfolds using WSL tags and templating patterns.
+              </p>
+              <CodeBlock
+                code={storyContent}
+                language="welltale"
+                className={styles.codeBlock}
+                theme="github-dark"
+              />
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

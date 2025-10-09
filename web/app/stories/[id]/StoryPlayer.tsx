@@ -36,6 +36,7 @@ export function StoryPlayer(props: StoryMeta) {
     loop: 0,
     ream: 100,
     doGenerateAudio: true,
+    doGenerateImage: false,
     maxCheckpoints: 20,
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,

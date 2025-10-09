@@ -75,6 +75,7 @@
     "js-yaml": "^4.1.0",
     "json5": "^2.2.3",
     "lodash": "^4.17.21",
+    "marked": "^16.4.0",
     "mathjs": "^14.6.0",
     "micromark": "^4.0.2",
     "micromark-extension-frontmatter": "^2.0.0",

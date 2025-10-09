@@ -136,6 +136,7 @@ async function runAutorun() {
     maxCheckpoints: 20,
     inputRetryMax: 3,
     doGenerateAudio: argv.doGenerateAudio,
+    doGenerateImage: false,
     doPlayMedia: argv.doPlayMedia,
     models: DEFAULT_LLM_SLUGS,
   };

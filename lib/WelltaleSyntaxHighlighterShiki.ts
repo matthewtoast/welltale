@@ -26,7 +26,7 @@ async function loadHighlighter() {
   if (highlighter) return highlighter;
   highlighter = await createHighlighter({
     themes: ["github-light", "github-dark"],
-    langs: ["xml", "javascript", "typescript"],
+    langs: ["xml", "javascript", "typescript", "yaml"],
   });
   return highlighter;
 }

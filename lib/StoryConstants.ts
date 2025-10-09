@@ -20,9 +20,9 @@ export const NONRENDER_ATTS = ["id", "type", ".type", ".pattern"];
 export const LOOP_TAGS = ["while"];
 
 export const TEXT_CONTENT_TAGS = [
-  TEXT_TAG,
-  "text",
   "p",
+  "text",
+  TEXT_TAG,
   "span",
   "b",
   "strong",
