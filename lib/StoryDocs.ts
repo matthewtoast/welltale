@@ -46,25 +46,25 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
     ],
   },
   {
-    syntax: "[random|variations]",
+    syntax: "[[random|variations]]",
     description:
       "Create dynamic text variations that change each time they're encountered. Use pipe symbols to separate options. Add ^ for cycling through options in order, or ~ for shuffled rotation.",
     examples: [
       {
-        code: `<p>The weather is [sunny|cloudy|rainy|stormy] today.</p>`,
+        code: `<p>The weather is [[sunny|cloudy|rainy|stormy]] today.</p>`,
         note: "Randomly selects one weather option each time",
       },
       {
-        code: `<p>Day [^1|2|3|4|5]: The adventure continues...</p>`,
+        code: `<p>Day [[^1|2|3|4|5]]: The adventure continues...</p>`,
         note: "Cycles through days in order: 1, 2, 3, 4, 5, 1, 2...",
       },
       {
-        code: `<p>You hear [~a distant roar|footsteps echoing|wind whistling|branches creaking].</p>`,
+        code: `<p>You hear [[~a distant roar|footsteps echoing|wind whistling|branches creaking]].</p>`,
         note: "Shuffles all sounds, plays each once before reshuffling",
       },
       {
         code: `<var name="playerClass" value="warrior" />
-<p>As a {{playerClass}}, you [feel confident|steel yourself|prepare for battle].</p>`,
+<p>As a {{playerClass}}, you [[feel confident|steel yourself|prepare for battle]].</p>`,
         note: "Variations can be used with other template syntax",
       },
     ],
@@ -112,17 +112,17 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
   {
     syntax: "Processing order",
     description:
-      "Templates are processed in this specific order: (1) {{variables}} first, (2) {$ expressions $} second, (3) [random|variations] third, (4) {% AI prompts %} last. Later patterns can use results from earlier ones.",
+      "Templates are processed in this specific order: (1) {{variables}} first, (2) {$ expressions $} second, (3) [[random|variations]] third, (4) {% AI prompts %} last. Later patterns can use results from earlier ones.",
     examples: [
       {
         code: `<var name="playerClass" value="warrior" />
 <var name="strength" value="15" type="number" />
-<p>{% Describe a {{playerClass}} with {$ strength $} strength points [charging into battle|preparing for combat] %}</p>`,
+<p>{% Describe a {{playerClass}} with {$ strength $} strength points [[charging into battle|preparing for combat]] %}</p>`,
         note: "Variables → expressions → variations → AI generation",
       },
       {
         code: `<var name="weather" value="stormy" />
-<p>The {{weather}} night is [eerily quiet|full of tension] as {% describe the mood when it's {$ weather === 'stormy' ? 'very dark' : 'peaceful' $} %}</p>`,
+<p>The {{weather}} night is [[eerily quiet|full of tension]] as {% describe the mood when it's {$ weather === 'stormy' ? 'very dark' : 'peaceful' $} %}</p>`,
         note: "Each template type builds on the previous ones in order",
       },
     ],

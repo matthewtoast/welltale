@@ -932,7 +932,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       const event: StoryEvent = {
         body: snorm(text),
-        from: atts.from ?? atts.speaker ?? atts.label ?? HOST_ID,
+        from: atts.from ?? atts.speaker ?? atts.label ?? atts.voice ?? HOST_ID,
         to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
         obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
         tags: atts.tags ? cleanSplit(atts.tags, ",") : [],

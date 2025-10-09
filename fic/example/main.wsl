@@ -1,0 +1,237 @@
+<!-- This is an example interactive audio story written in Welltale Story Language (WSL). -->
+
+<!-- UNUSED TAGS IN THIS STORY:
+Container/Descendable tags:
+- scope (creates isolated variable scope)
+- block (reusable content blocks)
+
+AI/LLM tags:
+- llm:parse (extract structured data from text)
+- llm:tag (classify text into categories)
+- llm:dialog (AI character responses)
+
+Control Flow tags:
+- while (loops with break/continue)
+- yield (invoke a block with parameters)
+- checkpoint (manual save point)
+
+Variables/Data tags:
+- var (define/update variables)
+- data (load JSON/YAML data)
+
+Media tags:
+- sound (sound effects)
+
+Special tags:
+- when (conditional text rendering inside text tags)
+- include
+-->
+
+<!-- Using the <voice> tag, you can generate custom voices, referencable with the `id` attribute. -->
+<voice id="narrator">
+  British storybook narrator, classic deep voice, expressive
+</voice>
+
+<!-- For unusual words, you can provide a pronunciation mapping to the speech engine. -->
+<pronunciation word="Eldoria" pronunciation="el-DOH-reeah" />
+
+<!-- The <intro> tag plays content only once: when the player first begins a story. -->
+<intro>
+  <!-- The <music> tag generates a music clip according to a prompt -->
+  <music duration="10000" background="true">
+    Epic fantasy orchestral music for the beginning of an exciting, dangerous quest
+  </music>
+
+  <!-- <sleep> is used for creating a timed pause in the story flow, useful for building suspense -->
+  <sleep duration="3000" />
+
+  <!--
+    The <p> tag plays spoken content, automatically converting the text to speech.
+    You can use {{ }} template pattern to inject dynamic content into your text.
+    Here, we are referencing values defined in our data.yml file.
+  -->
+  <p>
+    You're playing {{title}}, by {{author}}.
+  </p>
+</intro>
+
+<!-- The <resume> tag plays content any time a story is resumed. It does not play on the first playthrough. -->
+<resume>
+  <!-- If no `voice` is specified, a default voice will be used. -->
+  <p>
+    Welcome back to {{title}}, by {{author}}.
+  </p>
+</resume>
+
+
+<!--
+  The <origin> tag defines your story's actual starting point. It only plays once per story.
+  It plays after the <intro> tag; or, if no <intro> tag is present, it played first.
+  If no <origin> tag is given then playback will begin with the first top-level tag.
+-->
+<origin>
+  <!-- The `voice` attribute here specifies the generated voice to use -->
+  <p voice="narrator">
+    Dark forces gather in the land of Eldoria.
+  </p>
+  
+  <p voice="narrator">
+    You've arrived at an ancient crossroads in the wildnerness. The sun is setting.
+    Two paths lie before you: one leads into a dark forest, the other into a deep chasm.
+    Which path do you choose?
+  </p>
+
+  <!--
+    With the <input> tag, the story pauses to collect the user's input.
+    Their input gets stored in an `input` state variable, which you can use in your story logic.
+  -->
+  <input />
+
+  <!--
+    The <llm:score> tag is one of many AI-based tags that lets you drive your story.
+  -->
+  <llm:score key="choice"
+    woods="the player chooses the woods"
+    chasm="the player chooses the chasm">
+    The player has a choice between visiting the woods and the chasm. Based on their input, which do they choos
+    {{input}}
+  </llm:score>
+
+  <if cond="choice.woods > choice.chasm">
+    <p voice="narrator">
+      You make your way down the path into the darkening foest.
+    </p>
+    <jump to="woods" />
+  </if>
+
+  <p voice="narrator">
+    You begin the treacherous descent into the chasm.
+  </p>
+  <jump to="chasm" />
+</origin>
+
+<!--
+  The <macro> tag lets you transform tags in your story to make authoring easier.
+  Instead of writing `<p voice="narrator">` over and over, this macro lets us use `<narrator>` anywhere in the story.
+-->
+<macro match="narrator">
+  <rename to="p" />
+  <set attr="voice" value="narrator" />
+</macro>
+
+<!--
+  <div> tags are just containers for content. Container tags are in the order they are written.
+  You can also
+-->
+<div id="woods">
+  <narrator>
+    As your eyes adjust to the dark, you look around at the trees.
+  </narrator>
+
+  <narrator>
+    <!-- With the {% %} template pattern, you can use a prompt for generative AI to create story content. -->
+    You see {% short, suspenseful description of a dark forest in present tense %}.
+  </narrator>
+
+  <narrator>
+    From somewhere within the thicket of trees, you hear a strange voice.
+  </narrator>
+
+  <!-- You can define <voice> and <macro> tags anywhere in your story that you find convenient. -->
+  <voice id="wretch">
+    A wretched forest creature, lowly British accent, voice like a whisper through clenched teeth, with undertones of a frog’s croak
+  </voice>
+  <macro match="wretch">
+    <rename to="p" />
+    <set attr="voice" value="wretch" />
+  </macro>
+
+  <wretch>
+    Who goes there...?
+  </wretch>
+
+  <narrator>
+    Upon hearing this voice, you freeze in your tracks. You can't see where the voice came from.
+  </narrator>
+
+  <wretch>
+    I be the keeper of these woods.
+    I eat all who tresspass, starting with theys toes.
+    Only thems who answer me riddle may pass.
+  </wretch>
+
+  <!--
+    The <llm:generate> tag can be used to generate content using AI from a prompt.
+    Here we also use {$ $} template pattern syntax for inline JavaScript fragments.
+  -->
+  <llm:generate
+    key="riddle"
+    question="the full riddle question"
+    answer="answer to the riddle">
+    Create a short riddle that works in a medieval British fantasy setting.
+    Give your response in two parts: the question, and the answer.
+    The answer should be a single word related to {$ randElement(["summer", "winter", "autumn", "spring"]) $}.
+    The question should be short and lyrical, with grammar like Gollum.
+  </llm:generate>
+
+  <wretch>
+    Answer me this:  
+    {{riddle.question}}
+  </wretch>
+
+  <narrator>
+    How do you answer the riddle?
+  </narrator>
+
+  <!-- Input can be stored under any state variable you choose, using the `key` tag. -->
+  <input key="reply" />
+
+  <!--
+    With the <script> tag you can use JavaScript or TypeScript to write programmatic logic.
+    By default, all state variables are available in the scope of this script.
+    To set a state variable (i.e. to be available after the script runs), use the `set(key, value)` function.
+  -->
+  <script>
+    set("riddleSolved", reply.includes(riddle.answer))
+  </script>
+
+  <if cond="riddleSolved">
+    <wretch>
+      Ye solved me riddle, so I'll let ye pass.
+      Come not again to these woods, traveler.
+    </wretch>
+
+    <narrator>
+
+    </narrator>
+
+    <else>
+
+    </else>
+  </if>
+</div>
+
+<div id="chasm">
+  <!-- TODO -->
+</div>
+
+<div id="outpost">
+  <!-- TODO -->
+</div>
+
+<div id="dead">
+  <narrator>
+    Unfortunately, you have perished.
+    Another adventurer will have to take up your quest.
+  </narrator>
+
+  <end />
+</div>
+
+<!-- The <outro> tag plays once at the end of the story, after all other story content has been finished. -->
+<outro>
+  <p>
+    Thank you for playing {{title}}, by {{author}}.
+    We hope you've enjoyed your adventure.
+  </p>
+</outro>

@@ -18,7 +18,7 @@ export function resolveBracketDDV(
     session: { ddv: DDVState };
   }
 ): string {
-  return s.replace(/\[([\s\S]+?)\]/g, (_m, raw: string) => {
+  return s.replace(/\[\[([\s\S]+?)\]\]/g, (_m, raw: string) => {
     let inner = raw.trim();
     let mode: "^" | "~" | "" = "";
     if (inner[0] === "^" || inner[0] === "~") {

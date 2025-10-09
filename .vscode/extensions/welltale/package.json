@@ -1,0 +1,35 @@
+{
+  "name": "welltale-language",
+  "displayName": "Welltale Language Support",
+  "description": "Syntax highlighting for Welltale Story Language (.wsl) files",
+  "version": "1.0.1",
+  "engines": {
+    "vscode": "^1.0.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "welltale",
+        "aliases": [
+          "Welltale",
+          "welltale"
+        ],
+        "extensions": [
+          ".wsl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "welltale",
+        "scopeName": "source.welltale",
+        "path": "./syntaxes/welltale.tmLanguage.json"
+      }
+    ]
+  },
+  "publisher": "welltale"
+}

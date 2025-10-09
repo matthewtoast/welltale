@@ -1,0 +1,203 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Welltale",
+  "scopeName": "source.welltale",
+  "fileTypes": [
+    "wsl"
+  ],
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#template-ai"
+    },
+    {
+      "include": "#template-expression"
+    },
+    {
+      "include": "#template-variable"
+    },
+    {
+      "include": "#script-block"
+    },
+    {
+      "include": "#tag"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.block.welltale",
+      "begin": "<!--",
+      "end": "-->"
+    },
+    "template-ai": {
+      "name": "meta.template.ai-prompt.welltale",
+      "begin": "\\{%",
+      "end": "%\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.template.begin.welltale"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.template.end.welltale"
+        }
+      },
+      "contentName": "string.unquoted.ai-prompt.welltale"
+    },
+    "template-expression": {
+      "name": "meta.template.expression.welltale",
+      "begin": "\\{\\$",
+      "end": "\\$\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.template.begin.welltale"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.template.end.welltale"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.ts"
+        }
+      ]
+    },
+    "template-variable": {
+      "name": "meta.template.variable.welltale",
+      "begin": "\\{\\{",
+      "end": "\\}\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.template.begin.welltale"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.template.end.welltale"
+        }
+      },
+      "contentName": "variable.other.welltale"
+    },
+    "script-block": {
+      "name": "meta.tag.script.welltale",
+      "begin": "(<)(script)(?=\\s|>)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.welltale"
+        },
+        "2": {
+          "name": "entity.name.tag.welltale"
+        }
+      },
+      "end": "(</)(script)(\\s*)(>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.welltale"
+        },
+        "2": {
+          "name": "entity.name.tag.welltale"
+        },
+        "4": {
+          "name": "punctuation.definition.tag.end.welltale"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#tag-attributes"
+        },
+        {
+          "begin": "(>)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.tag.end.welltale"
+            }
+          },
+          "end": "(?=</script>)",
+          "patterns": [
+            {
+              "include": "source.ts"
+            }
+          ]
+        }
+      ]
+    },
+    "tag": {
+      "name": "meta.tag.welltale",
+      "begin": "(<\\/?)([A-Za-z][\\w\\-:.]*)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.begin.welltale"
+        },
+        "2": {
+          "name": "entity.name.tag.welltale"
+        }
+      },
+      "end": "(\\/?>)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.tag.end.welltale"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#tag-attributes"
+        }
+      ]
+    },
+    "tag-attributes": {
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name.welltale",
+          "match": "\\b[a-zA-Z][\\w\\-:.]*(?=\\s*=)"
+        },
+        {
+          "name": "punctuation.separator.key-value.welltale",
+          "match": "="
+        },
+        {
+          "include": "#double-quoted-string"
+        },
+        {
+          "include": "#single-quoted-string"
+        }
+      ]
+    },
+    "double-quoted-string": {
+      "name": "string.quoted.double.welltale",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "include": "#template-ai"
+        },
+        {
+          "include": "#template-expression"
+        },
+        {
+          "include": "#template-variable"
+        }
+      ]
+    },
+    "single-quoted-string": {
+      "name": "string.quoted.single.welltale",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "include": "#template-ai"
+        },
+        {
+          "include": "#template-expression"
+        },
+        {
+          "include": "#template-variable"
+        }
+      ]
+    }
+  }
+}

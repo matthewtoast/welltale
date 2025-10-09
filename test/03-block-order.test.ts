@@ -84,7 +84,7 @@ async function testBlockOrder() {
     P - input should appear here = ({{pop}})
   </p>
   <p>
-    [Q 1|Q 2|Q 3]
+    [[Q 1|Q 2|Q 3]]
   </p>
   <!--
     here is a comment
@@ -101,7 +101,7 @@ async function testBlockOrder() {
   <scope>
     <var name="v" value="V" />
     <p>
-      {{v}} - inner scope text with its own inner var
+      {{v}} - inner scope text [angry] with its own [sadly, wistfully] inner var
     </p>
   </scope>
   <p>
@@ -191,7 +191,7 @@ async function testBlockOrder() {
     "Q 2",
     "S",
     "U",
-    "V - inner scope text with its own inner var",
+    "V - inner scope text [angry] with its own [sadly, wistfully] inner var",
     "W - but there should not be a 'v' variable here: ()",
     '... Say a word beginning with the letter "x".',
     '... Say a word beginning with the letter "x".',

@@ -22,7 +22,7 @@ export async function renderText(
     },
     DOLLAR
   );
-  // [this|kind|of] dynamic variation
+  // [[this|kind|of]] dynamic variation
   result = resolveBracketDDV(result, ctx);
   // {%liquid%} for inline LLM calls
   result = await enhanceText(

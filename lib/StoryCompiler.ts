@@ -26,6 +26,14 @@ export { parseXmlFragment } from "./StoryNodeHelpers";
 
 const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body", "macro"];
 
+const COMPILE_TIME_TAGS = [
+  "meta",
+  "voice",
+  "pronunciation",
+  "macro",
+  "include",
+];
+
 export function processIncludes(root: StoryNode): void {
   const moduleables = findNodes(
     root,
@@ -51,6 +59,26 @@ export function processIncludes(root: StoryNode): void {
     const found = moduleables.find((mod) => mod.atts.id === node.atts.id);
     parent.kids.splice(idx, 1, ...(found?.kids.map(cloneNode) ?? []));
   }
+}
+
+export function stripCompileTimeTags(root: StoryNode): void {
+  walkTree(root, (node, parent, idx) => {
+    if (parent && COMPILE_TIME_TAGS.includes(node.type)) {
+      // Mark for removal by returning empty array
+      return [];
+    }
+    return null;
+  });
+
+  // Remove marked nodes
+  walkTree(root, (node, parent, idx) => {
+    if (node.kids) {
+      node.kids = node.kids.filter(
+        (child) => !COMPILE_TIME_TAGS.includes(child.type)
+      );
+    }
+    return null;
+  });
 }
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
@@ -87,10 +115,17 @@ function buildStoryRoot(
   };
   function isMain(p: string) {
     return (
-      p === "main.xml" || p.endsWith("/main.xml") || p.endsWith("\\main.xml")
+      p === "main.xml" ||
+      p.endsWith("/main.xml") ||
+      p.endsWith("\\main.xml") ||
+      p === "main.wsl" ||
+      p.endsWith("/main.wsl") ||
+      p.endsWith("\\main.wsl")
     );
   }
-  const all = Object.keys(cartridge).filter((k) => k.endsWith(".xml"));
+  const all = Object.keys(cartridge).filter(
+    (k) => k.endsWith(".xml") || k.endsWith(".wsl")
+  );
   const mains = all.filter(isMain);
   const rest = all.filter((k) => !isMain(k));
   const keys = [...mains, ...rest];
@@ -279,6 +314,9 @@ export async function compileStory(
       }
     }
   }
+
+  // Strip compile-time tags from the tree after processing them
+  stripCompileTimeTags(root);
 
   console.info("Compiled", omit(outputs, "root"));
 
