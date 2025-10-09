@@ -1,33 +1,24 @@
-'use client';
+import { highlightCode } from "../../lib/WelltaleSyntaxHighlighterShiki";
 
-import { useMemo } from 'react';
-import { highlightWelltale } from '../../lib/WelltaleSyntaxHighlighter';
+type HighlightTheme = "github-light" | "github-dark";
 
 interface CodeBlockProps {
   code: string;
-  language?: string;
-  className?: string;
+  language: string;
+  className: string;
+  theme: HighlightTheme;
 }
 
-export function CodeBlock({ code, language = 'xml', className = '' }: CodeBlockProps) {
-  const highlightedCode = useMemo(() => {
-    if (language === 'xml' || language === 'welltale') {
-      return highlightWelltale(code);
-    }
-    // For other languages, just escape HTML
-    return code
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }, [code, language]);
-
+export async function CodeBlock({ code, language, className, theme }: CodeBlockProps) {
+  const highlighted = await highlightCode(code, language, theme);
+  if (highlighted === null) {
+    return (
+      <pre className={className}>
+        <code>{code}</code>
+      </pre>
+    );
+  }
   return (
-    <pre className={`${className} language-${language}`}>
-      <code 
-        className={`language-${language}`}
-        dangerouslySetInnerHTML={{ __html: highlightedCode }}
-      />
-    </pre>
+    <div className={className} dangerouslySetInnerHTML={{ __html: highlighted }} />
   );
 }

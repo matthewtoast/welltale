@@ -229,47 +229,22 @@
 }
 
 .codeBlock {
-  background-color: #0a0a0a !important;
+  margin: 0;
+}
+
+.codeBlock :global(.shiki) {
   border: 1px solid #222;
   border-radius: 4px;
-  padding: 1rem !important;
   overflow-x: auto;
-  margin: 0 !important;
-  font-size: 0.9rem !important;
-  line-height: 1.5 !important;
+  padding: 1rem;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  background-color: #0a0a0a;
 }
 
-.codeBlock code {
-  background: transparent !important;
+.codeBlock :global(.shiki code) {
   font-family: 'Courier New', monospace;
-  font-size: inherit !important;
-  line-height: inherit !important;
-  white-space: pre;
-}
-
-/* Override Prism dark theme colors to match our design */
-.codeBlock .token.tag {
-  color: #4a9eff !important;
-}
-
-.codeBlock .token.attr-name {
-  color: #66d9ff !important;
-}
-
-.codeBlock .token.attr-value {
-  color: #a8e6cf !important;
-}
-
-.codeBlock .token.punctuation {
-  color: #8a8a8a !important;
-}
-
-.codeBlock .token.string {
-  color: #ffcc95 !important;
-}
-
-.codeBlock .token.comment {
-  color: #666 !important;
 }
 
 .exampleNote {

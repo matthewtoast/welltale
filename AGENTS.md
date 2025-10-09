@@ -38,5 +38,3 @@ Read @README.md first.
   - File named same as the hook
 - Tailwind for styling
 - Heroicons for icons
-
-See @GUIDE.md to understand how the engine works.

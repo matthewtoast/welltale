@@ -3,8 +3,9 @@ import { NonEmpty, TSerial } from "../typings";
 import type { FetchOptions } from "./HTTPHelpers";
 import { safeJsonParse } from "./JSONHelpers";
 import type { AIChatMessage } from "./OpenRouterUtils";
-import { LLM_SLUGS } from "./StoryTypes";
 import type { VoiceSpec } from "./StoryTypes";
+import { LLM_SLUGS } from "./StoryTypes";
+import { parameterize } from "./TextHelpers";
 
 export type Model = (typeof LLM_SLUGS)[number];
 
@@ -68,9 +69,6 @@ export interface StoryServiceProvider {
 }
 
 export class MockStoryServiceProvider implements StoryServiceProvider {
-  private voiceCount = 0;
-  voicePrompts: string[] = [];
-
   async generateText(
     prompt: string,
     options: GenerateTextCompletionOptions
@@ -83,7 +81,9 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     schema: Record<string, TSerial>,
     options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>> {
-    return safeJsonParse(prompt) ?? mapValues(schema, (_value, key) => `Mock ${key}`);
+    return (
+      safeJsonParse(prompt) ?? mapValues(schema, (_value, key) => `Mock ${key}`)
+    );
   }
 
   async generateSound(
@@ -114,9 +114,7 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     prompt: string,
     options: BaseGenerateOptions
   ): Promise<{ id: string }> {
-    this.voicePrompts.push(prompt);
-    const id = `mock-voice-${++this.voiceCount}`;
-    return { id };
+    return { id: `mock-voice-${parameterize(prompt)}` };
   }
 
   async generateChat(
