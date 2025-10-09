@@ -18,8 +18,8 @@
   <!-- <sleep> is used for creating a timed pause in the story flow, useful for building suspense -->
   <sleep duration="3000" />
 
-  <!-- The <p> tag plays spoken content, automatically converting the text to speech with the voice specified. -->
-  <p voice="narrator">
+  <!-- The <p> tag plays spoken content, automatically converting the text to speech. -->
+  <p>
     You're playing {{title}}, by {{author}}.
   </p>
 </intro>
@@ -38,7 +38,8 @@
   If no <origin> tag is given then playback will begin with the first top-level tag.
 -->
 <origin>
+  <!-- The `voice` attribute here specifies the generated voice to use -->
   <p voice="narrator">
-    Dark foces gather in the land of Eldoria.
+    Dark forces gather in the land of Eldoria.
   </p>
 </origin>

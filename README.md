@@ -3,7 +3,7 @@
 Welltale is an interactive audio story platform. Think Audible, but interactive. It consists of:
 
 - An XML-based DSL for authoring stories that is both easy for humans to write and machines to read
-  - See fic/honeytrot/main.xml for an example
+  - See fic/example/\* for an example
 - A platform-agnostic story engine that compiles and executes said DSL's story files
   - See lib/StoryCompiler.ts and lib/StoryEngine.ts
 - A simple REPL tool and story auto-runner for the engine developer to test stories

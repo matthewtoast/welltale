@@ -1,6 +1,6 @@
 # Instructions
 
-Read README.md first.
+Read @README.md first.
 
 ## General
 
@@ -23,7 +23,7 @@ Read README.md first.
 - Never use 'any' type
 - Use function declaration style (`function foo() {...}`)
 - Don't add try/catch blocks
-- Don't throw; instead, log warning and return `null`
+- Don't throw; instead, console.warn() and return `null`
 - Don't use optional?: function arguments or object properties
 - Don't use default exports _unless necessary_
 
@@ -38,3 +38,5 @@ Read README.md first.
   - File named same as the hook
 - Tailwind for styling
 - Heroicons for icons
+
+See @GUIDE.md to understand how the engine works.
