@@ -11,7 +11,7 @@ import { hideBin } from "yargs/helpers";
 import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
 import {
   loadSessionFromDisk,
-  RunnerOptions,
+  LocalStoryRunnerOptions,
   saveSessionToDisk,
   terminalRenderOps,
 } from "../lib/StoryLocalRunnerUtils";
@@ -52,11 +52,6 @@ async function runRepl() {
     .option("doPlayMedia", {
       type: "boolean",
       description: "Play audio files true/false",
-      default: true,
-    })
-    .option("doGenerateSpeech", {
-      type: "boolean",
-      description: "Generate speech audio",
       default: true,
     })
     .option("doGenerateAudio", {
@@ -124,7 +119,7 @@ async function runRepl() {
     doCompileVoices: argv.doCompileVoices,
   };
 
-  const runnerOptions: RunnerOptions = {
+  const runnerOptions: LocalStoryRunnerOptions = {
     seed: argv.seed,
     verbose: argv.verbose,
     ream: 100,
@@ -132,7 +127,6 @@ async function runRepl() {
     maxCheckpoints: 20,
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
-    doGenerateSpeech: argv.doGenerateSpeech,
     doGenerateAudio: argv.doGenerateAudio,
     doPlayMedia: argv.doPlayMedia,
   };

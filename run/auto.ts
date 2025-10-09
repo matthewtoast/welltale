@@ -11,7 +11,7 @@ import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider"
 import {
   CAROT,
   loadSessionFromDisk,
-  RunnerOptions,
+  LocalStoryRunnerOptions,
   terminalRenderOps,
 } from "../lib/StoryLocalRunnerUtils";
 import { advanceToNext } from "../lib/StoryRunnerCoreBlocking";
@@ -54,11 +54,6 @@ async function runAutorun() {
     .option("doPlayMedia", {
       type: "boolean",
       description: "Play audio files true/false",
-      default: false,
-    })
-    .option("doGenerateSpeech", {
-      type: "boolean",
-      description: "Generate speech audio",
       default: false,
     })
     .option("doGenerateAudio", {
@@ -133,14 +128,13 @@ async function runAutorun() {
   session.turn = argv.sessionTurn;
   session.address = argv.sessionAddress ?? null;
 
-  const runnerOptions: RunnerOptions = {
+  const runnerOptions: LocalStoryRunnerOptions = {
     seed: argv.seed,
     verbose: argv.verbose,
     ream: 100,
     loop: 0,
     maxCheckpoints: 20,
     inputRetryMax: 3,
-    doGenerateSpeech: argv.doGenerateSpeech,
     doGenerateAudio: argv.doGenerateAudio,
     doPlayMedia: argv.doPlayMedia,
     models: DEFAULT_LLM_SLUGS,

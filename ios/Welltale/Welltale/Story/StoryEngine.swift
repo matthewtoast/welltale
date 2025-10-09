@@ -29,7 +29,6 @@ class StoryEngine: ObservableObject {
         seed: "default",
         loop: 0,
         ream: 100,
-        doGenerateSpeech: true,
         doGenerateAudio: true,
         maxCheckpoints: 20,
         inputRetryMax: 3,

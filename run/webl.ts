@@ -2,7 +2,10 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadDevEnv } from "../env/env-dev";
 import { assignInput } from "../lib/StoryConstants";
-import { RunnerOptions, terminalRenderOps } from "../lib/StoryLocalRunnerUtils";
+import {
+  LocalStoryRunnerOptions,
+  terminalRenderOps,
+} from "../lib/StoryLocalRunnerUtils";
 import { instantiateREPL } from "../lib/StoryREPLUtils";
 import {
   createDefaultSession,
@@ -37,11 +40,6 @@ async function go() {
       description: "Play audio files true/false",
       default: true,
     })
-    .option("doGenerateSpeech", {
-      type: "boolean",
-      description: "Generate speech audio",
-      default: true,
-    })
     .option("doGenerateAudio", {
       type: "boolean",
       description: "Generate other audio",
@@ -65,7 +63,7 @@ async function go() {
 
   const { token: sessionToken } = devSessions[0];
 
-  const runnerOptions: RunnerOptions = {
+  const runnerOptions: LocalStoryRunnerOptions = {
     seed: argv.seed,
     verbose: argv.verbose,
     ream: 100,
@@ -73,7 +71,6 @@ async function go() {
     maxCheckpoints: 20,
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
-    doGenerateSpeech: argv.doGenerateSpeech,
     doGenerateAudio: argv.doGenerateAudio,
     doPlayMedia: argv.doPlayMedia,
   };

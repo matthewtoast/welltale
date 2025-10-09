@@ -52,7 +52,7 @@ export function saveSessionToDisk(state: StorySession, abspath: string) {
   writeFileSync(abspath, JSON.stringify(state, null, 2));
 }
 
-export type RunnerOptions = StoryOptions & {
+export type LocalStoryRunnerOptions = StoryOptions & {
   doPlayMedia: boolean;
 };
 
@@ -77,7 +77,10 @@ export async function playMedia(
   }
 }
 
-export async function terminalRenderOps(ops: OP[], options: RunnerOptions) {
+export async function terminalRenderOps(
+  ops: OP[],
+  options: LocalStoryRunnerOptions
+) {
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i];
     switch (op.type) {

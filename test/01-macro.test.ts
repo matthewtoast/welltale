@@ -20,7 +20,6 @@ async function compileMacroStory(xml: string): Promise<StoryNode> {
     loop: 0,
     maxCheckpoints: 20,
     inputRetryMax: 3,
-    doGenerateSpeech: false,
     doGenerateAudio: false,
     models: DEFAULT_LLM_SLUGS,
   };

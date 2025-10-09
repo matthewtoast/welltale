@@ -189,7 +189,7 @@ export async function compileStory(
   const renderedMetaStr = await renderText(metaStr, context);
   const renderedMeta = safeJsonParse(renderedMetaStr);
   if (renderedMeta) {
-    Object.assign(meta, renderedMeta);
+    Object.assign(context.scope, renderedMeta);
   }
 
   Object.keys(cartridge)
@@ -209,23 +209,37 @@ export async function compileStory(
       cur[last] = src.toString();
     });
 
-  findNodes(root, (node) => node.type === "meta").forEach((node) => {
+  const metaNodes = findNodes(root, (node) => node.type === "meta");
+  for (let i = 0; i < metaNodes.length; i++) {
+    const node = metaNodes[i];
     if (!isBlank(node.atts.description)) {
-      outputs.meta[node.atts.name ?? node.atts.property] =
-        node.atts.description;
+      outputs.meta[node.atts.name ?? node.atts.property] = await renderText(
+        node.atts.description,
+        context
+      );
       if (options.verbose) {
         console.info("Found <meta>", node.atts);
       }
     }
-  });
-  findNodes(root, (node) => node.type === "pronunciation").forEach((node) => {
+  }
+
+  const pronunciationNodes = findNodes(
+    root,
+    (node) => node.type === "pronunciation"
+  );
+  for (let i = 0; i < pronunciationNodes.length; i++) {
+    const node = pronunciationNodes[i];
     if (!isBlank(node.atts.word) && !isBlank(node.atts.pronunciation)) {
-      pronunciations[node.atts.word] = node.atts.pronunciation;
+      pronunciations[node.atts.word] = await renderText(
+        node.atts.pronunciation,
+        context
+      );
       if (options.verbose) {
         console.info("Found <pronunciation>", node.atts);
       }
     }
-  });
+  }
+
   if (options.doCompileVoices) {
     const voiceNodes = findNodes(root, (node) => node.type === "voice");
     for (let i = 0; i < voiceNodes.length; i++) {
@@ -234,7 +248,12 @@ export async function compileStory(
         continue;
       }
       const text = snorm(
-        node.atts.prompt ?? node.atts.description ?? (await collateText(node))
+        await renderText(
+          node.atts.prompt ??
+            node.atts.description ??
+            (await collateText(node)),
+          context
+        )
       );
       if (!isBlank(text)) {
         if (options.verbose) {

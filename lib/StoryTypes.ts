@@ -139,7 +139,6 @@ export const StoryOptionsSchema = z.object({
   seed: z.string(),
   loop: z.number(),
   ream: z.number(),
-  doGenerateSpeech: z.boolean(),
   doGenerateAudio: z.boolean(),
   maxCheckpoints: z.number().default(20),
   inputRetryMax: z.number().default(3),

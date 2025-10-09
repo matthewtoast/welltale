@@ -1,9 +1,12 @@
 import { isDeepStrictEqual } from "util";
-import { RunnerOptions } from "../lib/StoryLocalRunnerUtils";
+import { LocalStoryRunnerOptions } from "../lib/StoryLocalRunnerUtils";
 import { advanceToNextUntilBlocking } from "../lib/StoryRunnerCoreBlocking";
 import { PRNG } from "./../lib/RandHelpers";
 import { compileStory } from "./../lib/StoryCompiler";
-import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+import {
+  MockStoryServiceProvider,
+  StoryServiceProvider,
+} from "./../lib/StoryServiceProvider";
 import {
   BaseActionContext,
   createDefaultSession,
@@ -39,39 +42,35 @@ export function createTestCartridge(xml: string, file: string = "main.xml") {
   return { [file]: xml };
 }
 
-async function runTestUntilComplete(
+export type TestOut = {
+  seam: SeamType;
+  ops: OP[];
+};
+
+export async function runUntilComplete(
   info: {
-    options: RunnerOptions;
-    provider: MockStoryServiceProvider;
+    options: LocalStoryRunnerOptions;
+    provider: StoryServiceProvider;
     session: StorySession;
     sources: StorySource;
-    seed: string;
     inputs: string[];
   },
-  collectedOps: OP[],
-  seam: SeamType = SeamType.GRANT
-): Promise<{ seam: SeamType }> {
-  let next = seam;
-  const runOptions: RunnerOptions = { ...info.options, seed: info.seed };
-
+  out: TestOut = { seam: SeamType.GRANT, ops: [] }
+): Promise<TestOut> {
+  let next = out.seam;
   while (true) {
     if (next === SeamType.ERROR || next === SeamType.FINISH) {
-      return { seam: next };
+      return { seam: next, ops: out.ops };
     }
     const input = next === SeamType.INPUT ? (info.inputs.shift() ?? "") : null;
-
-    // Use renderUntilBlocking directly and collect ops from result
     const result = await advanceToNextUntilBlocking(
       input,
       info.session,
       info.sources,
-      runOptions,
+      info.options,
       info.provider
     );
-
-    // Collect the ops without actually rendering them
-    collectedOps.push(...result.ops);
-
+    out.ops.push(...result.ops);
     next = result.seam;
   }
 }
@@ -87,7 +86,7 @@ export async function runTestStory(
 ): Promise<TestStoryResult> {
   const cartridge = typeof xml === "string" ? createTestCartridge(xml) : xml;
   const provider = new MockStoryServiceProvider();
-  const options: RunnerOptions = {
+  const options: LocalStoryRunnerOptions = {
     seed: "test-seed",
     verbose: false,
     ream: 100,
@@ -95,11 +94,9 @@ export async function runTestStory(
     maxCheckpoints: 20,
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
-    doGenerateSpeech: false,
     doGenerateAudio: false,
     doPlayMedia: false,
   };
-
   const baseContext: BaseActionContext = {
     session: createDefaultSession("compile-test"),
     rng: new PRNG("test-seed", 0),
@@ -108,11 +105,9 @@ export async function runTestStory(
     options,
     evaluator: async () => null,
   };
-
   const sources = await compileStory(baseContext, cartridge, {
     doCompileVoices: false,
   });
-
   const session = createDefaultSession(`test-session-${Date.now()}`);
   if (testOptions) {
     if (testOptions.resume !== undefined) session.resume = testOptions.resume;
@@ -120,22 +115,12 @@ export async function runTestStory(
     if (testOptions.address !== undefined)
       session.address = testOptions.address;
   }
-
-  // Collect ops during the run
-  const collectedOps: OP[] = [];
-
-  const outcome = await runTestUntilComplete(
-    {
-      options,
-      provider,
-      session,
-      sources,
-      seed: options.seed,
-      inputs,
-    },
-    collectedOps,
-    SeamType.GRANT
-  );
-
-  return { ops: collectedOps, seam: outcome.seam, session };
+  const outcome = await runUntilComplete({
+    options,
+    provider,
+    session,
+    sources,
+    inputs,
+  });
+  return { ...outcome, session };
 }

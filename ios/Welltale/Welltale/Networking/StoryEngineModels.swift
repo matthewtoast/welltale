@@ -75,7 +75,6 @@ struct StoryOptions: Codable {
     let seed: String
     let loop: Int
     let ream: Int
-    let doGenerateSpeech: Bool
     let doGenerateAudio: Bool
     let maxCheckpoints: Int
     let inputRetryMax: Int

@@ -938,7 +938,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
         time: Date.now(),
       };
-      const { url } = ctx.options.doGenerateSpeech
+      const { url } = ctx.options.doGenerateAudio
         ? await ctx.provider.generateSpeech(
             {
               speaker: event.from,
@@ -1693,7 +1693,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           tags,
           time: Date.now(),
         };
-        const media = ctx.options.doGenerateSpeech
+        const media = ctx.options.doGenerateAudio
           ? await ctx.provider.generateSpeech(
               {
                 speaker: event.from,
@@ -1809,7 +1809,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
-      let url = atts.href ?? atts.url ?? atts.src;
+      let url = atts.href ?? atts.url ?? atts.src ?? "";
       const next = nextNode(ctx.node, ctx.source.root, false);
       const ops: OP[] = [];
       if (!url) {
@@ -1862,17 +1862,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           }
         }
       }
-      if (url) {
-        ops.push({
-          type: "play-media",
-          event: null,
-          media: url,
-          fadeAtMs: parseNumberOrNull(atts.fadeAt),
-          fadeDurationMs: parseNumberOrNull(atts.fadeDuration),
-          volume: parseNumberOrNull(atts.volume),
-          background: castToBoolean(atts.background),
-        });
-      }
+      ops.push({
+        type: "play-media",
+        event: null,
+        media: url,
+        fadeAtMs: parseNumberOrNull(atts.fadeAt),
+        fadeDurationMs: parseNumberOrNull(atts.fadeDuration),
+        volume: parseNumberOrNull(atts.volume),
+        background: castToBoolean(atts.background),
+      });
       return {
         ops,
         next,

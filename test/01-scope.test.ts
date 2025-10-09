@@ -45,7 +45,6 @@ async function go() {
       seed: "test",
       loop: 0,
       ream: 100,
-      doGenerateSpeech: false,
       doGenerateAudio: false,
       maxCheckpoints: 20,
       inputRetryMax: 3,
