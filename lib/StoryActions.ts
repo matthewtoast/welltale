@@ -2414,6 +2414,88 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    tags: ["end"],
+    docs: {
+      desc: dedent`
+        Immediately ends the story. If an \`<outro>\` block exists, it will be played before ending.
+        This tag provides explicit story termination points for branching narratives.
+      `,
+      ex: [
+        {
+          code: dedent`
+            <!-- Simple ending -->
+            <p>You have completed your quest!</p>
+            <end />
+            
+            <!-- Conditional endings -->
+            <if cond="health <= 0">
+              <p>You have fallen in battle.</p>
+              <end />
+            </if>
+            
+            <!-- Multiple endings in a branching story -->
+            <div id="ending-good">
+              <p>You saved the kingdom!</p>
+              <end />
+            </div>
+            
+            <div id="ending-bad">
+              <p>The kingdom falls into darkness.</p>
+              <end />
+            </div>
+          `,
+        },
+      ],
+      cats: ["control_flow"],
+    },
+    syntax: {
+      block: false,
+      atts: {},
+    },
+    exec: async (ctx) => {
+      // Trigger the same ending logic as natural story completion
+      ctx.session.loops = ctx.options.loop; // Force loop exhaustion
+      ctx.session.address = null; // Clear current address
+      return { ops: [], next: null }; // No next node triggers ending logic
+    },
+  },
+  {
+    tags: ["exit"],
+    docs: {
+      desc: dedent`
+        Immediately exits the story without playing any outro. Use this for abrupt endings or 
+        when you want to skip the outro entirely. Compare with \`<end />\` which plays the outro if present.
+      `,
+      ex: [
+        {
+          code: dedent`
+            <!-- Immediate exit without outro -->
+            <p>The spell backfires catastrophically!</p>
+            <exit />
+            
+            <!-- Exit on failure condition -->
+            <if cond="lives <= 0">
+              <p>GAME OVER</p>
+              <exit />
+            </if>
+          `,
+        },
+      ],
+      cats: ["control_flow"],
+    },
+    syntax: {
+      block: false,
+      atts: {},
+    },
+    exec: async (ctx) => {
+      // Mark outro as done to skip it and trigger immediate end
+      ctx.session.outroDone = true;
+      ctx.session.loops = ctx.options.loop;
+      ctx.session.address = null;
+      return { ops: [], next: null };
+    },
+  },
+  {
     tags: ["when"],
     docs: {
       desc: dedent`

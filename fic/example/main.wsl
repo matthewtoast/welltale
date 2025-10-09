@@ -4,25 +4,14 @@
 Container/Descendable tags:
 - scope (creates isolated variable scope)
 - block (reusable content blocks)
-
-AI/LLM tags:
 - llm:parse (extract structured data from text)
 - llm:tag (classify text into categories)
 - llm:dialog (AI character responses)
-
-Control Flow tags:
 - while (loops with break/continue)
 - yield (invoke a block with parameters)
 - checkpoint (manual save point)
-
-Variables/Data tags:
 - var (define/update variables)
 - data (load JSON/YAML data)
-
-Media tags:
-- sound (sound effects)
-
-Special tags:
 - when (conditional text rendering inside text tags)
 - include
 -->
@@ -89,14 +78,18 @@ Special tags:
 
   <!--
     The <llm:score> tag is one of many AI-based tags that lets you drive your story.
+    It creates a data set with each attribute scored according to its value.
+    The `key` tag determines what variable the data gets stored in.
   -->
-  <llm:score key="choice"
+  <llm:score
+    key="choice"
     woods="the player chooses the woods"
     chasm="the player chooses the chasm">
     The player has a choice between visiting the woods and the chasm. Based on their input, which do they choos
     {{input}}
   </llm:score>
 
+  <>
   <if cond="choice.woods > choice.chasm">
     <p voice="narrator">
       You make your way down the path into the darkening foest.
@@ -196,19 +189,34 @@ Special tags:
   </script>
 
   <if cond="riddleSolved">
+    <!-- Single-bracket syntax can be used to add emotional inflection to the generated speech -->
     <wretch>
-      Ye solved me riddle, so I'll let ye pass.
-      Come not again to these woods, traveler.
+      Ye solved me riddle, [reluctantly] so I'll let ye pass.
+      [forcefully] Come not again to these woods, traveler.
     </wretch>
-
     <narrator>
-
+      With your life (and toes) intact, you continue through the forest.
+      Eventually the woods thin and you find yourself in an open field...
     </narrator>
 
+    <!-- An <else> block can be placed inside of an <if> tag for more complex conditional support. --->
     <else>
-
+      <wretch>
+        Ye answer was wrong. Which makes me happy, as I've not had a meal in days.
+        Hee hee hee, don't even try to run away...
+      <wretch>
+      <narrator>
+        Before you know it, you find yourself in the clutches of this strange creature.
+        Giggling, it begins taking off your shoes.
+      </narrator>
+      <sound duration="5000">
+        Grotesque sound of a mouth chewing and gnawing on meat and gristle
+      </sound>
+      <jump to="dead" />
     </else>
   </if>
+
+  <jump to="outpost" />
 </div>
 
 <div id="chasm">
@@ -216,7 +224,9 @@ Special tags:
 </div>
 
 <div id="outpost">
-  <!-- TODO -->
+  <narrator>
+    There is a stone outpost here with a small wooden door.
+  </narrator>
 </div>
 
 <div id="dead">
@@ -225,6 +235,10 @@ Special tags:
     Another adventurer will have to take up your quest.
   </narrator>
 
+  <!--
+    The <end> tag ends the story and causes the game to exit.
+    If an <outro> is present, it will also be played before the game exits.
+  -->
   <end />
 </div>
 
