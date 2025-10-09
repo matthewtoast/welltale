@@ -252,10 +252,10 @@ export async function advanceStory(
         if (session.loops < options.loop) {
           session.loops += 1;
           session.address = null;
-          session.outroDone = false;
+          session.outroed = false;
         } else {
-          if (outro && !session.outroDone) {
-            session.outroDone = true;
+          if (outro && !session.outroed) {
+            session.outroed = true;
             session.stack.push({
               returnAddress: OUTRO_RETURN_ADDR,
               writeableScope: null,

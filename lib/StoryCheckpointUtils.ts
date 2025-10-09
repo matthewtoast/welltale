@@ -19,7 +19,7 @@ export function snapshotSession(
     time: session.time,
     state: clone(session.state),
     meta: clone(session.meta),
-    outroDone: session.outroDone,
+    outroed: session.outroed,
     stack: clone(session.stack),
   };
 }
@@ -65,7 +65,7 @@ export function revertSession(
   session.state = clone(cp.state);
   session.meta = clone(cp.meta);
   session.stack = clone(cp.stack);
-  session.outroDone = cp.outroDone ?? false;
+  session.outroed = cp.outroed ?? false;
   session.input = null;
   session.flowTarget = null;
   session.checkpoints.splice(idx + 1);

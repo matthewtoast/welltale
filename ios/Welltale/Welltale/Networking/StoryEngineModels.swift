@@ -17,7 +17,7 @@ struct StorySession: Codable {
     let resume: Bool
     let address: String?
     let input: StoryInput?
-    let outroDone: Bool
+    let outroed: Bool
     let stack: [StackFrame]
     let state: [String: AnyCodable]
     let checkpoints: [StoryCheckpoint]
@@ -56,7 +56,7 @@ struct StoryCheckpoint: Codable {
     let time: Int
     let state: [String: AnyCodable]
     let meta: [String: AnyCodable]
-    let outroDone: Bool?
+    let outroed: Bool?
     let stack: [StackFrame]
     let events: [StoryEvent]
 }

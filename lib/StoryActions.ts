@@ -2492,7 +2492,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
     exec: async (ctx) => {
       // Mark outro as done to skip it and trigger immediate end
-      ctx.session.outroDone = true;
+      ctx.session.outroed = true;
       ctx.session.loops = ctx.options.loop;
       ctx.session.address = null;
       return { ops: [], next: null };

@@ -60,7 +60,7 @@ export const StoryCheckpointSchema = z.object({
   time: z.number(),
   state: z.record(z.any()),
   meta: z.record(z.any()),
-  outroDone: z.boolean().optional(),
+  outroed: z.boolean().optional(),
   stack: z.array(SessionStackObj),
   events: z.array(StoryEventSchema),
 });
@@ -88,7 +88,7 @@ export const StorySessionSchema = z.object({
     }),
     z.null(),
   ]),
-  outroDone: z.boolean().default(false),
+  outroed: z.boolean().default(false),
   stack: z.array(SessionStackObj),
   state: z.record(z.any()),
   checkpoints: z.array(StoryCheckpointSchema),
@@ -189,7 +189,7 @@ export function createDefaultSession(
     cache: {},
     flowTarget: null,
     checkpoints: [],
-    outroDone: false,
+    outroed: false,
     inputTries: {},
     inputLast: null,
     ddv: {
