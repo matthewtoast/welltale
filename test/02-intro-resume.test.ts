@@ -71,4 +71,4 @@ async function testIntroResume() {
   console.log("✓ intro-resume.test.ts passed");
 }
 
-testIntroResume().catch(console.error);
+testIntroResume();

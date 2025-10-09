@@ -97,4 +97,4 @@ async function testExit() {
   console.log("✓ exit.test.ts passed");
 }
 
-testExit().catch(console.error);
+testExit();

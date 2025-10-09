@@ -81,4 +81,4 @@ async function testEnd() {
   console.log("✓ end.test.ts passed");
 }
 
-testEnd().catch(console.error);
+testEnd();

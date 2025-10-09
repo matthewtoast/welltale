@@ -31,4 +31,4 @@ async function testBlockOrder() {
   console.log("✓ alpha.test.ts passed");
 }
 
-testBlockOrder().catch(console.error);
+testBlockOrder();

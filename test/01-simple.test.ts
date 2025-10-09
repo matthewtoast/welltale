@@ -31,4 +31,4 @@ async function testSimpleStory() {
   console.log("✓ simple.test.ts passed");
 }
 
-testSimpleStory().catch(console.error);
+testSimpleStory();

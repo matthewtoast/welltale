@@ -219,4 +219,4 @@ async function testBlockOrder() {
   console.log("✓ block-order.test.ts passed");
 }
 
-testBlockOrder().catch(console.error);
+testBlockOrder();

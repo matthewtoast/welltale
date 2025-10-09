@@ -54,4 +54,4 @@ async function testDataParse() {
   console.log("✓ data-parse.test.ts passed");
 }
 
-testDataParse().catch(console.error);
+testDataParse();

@@ -89,4 +89,4 @@ the underlying prompt might be slightly different than llm:parse tailored more t
   console.log("✓ llm-tags.test.ts passed");
 }
 
-testLLMTags().catch(console.error);
+testLLMTags();

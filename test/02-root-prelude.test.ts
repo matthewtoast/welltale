@@ -36,4 +36,4 @@ async function testRootPrelude() {
   console.log("✓ root-prelude.test.ts passed");
 }
 
-testRootPrelude().catch(console.error);
+testRootPrelude();

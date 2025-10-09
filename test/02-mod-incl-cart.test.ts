@@ -27,4 +27,4 @@ async function testModuleInclude() {
   console.log("✓ mod-incl-cart.test.ts passed");
 }
 
-testModuleInclude().catch(console.error);
+testModuleInclude();

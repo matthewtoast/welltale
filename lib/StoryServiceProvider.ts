@@ -67,19 +67,15 @@ export interface StoryServiceProvider {
   } | null>;
 }
 
-function extractBracketContent(prompt: string): string | null {
-  const match = prompt.match(/\[\[\s*(.*?)\s*\]\]/);
-  return match ? match[1] : null;
-}
-
 export class MockStoryServiceProvider implements StoryServiceProvider {
+  private voiceCount = 0;
+  voicePrompts: string[] = [];
+
   async generateText(
     prompt: string,
     options: GenerateTextCompletionOptions
   ): Promise<string> {
-    return (
-      extractBracketContent(prompt) ?? `Mock completion for prompt: ${prompt}`
-    );
+    return `Mock completion for prompt: ${prompt}`;
   }
 
   async generateJson(
@@ -87,10 +83,7 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     schema: Record<string, TSerial>,
     options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>> {
-    return (
-      safeJsonParse(extractBracketContent(prompt)) ??
-      mapValues(schema, (value, key) => `Mock ${key}`)
-    );
+    return safeJsonParse(prompt) ?? mapValues(schema, (_value, key) => `Mock ${key}`);
   }
 
   async generateSound(
@@ -98,10 +91,7 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     durationMs: number,
     options: BaseGenerateOptions
   ): Promise<{ url: string }> {
-    return {
-      url:
-        extractBracketContent(prompt) ?? "https://example.com/mock-sound.mp3",
-    };
+    return { url: "https://example.com/mock-sound.mp3" };
   }
 
   async generateMusic(
@@ -109,10 +99,7 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     durationMs: number,
     options: BaseGenerateOptions
   ): Promise<{ url: string }> {
-    return {
-      url:
-        extractBracketContent(prompt) ?? "https://example.com/mock-music.mp3",
-    };
+    return { url: "https://example.com/mock-music.mp3" };
   }
 
   async generateSpeech(
@@ -120,41 +107,28 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     voices: VoiceSpec[],
     options: BaseGenerateOptions
   ): Promise<{ url: string }> {
-    return {
-      url:
-        extractBracketContent(spec.body) ??
-        "https://example.com/mock-speech.mp3",
-    };
+    return { url: "https://example.com/mock-speech.mp3" };
   }
 
   async generateVoice(
     prompt: string,
     options: BaseGenerateOptions
   ): Promise<{ id: string }> {
-    return { id: extractBracketContent(prompt) ?? "mock-voice-id" };
+    this.voicePrompts.push(prompt);
+    const id = `mock-voice-${++this.voiceCount}`;
+    return { id };
   }
 
   async generateChat(
     messages: AIChatMessage[],
     options: BaseGenerateOptions
   ): Promise<AIChatMessage> {
-    const lastMessage = messages[messages.length - 1];
-    const mockResponse =
-      extractBracketContent(lastMessage?.body ?? "") ?? "Mock chat response";
-    return { role: "assistant", body: mockResponse };
+    return { role: "assistant", body: "Mock chat response" };
   }
 
   async fetchUrl(
     options: FetchOptions
   ): Promise<{ statusCode: number; data: string; contentType: string }> {
-    const url = extractBracketContent(options.url);
-    if (url) {
-      return {
-        statusCode: 200,
-        data: url,
-        contentType: "text/html",
-      };
-    }
     return {
       statusCode: 200,
       data: `Mock response for URL: ${options.url}`,

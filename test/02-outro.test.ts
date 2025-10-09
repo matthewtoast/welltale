@@ -26,4 +26,4 @@ async function testOutro() {
   console.log("✓ outro.test.ts passed");
 }
 
-testOutro().catch(console.error);
+testOutro();

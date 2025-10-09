@@ -112,4 +112,4 @@ async function testInputHandling() {
   console.log("✓ input-handling.test.ts passed");
 }
 
-testInputHandling().catch(console.error);
+testInputHandling();
