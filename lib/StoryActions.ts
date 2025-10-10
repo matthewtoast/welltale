@@ -2135,11 +2135,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
 
         ctx.scope["input"] = raw;
         ctx.session.state["input"] = raw;
+        const tkey = tagOutKey(atts);
 
         for (const key in extracted) {
+          const subkey = `${tkey}.${key}`;
+          setState(ctx.scope, subkey, extracted[key]);
           ctx.scope[key] = extracted[key];
           if (atts.scope === "global") {
-            ctx.session.state[key] = extracted[key];
+            setState(ctx.session.state, subkey, extracted[key]);
           }
         }
 
