@@ -416,12 +416,28 @@
 
   <narrator>
     You leave the outpost and continue on your journey.
-    
-    <!-- TODO -->
   </narrator>
   
-  <!-- The <end> tag ends the story and causes the game to exit. -->
-  <end />
+  <jump to="troll" />
+</div>
+
+<div id="troll">
+  <narrator>
+    After a long walk, you come across an impassable river.
+    Over the river spans a rickety wooden bridge.
+    A large troll crawls out from beneath and blocks your way.
+  </narrator>
+
+  <troll>
+    I shan't let ye cross me bridge unless ye pay me toll.
+    What have ye to pay with?
+  </troll>
+
+  <!--
+    With <include> you can pull in separately defined content by referencing its `id` attribute.
+    In this case, in the `troll.wsl` file, we defined <module id="troll"> which we include here.
+  -->
+  <include id="troll" />
 </div>
 
 <div id="dead">
@@ -434,6 +450,15 @@
     The <end> tag ends the story and causes the game to exit.
     If an <outro> is present, it will also be played before the game exits.
   -->
+  <end />
+</div>
+
+<div id="win">
+  <narrator>
+    Having survived multiple perils, you look out at the horizon with optimism.
+    You forge ahead, ready to continue your adventure.
+    The end.
+  </narrator>
   <end />
 </div>
 

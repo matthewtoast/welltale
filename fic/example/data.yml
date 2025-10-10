@@ -30,25 +30,22 @@ macros:
       to: p
     set:
       voice: merchant
-      mood: jovial
   - match: rhymer
     rename:
       to: p
     set:
       voice: rhymer
-      mood: lyrical
   - match: wretch
     rename:
       to: p
     set:
       voice: wretch
-      mood: hushed
   - match: troll
     rename:
       to: p
     set:
       voice: troll
-      mood: gruff
+      from: troll
 
 # Voices can be defined in data files or directly in story files using <voice> tags
 voices:
