@@ -68,6 +68,32 @@ async function testIntroResume() {
   expect(textBodies3[1], ":: div ::");
   expect(seam3, "finish");
 
+  console.log("Test 4: Intro should not play twice when story returns to root");
+  const xmlContentWithIntroFirst = `
+<intro>
+  <p>Welcome to the story</p>
+</intro>
+<p>First content after intro</p>
+<p>Second content</p>
+`;
+
+  const { ops: ops4, seam: seam4 } = await runTestStory(xmlContentWithIntroFirst);
+
+  const eventOps4 = ops4.filter((op) => op.type === "play-media");
+  const textEvents4 = eventOps4.filter((op) => op.event && op.event.body);
+  const textBodies4 = textEvents4.map((e) => e.event!.body.trim());
+
+  // Verify intro content appears exactly once
+  const introCount = textBodies4.filter(text => text === "Welcome to the story").length;
+  expect(introCount, 1);
+  
+  // Verify the expected sequence
+  expect(textBodies4.length, 3);
+  expect(textBodies4[0], "Welcome to the story");
+  expect(textBodies4[1], "First content after intro");
+  expect(textBodies4[2], "Second content");
+  expect(seam4, "finish");
+
   console.log("✓ intro-resume.test.ts passed");
 }
 

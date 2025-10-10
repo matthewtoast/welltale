@@ -464,6 +464,73 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    tags: ["llm:text"],
+    docs: {
+      desc: dedent`
+        Generates unstructured text content using AI based on a prompt. This is useful for creating
+        narrative content, descriptions, dialogue, or any text that doesn't need to be parsed into
+        structured data. The generated text is stored as a simple string.
+      `,
+      ex: [
+        {
+          code: dedent`
+            <llm:text key="description">
+              Write a vivid description of a mysterious forest at twilight.
+              Include sensory details and create an atmosphere of wonder.
+            </llm:text>
+            <p>{{description}}</p>
+          `,
+        },
+        {
+          code: dedent`
+            <llm:text key="narration" web="true">
+              Generate a news report about: {{currentEvent}}
+              Include current date and accurate information.
+            </llm:text>
+            <p from="News Reporter">{{narration}}</p>
+          `,
+        },
+      ],
+      cats: ["ai"],
+    },
+    syntax: {
+      block: true,
+      atts: {
+        key: {
+          type: "string",
+          desc: "Variable name to store the generated text (default: 'text')",
+          req: false,
+          default: "text",
+        },
+        web: {
+          type: "boolean",
+          desc: "Enable web search for current information during generation",
+          req: false,
+          default: "false",
+        },
+        models: {
+          type: "string",
+          desc: "Comma-separated list of model slugs to use",
+          req: false,
+        },
+      },
+    },
+    exec: async (ctx) => {
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const useWebSearch = isTruthy(atts.web) ? true : false;
+      const models = normalizeModels(ctx.options, atts.models);
+      
+      const result = await ctx.provider.generateText(
+        prompt,
+        { models, useWebSearch }
+      );
+      
+      setState(ctx.scope, tagOutKey(atts), snorm(result));
+      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+    },
+  },
+  {
     tags: ["llm:dialog"],
     docs: {
       desc: dedent`
@@ -1304,8 +1371,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {},
     },
     exec: async (ctx) => {
-      const next = nextNode(ctx.node, ctx.source.root, true);
-      return { ops: [], next };
+      // Check if we're in an intro context (i.e., this intro was pushed onto stack by engine)
+      const inIntroContext = ctx.session.stack.some(
+        (frame) => frame.blockType === "intro"
+      );
+      
+      if (inIntroContext) {
+        // We're executing the intro from the engine, process children
+        const next = nextNode(ctx.node, ctx.source.root, true);
+        return { ops: [], next };
+      } else {
+        // Skip intro in normal flow
+        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      }
     },
   },
   {
