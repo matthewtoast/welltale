@@ -10,7 +10,6 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
 import {
-  loadSessionFromDisk,
   LocalStoryRunnerOptions,
   saveSessionToDisk,
   terminalRenderOps,
@@ -113,7 +112,7 @@ async function runRepl() {
 
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
-  const session = loadSessionFromDisk(argv.sessionPath, gameId);
+  const session = createDefaultSession(gameId);
 
   const compileOptions: CompileOptions = {
     doCompileVoices: argv.doCompileVoices,
@@ -150,7 +149,7 @@ async function runRepl() {
       );
 
   const baseContext: BaseActionContext = {
-    session: createDefaultSession(gameId),
+    session,
     rng: new PRNG("repl"),
     provider,
     scope: {},

@@ -6,7 +6,7 @@ import { join } from "path";
 import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { loadAppEnv } from "../env/env-app";
+import { loadSstEnv } from "../env/env-sst";
 import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
 import {
   CAROT,
@@ -31,7 +31,7 @@ import {
 } from "./../lib/StoryTypes";
 import { railsTimestamp } from "./../lib/TextHelpers";
 
-const env = loadAppEnv();
+const env = loadSstEnv();
 
 async function runAutorun() {
   const argv = await yargs(hideBin(process.argv))
