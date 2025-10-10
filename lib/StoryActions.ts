@@ -108,7 +108,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         values according to a schema defined by the attributes. Each attribute becomes a field in the extracted
         data, with optional type and description properties specified using dot notation.
         
-        The extracted data is stored in the scope under the specified key (default: \`"parse"\`).
+        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
       `,
       ex: [
         {
@@ -185,13 +185,23 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "Detailed description of what to extract for this field",
           req: false,
         },
+        models: {
+          type: "string",
+          desc: "Comma-separated list of model slugs to use",
+          req: false,
+        },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
       },
     },
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       const schemaAll = parseFieldGroupsNested(
-        omit(publicAtts(atts), "key", "web")
+        omit(publicAtts(atts), "key", "web", "models", "seed")
       );
       const schema: Record<string, TSerial> = {};
       for (const k in schemaAll) {
@@ -199,13 +209,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
       const models = normalizeModels(ctx.options, atts.models);
+      const seed = atts.seed;
       const result = await ctx.provider.generateJson(
         dedent`
           Extract structured data from the input per the schema.
           <input>${prompt}</input>
         `,
         schema,
-        { models, useWebSearch }
+        { models, useWebSearch, seed }
       );
       setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
@@ -220,6 +231,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         The tag analyzes the text content and returns an array of matching labels based on their
         descriptions. Each attribute becomes a potential label with its value serving as the description
         for classification.
+        
+        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
         
         The AI returns only the labels that match the content, supporting multiple label assignment.
       `,
@@ -291,6 +304,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         Scores text content on multiple dimensions using AI. Each attribute becomes a scoring dimension,
         and the AI returns a numeric score between \`0.0\` and \`1.0\` for each dimension. This is useful for
         sentiment analysis, content moderation, or any scenario requiring quantitative text evaluation.
+        
+        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
       `,
       ex: [
         {
@@ -343,6 +358,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
       const models = normalizeModels(ctx.options, atts.models);
+      const seed = atts.seed;
       const result = await ctx.provider.generateJson(
         dedent`
           Score the input for each key between 0.0 and 1.0.
@@ -350,7 +366,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           <input>${prompt}</input>
         `,
         schema,
-        { models, useWebSearch }
+        { models, useWebSearch, seed }
       );
       setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
@@ -364,6 +380,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         
         Unlike \`<llm:parse>\` which extracts data from existing text, this tag creates new content
         according to specifications. Supports complex nested structures and various data types.
+        
+        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
       `,
       ex: [
         {
@@ -437,13 +455,23 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "Detailed description of what to generate for this field",
           req: false,
         },
+        models: {
+          type: "string",
+          desc: "Comma-separated list of model slugs to use",
+          req: false,
+        },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
       },
     },
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       const schemaAll = parseFieldGroupsNested(
-        omit(publicAtts(atts), "key", "web")
+        omit(publicAtts(atts), "key", "web", "models", "seed")
       );
       const schema: Record<string, TSerial> = {};
       for (const k in schemaAll) {
@@ -451,13 +479,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       const useWebSearch = isTruthy(atts.web) ? true : false;
       const models = normalizeModels(ctx.options, atts.models);
+      const seed = atts.seed;
       const result = await ctx.provider.generateJson(
         dedent`
           Generate data per the instruction, conforming to the schema.
           <instruction>${prompt}</instruction>
         `,
         schema,
-        { models, useWebSearch }
+        { models, useWebSearch, seed }
       );
       setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
@@ -470,6 +499,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         Generates unstructured text content using AI based on a prompt. This is useful for creating
         narrative content, descriptions, dialogue, or any text that doesn't need to be parsed into
         structured data. The generated text is stored as a simple string.
+        
+        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
       `,
       ex: [
         {
@@ -513,6 +544,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "Comma-separated list of model slugs to use",
           req: false,
         },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
       },
     },
     exec: async (ctx) => {
@@ -520,9 +556,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       const useWebSearch = isTruthy(atts.web) ? true : false;
       const models = normalizeModels(ctx.options, atts.models);
+      const seed = atts.seed;
       const result = await ctx.provider.generateText(prompt, {
         models,
         useWebSearch,
+        seed,
       });
       setState(ctx.scope, tagOutKey(atts), snorm(result));
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
@@ -536,6 +574,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         history between the specified characters, automatically injecting past messages to the given NPC
         to provide context. The AI responds as the specified character based on the system prompt and
         conversation history.
+
+        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
 
         Note: It is up to the author to set up the correct loop structure to call this tag repeatedly.
       `,
@@ -586,6 +626,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "The latest message in the conversation (alias: input)",
           req: false,
         },
+        models: {
+          type: "string",
+          desc: "Comma-separated list of model slugs to use",
+          req: false,
+        },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
       },
     },
     exec: async (ctx) => {
@@ -619,7 +669,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           return { role: "user" as const, body: ev.body };
         }),
       ];
-      const response = await ctx.provider.generateChat(messages.slice(-20), {});
+      const seed = atts.seed;
+      const response = await ctx.provider.generateChat(messages.slice(-20), {
+        seed,
+      });
       setState(ctx.scope, tagOutKey(atts), snorm(response.body));
       return { ops, next };
     },
@@ -907,13 +960,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: TEXT_CONTENT_TAGS,
     docs: {
       desc: dedent`
-        Text content elements contain narration, dialogue - any content that gets rendered (i.e. played as spoken audio) to the listener.
+        Text content elements contain narration, dialogue - any content that gets played as spoken audio to the player.
 
-        This content is rendered into audio clips using text-to-speech and played to the player.
+        This content is rendered into audio clips automatically by Welltale using text-to-speech, and then played on the story client to the player.
 
         The \`from\` attribute can be used to indicate the person speaking. If none given, it is shown as the host.
 
         The \`voice\` attribute can assign a specific text-to-speech voice to the speech. See also the \`<voice>\` tag.
+
+        Warning: The only tag you can place inside of a text content element is \`<when>\`. See the docs on \`<when>\` for adding expressive conditional logic to your text elements.
       `,
       ex: [
         {
@@ -977,6 +1032,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "Duration of fade in milliseconds",
           req: false,
         },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
       },
     },
     exec: async (ctx) => {
@@ -1013,7 +1073,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               pronunciations: ctx.source.pronunciations,
             },
             userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
-            {}
+            { seed: atts.seed }
           )
         : { url: "" };
       setState(ctx.scope, tagOutKey(atts), text);
@@ -1722,6 +1782,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "Duration of fade in milliseconds",
           req: false,
         },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
       },
     },
     exec: async (ctx) => {
@@ -1781,7 +1846,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                 pronunciations: ctx.source.pronunciations,
               },
               userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
-              {}
+              { seed: atts.seed }
             )
           : { url: "" };
         ops.push({
@@ -1816,6 +1881,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         - \`<music>\`: Music clip
         - \`<speech>\`: Text to speech (equivalent to \`<p>\` and other text tags)
         
+        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
+        
         Attributes can used for volume control, fading, etc.
       `,
       ex: [
@@ -1826,7 +1893,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             <music url="https://example.com/theme.mp3" background="true" volume="0.5" />
             
             <!-- AI-generated audio -->
-            <sound duration="3000">
+            <sound key="doorSound" duration="3000">
               A heavy wooden door creaking open slowly
             </sound>
             
@@ -1837,6 +1904,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             <speech voice="Sarah" from="Narrator">
               The ancient tome revealed secrets long forgotten.
             </speech>
+            
+            <!-- Access stored URL -->
+            <p>The door sound URL is: {{doorSound}}</p>
           `,
         },
       ],
@@ -1883,6 +1953,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "Duration of fade in milliseconds",
           req: false,
         },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
       },
     },
     exec: async (ctx) => {
@@ -1903,7 +1978,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                 const audio = await ctx.provider.generateSound(
                   prompt,
                   parseNumberOrNull(atts.duration) ?? 5_000,
-                  {}
+                  { seed: atts.seed }
                 );
                 url = audio.url;
                 break;
@@ -1911,7 +1986,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                 const music = await ctx.provider.generateMusic(
                   prompt,
                   parseNumberOrNull(atts.duration) ?? 10_000,
-                  {}
+                  { seed: atts.seed }
                 );
                 url = music.url;
                 break;
@@ -1925,7 +2000,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                     pronunciations: ctx.source.pronunciations,
                   },
                   userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
-                  {}
+                  { seed: atts.seed }
                 );
                 url = voice.url;
                 break;
@@ -1963,6 +2038,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         If a \`src\`, \`href\`, or \`url\` attribute is given, it displays that image directly.
 
         Otherwise the prompt (inner text content) is used to generate an image using AI.
+        
+        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
       `,
       ex: [
         {
@@ -1972,13 +2049,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             <img url="https://example.com/portrait.png" />
             
             <!-- AI-generated images -->
-            <image model="google/gemini-2.5-flash-image-preview" aspectRatio="16:9">
+            <image key="castleImg" model="google/gemini-2.5-flash-image-preview" aspectRatio="16:9">
               A majestic castle on a hilltop at sunset, fantasy art style
             </image>
             
             <img aspectRatio="1:1">
               Portrait of a wise old wizard with a long white beard
             </img>
+            
+            <!-- Access stored URL -->
+            <p>The castle image URL is: {{castleImg}}</p>
           `,
         },
       ],
@@ -2007,6 +2087,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "Description for AI image generation (aliases: make, description)",
           req: false,
         },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
       },
     },
     exec: async (ctx) => {
@@ -2025,6 +2110,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               (atts.model as ImageModelSlug) ??
               "google/gemini-2.5-flash-image-preview",
             aspectRatio: atts.aspectRatio as ImageAspectRatio,
+            seed: atts.seed,
           });
           url = result.url;
         }
@@ -2049,6 +2135,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         The input is stored in variables for use in the story.
 
         If the input can't be validated from attributes alone, AI will automatically be used to parse and validate the input.
+        
+        Raw input is stored in the \`input\` state variable. Extracted fields are stored under the \`_\` state variable, or the variable given by the \`key\` attribute if present.
         
         Note: Every \`<input>\` automatically create a story checkpoint.
       `,

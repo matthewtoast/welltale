@@ -11,6 +11,7 @@ export type Model = (typeof LLM_SLUGS)[number];
 
 export type BaseGenerateOptions = {
   disableCache?: boolean;
+  seed?: string;
 };
 
 export type GenerateTextCompletionOptions = BaseGenerateOptions & {
