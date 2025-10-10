@@ -1,0 +1,14 @@
+<module id="troll">
+  <var name="trollSatisfied" type="boolean" value="false">
+
+  <while cond="!trollSatisfied">
+    <input />
+
+    <llm:dialog
+      key="troll_said"
+      from="troll">
+      
+    </llm:dialog>
+  </while>
+
+</module>

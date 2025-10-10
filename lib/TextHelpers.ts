@@ -40,7 +40,11 @@ export function slugify(txt: string, ch: string = "_"): string {
 }
 
 export function parameterize(txt: string, ch: string = "_") {
-  return txt.replaceAll(/[^a-zA-Z0-9]/g, ch);
+  return txt
+    .normalize("NFKC")
+    .replace(/[\p{P}\p{S}\p{C}\p{M}\u200B-\u200D\uFEFF\u2060\u00A0]/gu, ch)
+    .replace(/_+/g, ch)
+    .trim();
 }
 
 export const COMMA_RE = /[、,]/;

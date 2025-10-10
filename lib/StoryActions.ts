@@ -520,12 +520,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       const useWebSearch = isTruthy(atts.web) ? true : false;
       const models = normalizeModels(ctx.options, atts.models);
-      
-      const result = await ctx.provider.generateText(
-        prompt,
-        { models, useWebSearch }
-      );
-      
+      const result = await ctx.provider.generateText(prompt, {
+        models,
+        useWebSearch,
+      });
       setState(ctx.scope, tagOutKey(atts), snorm(result));
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
@@ -1375,7 +1373,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const inIntroContext = ctx.session.stack.some(
         (frame) => frame.blockType === "intro"
       );
-      
+
       if (inIntroContext) {
         // We're executing the intro from the engine, process children
         const next = nextNode(ctx.node, ctx.source.root, true);

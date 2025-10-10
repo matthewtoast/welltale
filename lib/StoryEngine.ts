@@ -53,10 +53,10 @@ export async function advanceStory(
   const outro =
     findNodes(source.root, (node) => node.type === "outro")[0] ?? null;
 
-  const scriptRunner = await createRunner();
   const funcs = buildDefaultFuncs({}, rng);
+  const storyRunner = await createRunner();
   const evaluator: EvaluatorFunc = async (expr, scope) => {
-    return await evaluateScript(expr, scope, funcs, scriptRunner);
+    return await evaluateScript(expr, scope, funcs, storyRunner);
   };
 
   // <var> etc may be declared at the top level so evaluate those sequentially

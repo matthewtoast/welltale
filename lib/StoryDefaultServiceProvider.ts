@@ -10,6 +10,7 @@ import {
   generateVoiceFromPrompt,
 } from "./ElevenLabsUtils";
 import { fetch, FetchOptions } from "./HTTPHelpers";
+import type { AIChatMessage } from "./OpenRouterUtils";
 import {
   generateChatResponse,
   generateImage,
@@ -17,17 +18,16 @@ import {
   generateJsonWithWeb,
   generateText,
 } from "./OpenRouterUtils";
-import type { AIChatMessage } from "./OpenRouterUtils";
-import type { VoiceSpec } from "./StoryTypes";
-import { generatePredictableKey, parameterize } from "./TextHelpers";
 import type {
   BaseGenerateOptions,
   GenerateImageOptions,
   GenerateTextCompletionOptions,
+  Model,
   SpeechSpec,
   StoryServiceProvider,
-  Model,
 } from "./StoryServiceProvider";
+import type { VoiceSpec } from "./StoryTypes";
+import { generatePredictableKey, parameterize } from "./TextHelpers";
 
 export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   constructor(
@@ -307,14 +307,10 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
         return JSON.parse(cached.toString());
       }
     }
-    const response = await generateChatResponse(
-      this.config.openai,
-      messages,
-      [
-        "openai/gpt-5-mini",
-        "openai/gpt-4.1-mini",
-      ] as NonEmpty<Model>
-    );
+    const response = await generateChatResponse(this.config.openai, messages, [
+      "openai/gpt-5-mini",
+      "openai/gpt-4.1-mini",
+    ] as NonEmpty<Model>);
     const responseMessage: AIChatMessage = {
       role: "assistant",
       body: response,

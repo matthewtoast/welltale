@@ -57,7 +57,12 @@ export const evaluateScript = async (
 
   const env = {
     get: (k: string): TSerial => vars[k] ?? null,
-    set: (k: string, v: TSerial) => (vars[k] = v),
+    set: (k: string, v: TSerial) => {
+      vars[k] = v;
+      // We must return null here or QuickJS will crash when the following conditions are met:
+      // (1) the expression is treated as a singleLine, (2) an array/object is returned
+      return null;
+    },
     __v: Object.fromEntries(valKeys.map((k) => [k, vars[k]])),
     __f: Object.fromEntries(funcKeys.map((k) => [k, funcs[k]])),
   };
