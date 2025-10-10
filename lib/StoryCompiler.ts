@@ -547,19 +547,27 @@ function buildSetNodes(value: unknown): BaseNode[] {
     console.warn("Ignoring set macro with invalid data");
     return [];
   }
-  if ("attr" in value || "value" in value) {
+  const nodes: BaseNode[] = [];
+  const hasAttrKey = Object.prototype.hasOwnProperty.call(value, "attr");
+  const hasValueKey = Object.prototype.hasOwnProperty.call(value, "value");
+  if (hasAttrKey || hasValueKey) {
     const attr = toNonEmptyString(value["attr"]);
     const val = toStringValue(value["value"]);
-    if (!attr || val === null) {
+    if (attr && val !== null) {
+      nodes.push(createNode("set", { attr, value: val }));
+    } else {
       console.warn("Ignoring set macro without attr or value");
-      return [];
     }
-    return [createNode("set", { attr, value: val })];
+  }
+  if (Object.prototype.hasOwnProperty.call(value, "attrs")) {
+    nodes.push(...buildSetNodes(value["attrs"]));
   }
   const keys = Object.keys(value);
-  const nodes: BaseNode[] = [];
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
+    if (key === "attr" || key === "value" || key === "attrs") {
+      continue;
+    }
     const val = toStringValue(value[key]);
     if (val === null) {
       console.warn(`Ignoring set macro value for ${key}`);

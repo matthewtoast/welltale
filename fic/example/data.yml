@@ -29,20 +29,26 @@ macros:
     rename:
       to: p
     set:
-      attr: voice
-      value: merchant
+      voice: merchant
+      mood: jovial
   - match: rhymer
     rename:
       to: p
     set:
-      attr: voice
-      value: rhymer
+      voice: rhymer
+      mood: lyrical
   - match: wretch
     rename:
       to: p
     set:
-      attr: voice
-      value: wretch
+      voice: wretch
+      mood: hushed
+  - match: troll
+    rename:
+      to: p
+    set:
+      voice: troll
+      mood: gruff
 
 # Voices can be defined in data files or directly in story files using <voice> tags
 voices:
@@ -51,4 +57,6 @@ voices:
   rhymer:
     prompt: Swamp creature that speaks only in rhyme, melodic voice, slightly mischievous
   wretch:
-    prompt: A wretched forest creature, lowly British accent, voice like a whisper through clenched teeth
+    prompt: Wretched forest creature, lowly British accent, voice like a whisper through clenched teeth
+  troll:
+    prompt: Large deep-voiced troll with a growl, hungry and menacing, British accent

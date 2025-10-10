@@ -29,8 +29,8 @@ macros:
     rename:
       to: p
     set:
-      attr: voice
-      value: merchant
+      voice: merchant
+      mood: warm
 voices:
   merchant:
     name: Friendly Merchant
@@ -76,6 +76,7 @@ voices:
   );
   expect(merchantNodes.length, 1);
   expect(merchantNodes[0]?.type, "p");
+  expect(merchantNodes[0]?.atts.mood, "warm");
 
   const guardNodes = findNodes(
     source.root,

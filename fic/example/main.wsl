@@ -1,11 +1,5 @@
 <!-- This is an example interactive audio story written in Welltale Story Language (WSL). -->
 
-<!-- UNUSED TAGS IN THIS STORY:
-Container/Descendable tags:
-- llm:dialog (AI character responses)
-- include
--->
-
 <!-- Using the <voice> tag, you can generate custom voices, referencable with the `id` attribute. -->
 <voice id="narrator">
   British storybook narrator, classic deep voice, expressive
