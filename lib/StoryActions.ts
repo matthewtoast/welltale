@@ -45,6 +45,10 @@ import {
 } from "./StoryTypes";
 import { cleanSplit, isBlank, snorm } from "./TextHelpers";
 
+function tagOutKey(atts: Record<string, TSerial>, fallback: string = "_") {
+  return (atts.key ?? fallback).toString();
+}
+
 export const ACTION_HANDLERS: ActionHandler[] = [
   {
     tags: ["scope"],
@@ -203,8 +207,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema,
         { models, useWebSearch }
       );
-      const key = atts.key ?? "parse";
-      setState(ctx.scope, key, result as unknown as TSerial);
+      setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
@@ -277,8 +280,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         { labels: "array<string> - Classification labels for the input" },
         { models, useWebSearch }
       );
-      const key = atts.key ?? "tags";
-      setState(ctx.scope, key, ensureArray(out.labels ?? []));
+      setState(ctx.scope, tagOutKey(atts), ensureArray(out.labels ?? []));
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
@@ -350,8 +352,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema,
         { models, useWebSearch }
       );
-      const key = atts.key ?? "score";
-      setState(ctx.scope, key, result as unknown as TSerial);
+      setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
@@ -458,8 +459,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema,
         { models, useWebSearch }
       );
-      const key = atts.key ?? "generate";
-      setState(ctx.scope, key, result as unknown as TSerial);
+      setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
@@ -480,7 +480,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             <while cond="true">
               <input key="userInput" />
               <llm:dialog
-                input="{{userInput}}"
                 from="Detective"
                 key="response"
               >
@@ -536,10 +535,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         atts.with ??
         HOST_ID;
       const user = atts.user ?? atts.player ?? PLAYER_ID;
-      const message = atts.message ?? atts.input;
-      if (isBlank(assistant) || isBlank(user) || isBlank(message)) {
-        return { ops, next };
-      }
       const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
       // Checkpoints *should* be in sequential order from oldest to newest
       const events = ctx.session.checkpoints.flatMap((cp) =>
@@ -560,8 +555,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         }),
       ];
       const response = await ctx.provider.generateChat(messages.slice(-20), {});
-      const key = atts.key ?? "dialog";
-      setState(ctx.scope, key, snorm(response.body));
+      setState(ctx.scope, tagOutKey(atts), snorm(response.body));
       return { ops, next };
     },
   },
@@ -791,8 +785,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       } else {
         val = raw;
       }
-      const key = atts.key ?? "data";
-      setState(ctx.scope, key, val);
+      setState(ctx.scope, tagOutKey(atts), val);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
@@ -958,6 +951,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             {}
           )
         : { url: "" };
+      setState(ctx.scope, tagOutKey(atts), text);
       ops.push({
         type: "play-media",
         media: url,
@@ -1868,6 +1862,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           }
         }
       }
+      setState(ctx.scope, tagOutKey(atts), url);
       ops.push({
         type: "play-media",
         event: null,
@@ -1943,7 +1938,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let url = atts.href ?? atts.url ?? atts.src ?? "";
       const next = nextNode(ctx.node, ctx.source.root, false);
       const ops: OP[] = [];
-
       if (!url) {
         const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
         const prompt = (
@@ -1959,13 +1953,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           url = result.url;
         }
       }
-
+      setState(ctx.scope, tagOutKey(atts), url);
       ops.push({
         type: "show-media",
         media: url,
         event: null,
       });
-
       return {
         ops,
         next,

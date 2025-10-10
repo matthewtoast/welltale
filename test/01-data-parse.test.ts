@@ -16,7 +16,7 @@ async function testDataParse() {
 </data>
 
 <p>
-  JSON5: a={{data.a}} b={{data.b}} c={{data.c}}
+  JSON5: a={{_.a}} b={{_.b}} c={{_.c}}
 </p>
 
 <data format="yaml" key="y">
