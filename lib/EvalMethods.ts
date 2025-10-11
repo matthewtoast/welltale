@@ -49,13 +49,8 @@ export const arrayHelpers: Record<string, (...args: any[]) => P | P[]> = {
     return t[t.length - 1] ?? null;
   },
   nth: (a: A, i: P) => toArr(a)[num(i) | 0] ?? null,
-  slice: (a: A, s: P, e?: P) =>
-    toArr(a).slice(num(s) | 0, e == null ? undefined : num(e) | 0),
   take: (a: A, n: P) => toArr(a).slice(0, num(n) | 0),
   drop: (a: A, n: P) => toArr(a).slice(num(n) | 0),
-  concat: (a: A, b: A) => toArr(a).concat(toArr(b)),
-  reverse: (a: A) => toArr(a).slice().reverse(),
-  sort: (a: A) => toArr(a).slice().sort(cmp),
   sortDesc: (a: A) =>
     toArr(a)
       .slice()
@@ -65,13 +60,7 @@ export const arrayHelpers: Record<string, (...args: any[]) => P | P[]> = {
     toArr(a).reduce<P[]>((r, v) => r.concat(Array.isArray(v) ? v : [v]), []),
   flattenDeep: (a: A, depth?: P) =>
     flatDeep(toArr(a) as any[], depth == null ? 1 / 0 : num(depth) | 0),
-  includes: (a: A, v: A) => toArr(a).some((x) => eq(x, v)),
   contains: (a: A, v: A) => toArr(a).some((x) => eq(x, v)),
-  indexOf: (a: A, v: A) => {
-    const t = toArr(a);
-    for (let i = 0; i < t.length; i++) if (eq(t[i], v)) return i;
-    return -1;
-  },
   count: (a: A, v: A) =>
     toArr(a).reduce((c, x) => (c as number) + (eq(x, v) ? 1 : 0), 0),
   compact: (a: A) => toArr(a).filter((x) => !!x),
@@ -82,16 +71,6 @@ export const arrayHelpers: Record<string, (...args: any[]) => P | P[]> = {
       ? (t.reduce((s, x) => (s as number) + num(x ?? 0), 0) as number) /
           t.length
       : 0;
-  },
-  min: (a: A) => {
-    const t = toArr(a);
-    if (!t.length) return null;
-    return t.slice().sort(cmp)[0];
-  },
-  max: (a: A) => {
-    const t = toArr(a);
-    if (!t.length) return null;
-    return t.slice().sort(cmp)[t.length - 1];
   },
   median: (a: A) => {
     const t = toArr(a).slice().sort(cmp);
@@ -146,8 +125,6 @@ const camel = (s: string) => {
 };
 
 export const stringHelpers: Record<string, (...args: any[]) => P> = {
-  lower: (v: P) => toStr(v).toLowerCase(),
-  upper: (v: P) => toStr(v).toUpperCase(),
   capitalize: (v: P) => capFirst(toStr(v).toLowerCase()),
   uncapitalize: (v: P) => unCapFirst(toStr(v)),
   titleCase: (v: P) =>
@@ -155,42 +132,16 @@ export const stringHelpers: Record<string, (...args: any[]) => P> = {
       /\w\S*/g,
       (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
     ),
-  trim: (v: P) => toStr(v).trim(),
-  trimStart: (v: P) => toStr(v).trimStart(),
-  trimEnd: (v: P) => toStr(v).trimEnd(),
-  padStart: (v: P, len: P, pad?: P) =>
-    toStr(v).padStart(Number(len) || 0, toStr(pad ?? " ")),
-  padEnd: (v: P, len: P, pad?: P) =>
-    toStr(v).padEnd(Number(len) || 0, toStr(pad ?? " ")),
-  repeat: (v: P, n: P) => toStr(v).repeat(Number(n) || 0),
   replace: (v: P, search: P, repl: P) =>
     toStr(v).split(toStr(search)).join(toStr(repl)),
-  includes: (v: P, sub: P) => toStr(v).includes(toStr(sub)),
-  startsWith: (v: P, sub: P) => toStr(v).startsWith(toStr(sub)),
-  endsWith: (v: P, sub: P) => toStr(v).endsWith(toStr(sub)),
-  substring: (v: P, start: P, end?: P) =>
-    toStr(v).substring(
-      Number(start) || 0,
-      end == null ? undefined : Number(end) || 0
-    ),
-  slice: (v: P, start: P, end?: P) =>
-    toStr(v).slice(
-      Number(start) || 0,
-      end == null ? undefined : Number(end) || 0
-    ),
-  indexOf: (v: P, sub: P) => toStr(v).indexOf(toStr(sub)),
-  lastIndexOf: (v: P, sub: P) => toStr(v).lastIndexOf(toStr(sub)),
   kebabCase: (v: P) => kebab(toStr(v)),
   snakeCase: (v: P) => snake(toStr(v)),
   camelCase: (v: P) => camel(toStr(v)),
-  concat: (a: P, b: P) => toStr(a) + toStr(b),
   join: (...args: any[]) => {
     const sep = toStr(args.pop());
     return args.map(toStr).join(sep);
   },
-  split: (v: P, sep: P) => toStr(v).split(toStr(sep)) as any,
   reverseStr: (v: P) => toStr(v).split("").reverse().join(""),
-  length: (v: P) => (Array.isArray(v) ? v.length : toStr(v).length),
 
   // Natural language helpers
   listize: (arr: P[], sep?: P, lastSep?: P) => {
@@ -230,41 +181,6 @@ const toArrOrStr = (v: A): P[] | string =>
   isString(v) ? v : Array.isArray(v) ? v : [v];
 
 export const unifiedHelpers: Record<string, (...args: any[]) => P | P[]> = {
-  length: (v: A) => {
-    if (isString(v)) return v.length;
-    return toArr(v).length;
-  },
-  includes: (v: A, search: A) => {
-    if (isString(v) && isString(search)) return v.includes(search);
-    if (isString(v)) return false;
-    return toArr(v).some((x) => eq(x, search));
-  },
-  indexOf: (v: A, search: A) => {
-    if (isString(v) && isString(search)) return v.indexOf(search);
-    if (isString(v)) return -1;
-    const arr = toArr(v);
-    for (let i = 0; i < arr.length; i++) if (eq(arr[i], search)) return i;
-    return -1;
-  },
-  slice: (v: A, start: P, end?: P) => {
-    const s = num(start) | 0;
-    const e = end == null ? undefined : num(end) | 0;
-    if (isString(v)) return v.slice(s, e);
-    return toArr(v).slice(s, e);
-  },
-  concat: (a: A, b: A) => {
-    if (isString(a) && isString(b)) return a + b;
-    if (isString(a) || isString(b)) {
-      const aStr = Array.isArray(a) ? a.join(",") : toStr(a as P);
-      const bStr = Array.isArray(b) ? b.join(",") : toStr(b as P);
-      return aStr + bStr;
-    }
-    return toArr(a).concat(toArr(b));
-  },
-  reverse: (v: A) => {
-    if (isString(v)) return v.split("").reverse().join("");
-    return toArr(v).slice().reverse();
-  },
   blank: (v: any) => {
     return isBlank(v);
   },
@@ -286,9 +202,6 @@ export const unifiedHelpers: Record<string, (...args: any[]) => P | P[]> = {
 };
 
 export const mathHelpers: Record<string, (...args: any[]) => P> = {
-  abs: (v: P) => Math.abs(num(v)),
-  max: (...args: P[]) => Math.max(...args.map(num)),
-  min: (...args: P[]) => Math.min(...args.map(num)),
   clamp: (v: P, min: P, max: P) =>
     Math.max(num(min), Math.min(num(max), num(v))),
   avg: (...args: P[]) => {
@@ -299,31 +212,6 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     if (!args.length) return 0;
     return args.reduce<number>((s, x) => s + num(x), 0) / args.length;
   },
-  pow: (base: P, exp: P) => Math.pow(num(base), num(exp)),
-  sqrt: (v: P) => Math.sqrt(num(v)),
-  cbrt: (v: P) => Math.cbrt(num(v)),
-  exp: (v: P) => Math.exp(num(v)),
-  log: (v: P) => Math.log(num(v)),
-  log10: (v: P) => Math.log10(num(v)),
-  log2: (v: P) => Math.log2(num(v)),
-  sin: (v: P) => Math.sin(num(v)),
-  cos: (v: P) => Math.cos(num(v)),
-  tan: (v: P) => Math.tan(num(v)),
-  asin: (v: P) => Math.asin(num(v)),
-  acos: (v: P) => Math.acos(num(v)),
-  atan: (v: P) => Math.atan(num(v)),
-  atan2: (y: P, x: P) => Math.atan2(num(y), num(x)),
-  sinh: (v: P) => Math.sinh(num(v)),
-  cosh: (v: P) => Math.cosh(num(v)),
-  tanh: (v: P) => Math.tanh(num(v)),
-  asinh: (v: P) => Math.asinh(num(v)),
-  acosh: (v: P) => Math.acosh(num(v)),
-  atanh: (v: P) => Math.atanh(num(v)),
-  floor: (v: P) => Math.floor(num(v)),
-  ceil: (v: P) => Math.ceil(num(v)),
-  round: (v: P) => Math.round(num(v)),
-  trunc: (v: P) => Math.trunc(num(v)),
-  sign: (v: P) => Math.sign(num(v)),
   gcd: (a: P, b: P) => {
     let x = Math.abs(num(a));
     let y = Math.abs(num(b));
@@ -401,9 +289,6 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const n = num(v);
     return n - Math.floor(n);
   },
-  isFinite: (v: P) => Number.isFinite(num(v)),
-  isNaN: (v: P) => Number.isNaN(num(v)),
-  isInteger: (v: P) => Number.isInteger(num(v)),
   isPrime: (n: P) => {
     const v = Math.floor(num(n));
     if (v <= 1) return false;
@@ -427,7 +312,6 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
   stdDev: (...args: P[]) => Math.sqrt(mathHelpers.variance(...args) as number),
   standardDeviation: (...args: P[]) =>
     Math.sqrt(mathHelpers.variance(...args) as number),
-  hypot: (...args: P[]) => Math.hypot(...args.map(num)),
   distance: (x1: P, y1: P, x2: P, y2: P) =>
     Math.hypot(num(x2) - num(x1), num(y2) - num(y1)),
   manhattan: (x1: P, y1: P, x2: P, y2: P) =>
@@ -448,9 +332,6 @@ export const mathHelpers: Record<string, (...args: any[]) => P> = {
     const p = Math.pow(10, num(precision));
     return Math.ceil(num(v) * p) / p;
   },
-  toFixed: (v: P, digits: P) => Number(num(v).toFixed(num(digits))),
-  toPrecision: (v: P, precision: P) =>
-    Number(num(v).toPrecision(num(precision))),
   incr: (v: P, by?: P) => num(v) + num(by ?? 1),
   decr: (v: P, by?: P) => num(v) - num(by ?? 1),
   wrap: (v: P, min: P, max: P) => {

@@ -1133,8 +1133,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     docs: {
       desc: dedent`
         Conditional execution of story content. Evaluates a JavaScript or TypeScript expression and executes
-        child elements only if the condition is true. Supports internal \`<else>\` blocks for alternative paths.
-        Conditions can access all variables in the current scope.
+        child elements only if the condition is true.
+        
+        Note: \`<else>\` blocks are supported, but they must be _inside_ the \`<if>\` block.
+        \`<else>\` tags that appear outside of \`<if>\` will be ignored.
       `,
       ex: [
         {
@@ -1145,7 +1147,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                 <p>Welcome, stranger. What brings you here?</p>
               </else>
             </if>
-
           `,
         },
       ],

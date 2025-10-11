@@ -20,8 +20,14 @@ const QUICKSTART_CODE = `<p>Welcome to your adventure!</p>
 function readExampleFiles() {
   try {
     const exampleDir = path.join(process.cwd(), "fic", "example");
-    const dataContent = fs.readFileSync(path.join(exampleDir, "data.yml"), "utf-8");
-    const storyContent = fs.readFileSync(path.join(exampleDir, "main.wsl"), "utf-8");
+    const dataContent = fs.readFileSync(
+      path.join(exampleDir, "data.yml"),
+      "utf-8"
+    );
+    const storyContent = fs.readFileSync(
+      path.join(exampleDir, "main.wsl"),
+      "utf-8"
+    );
     return { dataContent, storyContent };
   } catch (error) {
     console.warn("Could not read example files:", error);
@@ -88,9 +94,11 @@ export default function DocsPage() {
           audio-based storytelling possible.
         </p>
         <p className={styles.exampleLink}>
-          📖 <a href="#complete-example" className={styles.anchorLink}>
+          📖{" "}
+          <a href="#complete-example" className={styles.anchorLink}>
             See a complete example story
-          </a> at the bottom of this page.
+          </a>{" "}
+          at the bottom of this page.
         </p>
       </header>
 
@@ -140,7 +148,7 @@ export default function DocsPage() {
           {TEMPLATE_SYNTAX.map((syntax, index) => (
             <div key={index} className={styles.syntaxCard}>
               <h3 className={styles.syntaxName}>{syntax.syntax}</h3>
-              <p className={styles.syntaxDescription}>{syntax.description}</p>
+              <p className={styles.syntaxDescription}>{syntax.desc}</p>
               {syntax.examples.map((example, exampleIndex) => (
                 <div key={exampleIndex} className={styles.syntaxExample}>
                   <CodeBlock
@@ -165,19 +173,21 @@ export default function DocsPage() {
         <section id="complete-example" className={styles.completeExample}>
           <h2 className={styles.sectionTitle}>Complete Example</h2>
           <p className={styles.sectionDescription}>
-            Below is a complete interactive story that demonstrates most WSL features.
-            A Welltale story can comprise multiple files in any directory structure you prefer.
-            The engine loads and combines all files together - data files (.yml/.yaml/.json) 
-            for configuration and metadata, and story files (.wsl/.xml) for the actual content and logic.
+            Below is a complete interactive story that demonstrates most WSL
+            features. A Welltale story can comprise multiple files in any
+            directory structure you prefer. The engine loads and combines all
+            files together - data files (.yml/.yaml/.json) for configuration and
+            metadata, and story files (.wsl/.xml) for the actual content and
+            logic.
           </p>
 
           {dataContent && (
             <div className={styles.exampleFile}>
               <h3 className={styles.fileName}>data.yml</h3>
               <p className={styles.fileDescription}>
-                Story metadata and configuration. You can define story data, custom voices, 
-                and macros in data files. Voices and macros can also be defined directly 
-                in your story files - it's flexible.
+                Story metadata and configuration. You can define story data,
+                custom voices, and macros in data files. Voices and macros can
+                also be defined directly in your story files - it's flexible.
               </p>
               <CodeBlock
                 code={dataContent}
@@ -192,8 +202,8 @@ export default function DocsPage() {
             <div className={styles.exampleFile}>
               <h3 className={styles.fileName}>main.wsl</h3>
               <p className={styles.fileDescription}>
-                The story content and interactive logic. This is where your actual 
-                story unfolds using WSL tags and templating patterns.
+                The story content and interactive logic. This is where your
+                actual story unfolds using WSL tags and templating patterns.
               </p>
               <CodeBlock
                 code={storyContent}

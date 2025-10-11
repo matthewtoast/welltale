@@ -109,10 +109,10 @@ async function testBlockOrder() {
   </p>
 
   <var name="xx" />
-  <while cond='empty(xx) || !startsWith(lower(xx), "x")'>
+  <while cond='empty(xx) || !xx.toLowerCase().startsWith("x")'>
     <p from="Bob">... Say a word beginning with the letter "x".</p>
     <input xx.type="string" xx.default="" />
-    <if cond='lower(xx) == "invalid1"'>
+    <if cond='xx.toLowerCase() == "invalid1"'>
       <continue />
     </if>
     <while cond='true'>

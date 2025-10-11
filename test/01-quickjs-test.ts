@@ -65,7 +65,7 @@ async function go() {
   expect(b, 4);
 
   const c = await evaluateScript(
-    `empty(xx) || !startsWith(lower(xx), "x")`,
+    `empty(xx) || !xx.toLowerCase().startsWith("x")`,
     {
       xx: "foobar",
     },
@@ -75,7 +75,7 @@ async function go() {
   expect(c, true);
 
   const d = await evaluateScript(
-    `empty(xx) || !startsWith(lower(xx), "x")`,
+    `empty(xx) || !xx.toLowerCase().startsWith("x")`,
     {
       xx: "",
     },

@@ -25,7 +25,7 @@ export function expect(a: unknown, b: unknown, doThrow: boolean = true) {
     console.info("✅", msg);
   } else {
     if (doThrow) {
-      throw new Error(`${ja} isn't equal to ${jb}`);
+      throw new Error(`❌ ${ja} isn't equal to ${jb}`);
     } else {
       console.error(`❌ ${ja} isn't equal to ${jb}`);
     }

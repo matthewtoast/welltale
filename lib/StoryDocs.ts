@@ -1,15 +1,13 @@
-
 export interface TemplateSyntaxDoc {
   syntax: string;
-  description: string;
+  desc: string;
   examples: { code: string; note?: string }[];
 }
 
 export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
   {
     syntax: "{{variable}}",
-    description:
-      "Insert variable values into your text. Variables can be set using <var> tags or input from users.",
+    desc: "Insert state variable values into your text using Handlebars-like syntax. Variables may be strings, numbers, or booleans.",
     examples: [
       {
         code: `<var name="playerName" value="Alex" />
@@ -25,8 +23,7 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
   },
   {
     syntax: "{$ expression $}",
-    description:
-      "Evaluate JavaScript expressions and insert the result. You can do math, call functions, or create logic.",
+    desc: "Evaluate JavaScript expressions and insert the result. You can do math, call functions, or create logic.",
     examples: [
       {
         code: `<var name="health" value="80" type="number" />
@@ -47,8 +44,7 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
   },
   {
     syntax: "[[random|variations]]",
-    description:
-      "Create dynamic text variations that change each time they're encountered. Use pipe symbols to separate options. Add ^ for cycling through options in order, or ~ for shuffled rotation.",
+    desc: "Create dynamic text variations that change each time they're encountered. Use pipe symbols to separate options. Add ^ for cycling through options in order, or ~ for shuffled rotation.",
     examples: [
       {
         code: `<p>The weather is [[sunny|cloudy|rainy|stormy]] today.</p>`,
@@ -71,8 +67,7 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
   },
   {
     syntax: "{% prompt %}",
-    description:
-      "Generate text using AI based on your prompt. The AI creates content that fits naturally into your story.",
+    desc: "Generate text using AI based on your prompt. The AI creates content that fits naturally into your story.",
     examples: [
       {
         code: `<p>{% Describe the eerie atmosphere of an abandoned castle at midnight %}</p>`,
@@ -90,29 +85,26 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
       },
     ],
   },
-
+  //   {
+  //     syntax: "Attribute values",
+  //     desc: "Most tag attributes can use variables and expressions, not just the content inside tags.",
+  //     examples: [
+  //       {
+  //         code: `<var name="npcName" value="Wizard" />
+  // <var name="npcVoice" value="Merlin" />
+  // <p from="{{npcName}}" voice="{{npcVoice}}">Welcome to my tower!</p>`,
+  //         note: "The speaker and voice are determined by variables",
+  //       },
+  //       {
+  //         code: `<var name="volume" value="0.8" type="number" />
+  // <sound volume="{$ volume * 0.5 $}">Thunder rumbling in distance</sound>`,
+  //         note: "Volume is calculated from a variable",
+  //       },
+  //     ],
+  //   },
   {
-    syntax: "Attribute values",
-    description:
-      "Most tag attributes can use variables and expressions, not just the content inside tags.",
-    examples: [
-      {
-        code: `<var name="npcName" value="Wizard" />
-<var name="npcVoice" value="Merlin" />
-<p from="{{npcName}}" voice="{{npcVoice}}">Welcome to my tower!</p>`,
-        note: "The speaker and voice are determined by variables",
-      },
-      {
-        code: `<var name="volume" value="0.8" type="number" />
-<sound volume="{$ volume * 0.5 $}">Thunder rumbling in distance</sound>`,
-        note: "Volume is calculated from a variable",
-      },
-    ],
-  },
-  {
-    syntax: "Processing order",
-    description:
-      "Templates are processed in this specific order: (1) {{variables}} first, (2) {$ expressions $} second, (3) [[random|variations]] third, (4) {% AI prompts %} last. Later patterns can use results from earlier ones.",
+    syntax: "Pattern processing order - important",
+    desc: "Templates are processed in this specific order: (1) {{variables}} first, (2) {$ expressions $} second, (3) [[random|variations]] third, (4) {% AI prompts %} last. Later patterns can use results from earlier ones.",
     examples: [
       {
         code: `<var name="playerClass" value="warrior" />
