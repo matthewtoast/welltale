@@ -1,9 +1,12 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import dedent from "dedent";
 import OpenAI from "openai";
 import { join } from "path";
 import { loadSstEnv } from "../env/env-sst";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
 import { loadDirRecursive } from "../lib/FileUtils";
 import { LocalCache } from "../lib/LocalCache";
+import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
 import { PRNG } from "../lib/RandHelpers";
 import { compileStory } from "../lib/StoryCompiler";
 import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
@@ -13,6 +16,7 @@ import {
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
 } from "../lib/StoryTypes";
+import { createWelltaleContent } from "../lib/WelltaleKnowledgeContext";
 import { runUntilComplete } from "./TestUtils";
 
 const ROOT_DIR = join(__dirname, "..");
@@ -47,15 +51,39 @@ async function testTestStory() {
       verbose: true,
     }
   );
-  const session = createDefaultSession("example-story");
+  const session = createDefaultSession(options.seed);
+  const rng = new PRNG(options.seed, 0);
+  const funcs = buildDefaultFuncs({}, rng);
+  const runner = await createRunner();
   const context: BaseActionContext = {
     session,
-    rng: new PRNG("example-story", 0),
+    rng,
     provider,
     scope: {},
     options,
-    evaluator: async () => null,
+    evaluator: async (expr, scope) => {
+      return await evaluateScript(expr, scope, funcs, runner);
+    },
   };
+  const content = await createWelltaleContent(
+    dedent`
+      This is a humorous story where the player takes on the role of a juror during voir dire.
+
+      The player's objective is to avoid getting selected for the jury.
+
+      The laywer doing the interviewing (an NPC), however, is desperate to get the player on the jury.
+
+      The judge (an NPC) occasionally interjects to keep things "on track." Once the judge's threshold for absurdity is breached, they reject the juror (the player) and the player wins.
+
+      The judge should take on the role of the "straight man" and host of sorts, introing the scene (in character), and giving the player cues as necessary. But 90% should be dialog between the player and lawyer.
+
+      As the story progresses the lawyer should resort to ever more absurd and humorous ways to deal with the juror's attempts to disqualify himself.
+    `,
+    provider,
+    options
+  );
+  console.log(content);
+  return;
   const sources = await compileStory(context, cartridge, {
     doCompileVoices: false,
   });

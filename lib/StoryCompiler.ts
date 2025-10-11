@@ -13,6 +13,7 @@ import {
   walkTree,
 } from "./StoryNodeHelpers";
 import { renderText } from "./StoryRenderMethods";
+import { createWelltaleContent } from "./WelltaleKnowledgeContext";
 import {
   BaseActionContext,
   NestedRecords,
@@ -102,14 +103,15 @@ export type CompileOptions = {
   failOnXmlError?: boolean;
 };
 
-function buildStoryRoot(
+async function buildStoryRoot(
   cartridge: StoryCartridge,
+  context: BaseActionContext,
   verbose: boolean | undefined,
   collect:
     | ((path: string, severity: ParseSeverity, message: string) => void)
     | undefined,
   externalMacros: MacroDefinition[]
-): StoryNode {
+): Promise<StoryNode> {
   const root: StoryNode = {
     addr: "0",
     type: "root",
@@ -141,13 +143,19 @@ function buildStoryRoot(
     if (verbose) {
       console.info("Parsing", path);
     }
-    const section = parseXmlFragment(
-      content,
-      collect
-        ? (severity, message) => collect(path, severity, message)
-        : undefined
+    const sectionCollect = collect
+      ? (severity: ParseSeverity, message: string) =>
+          collect(path, severity, message)
+      : undefined;
+    const section = parseXmlFragment(content, sectionCollect);
+    const expanded = await expandCreateNodes(
+      section.kids,
+      context,
+      sectionCollect,
+      verbose,
+      path
     );
-    const { nodes, macros } = collectMacros(section.kids, "macro");
+    const { nodes, macros } = collectMacros(expanded, "macro");
     collectedMacros.push(...macros);
     accumulatedNodes.push(...nodes);
   }
@@ -199,8 +207,9 @@ export async function compileStory(
   const dataDocs: unknown[] = [...jsons, ...yamls];
   const dataArtifacts = collectDataArtifacts(dataDocs);
 
-  const root = buildStoryRoot(
+  const root = await buildStoryRoot(
     cartridge,
+    context,
     options.verbose,
     collect,
     dataArtifacts.macros
@@ -334,6 +343,68 @@ export async function compileStory(
   return outputs;
 }
 
+async function expandCreateNodes(
+  nodes: BaseNode[],
+  context: BaseActionContext,
+  collect: ((severity: ParseSeverity, message: string) => void) | undefined,
+  verbose: boolean | undefined,
+  source: string
+): Promise<BaseNode[]> {
+  const out: BaseNode[] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (node.type === "create") {
+      const raw = collectText(node);
+      const prompt = (await renderText(raw, context)).trim();
+      if (!prompt) {
+        console.warn(`Skipping <create> in ${source} with empty prompt`);
+        continue;
+      }
+      if (verbose) {
+        console.info(`Generating <create> content in ${source}`);
+      }
+      const generated = await createWelltaleContent(
+        prompt,
+        context.provider,
+        context.options
+      );
+      const fragment = parseXmlFragment(generated, collect);
+      const kids = await expandCreateNodes(
+        fragment.kids,
+        context,
+        collect,
+        verbose,
+        source
+      );
+      out.push(...kids);
+      continue;
+    }
+    if (!node.kids.length) {
+      out.push({
+        type: node.type,
+        atts: { ...node.atts },
+        kids: [],
+        text: node.text,
+      });
+      continue;
+    }
+    const kids = await expandCreateNodes(
+      node.kids,
+      context,
+      collect,
+      verbose,
+      source
+    );
+    out.push({
+      type: node.type,
+      atts: { ...node.atts },
+      kids,
+      text: node.text,
+    });
+  }
+  return out;
+}
+
 type PendingDataVoice = {
   ref: string;
   prompt: string;
@@ -438,6 +509,17 @@ function collectDataArtifacts(entries: unknown[]): DataArtifacts {
     }
   }
   return { macros, pronunciations, meta, readyVoices, pendingVoices };
+}
+
+function collectText(node: BaseNode): string {
+  if (node.type === "#text") {
+    return node.text;
+  }
+  let out = "";
+  for (let i = 0; i < node.kids.length; i++) {
+    out += collectText(node.kids[i]);
+  }
+  return out;
 }
 
 function toMacroDefinition(source: unknown): MacroDefinition | null {

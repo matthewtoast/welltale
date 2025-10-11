@@ -25,8 +25,6 @@ struct StorySession: Codable {
     let cache: [String: AnyCodable]
     let flowTarget: String?
     let genie: [String: String]?
-    let inputTries: [String: Int]
-    let inputLast: String?
 }
 
 struct StoryInput: Codable {

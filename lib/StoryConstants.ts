@@ -57,12 +57,17 @@ export const DESCENDABLE_TAGS = [
   "summary",
 ];
 
-export function assignInput(session: StorySession, input: string | null) {
+export function assignInput(
+  session: StorySession,
+  input: string | null,
+  atts: Record<string, TSerial> = {}
+) {
   if (input !== null) {
     if (!session.input) {
-      session.input = { atts: {}, body: input, from: PLAYER_ID };
+      session.input = { atts, body: input };
     } else {
       session.input.body = input;
+      session.input.atts = atts;
     }
   }
 }

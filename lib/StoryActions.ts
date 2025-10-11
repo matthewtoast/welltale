@@ -1,5 +1,5 @@
 import dedent from "dedent";
-import { isEmpty, omit } from "lodash";
+import { omit } from "lodash";
 import { TSerial } from "../typings";
 import {
   castToBoolean,
@@ -575,7 +575,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         to provide context. The AI responds as the specified character based on the system prompt and
         conversation history.
 
-        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
+        The most recent output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
 
         Note: It is up to the author to set up the correct loop structure to call this tag repeatedly.
       `,
@@ -964,9 +964,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
 
         This content is rendered into audio clips automatically by Welltale using text-to-speech, and then played on the story client to the player.
 
-        The \`from\` attribute can be used to indicate the person speaking. If none given, it is shown as the host.
+        The \`from\` attribute can be used to indicate the person speaking. If none given, \`"HOST"\` is used.
 
-        The \`voice\` attribute can assign a specific text-to-speech voice to the speech. See also the \`<voice>\` tag.
+        The \`voice\` attribute can assign a specific text-to-speech voice to the speech. If none is given, the default voice (the one used for \"HOST\") is used. See the \`<voice>\` tag on how to create voices.
 
         Warning: The only tag you can place inside of a text content element is \`<when>\`. See the docs on \`<when>\` for adding expressive conditional logic to your text elements.
       `,
@@ -2132,8 +2132,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["input", "textarea"],
     docs: {
       desc: dedent`
-        Pauses story execution to get input from the user. Supports validation, retries, and fallback paths.
-        The input is stored in variables for use in the story.
+        Pauses story execution to get input from the user.
 
         If the input can't be validated from attributes alone, AI will automatically be used to parse and validate the input.
         
@@ -2155,34 +2154,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               playerClass.type="string"
             />
             <p>Welcome, {{playerName}} the {{playerClass}}!</p>
-          `,
-        },
-        {
-          code: dedent`
-            <!-- Complex input with validation and retry -->
-            <input
-              id="character-creation"
-              retryMax="3"
-              catch="creation-failed"
-              scope="global"
-              
-              name.description="Character name (3-20 characters)"
-              name.type="string"
-              
-              age.description="Character age"
-              age.type="number"
-              
-              race.description="human, elf, dwarf, or orc"
-              race.type="string"
-              
-              backstory.description="Brief character backstory"
-              backstory.type="string"
-            />
-            
-            <div id="creation-failed">
-              <p>I couldn't understand your character details. Let's try a simpler approach.</p>
-              <input name.description="Just tell me your character's name" />
-            </div>
           `,
         },
       ],
@@ -2234,15 +2205,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const nextAfter = nextNode(ctx.node, ctx.source.root, false);
       const atts = await renderAtts(ctx.node.atts, ctx);
-      const attrMax = parseNumberOrNull(atts.retryMax);
-      const max = Math.max(1, attrMax ?? ctx.options.inputRetryMax);
-      if (ctx.session.inputLast && ctx.session.inputLast !== ctx.node.addr) {
-        ctx.session.inputTries = {};
-      }
-      ctx.session.inputLast = ctx.node.addr;
-      const inp = ctx.session.input;
 
-      if (!inp) {
+      if (!ctx.session.input) {
         makeCheckpoint(ctx.session, ctx.options, ctx.events);
         ctx.events.length = 0;
       }
@@ -2263,41 +2227,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           Object.assign(extracted, enhanced);
         }
 
-        const invalid =
-          isEmpty(extracted) ||
-          Object.values(extracted).some((val) => val === null);
-
-        if (invalid) {
-          ctx.session.input = null;
-          const prev = ctx.session.inputTries[ctx.node.addr] ?? 0;
-          const cnt = prev + 1;
-          ctx.session.inputTries[ctx.node.addr] = cnt;
-          if (cnt >= max) {
-            const msg = `Input ${ctx.node.addr} failed after ${cnt} attempts`;
-            return {
-              ops: [
-                {
-                  type: "story-error",
-                  reason: msg,
-                },
-              ],
-              next: null,
-            };
-          }
-          const fallback = searchForNode(ctx.source.root, atts.catch);
-          if (fallback) {
-            return { ops: [], next: fallback };
-          }
-          return {
-            ops: [
-              {
-                type: "get-input",
-              },
-            ],
-            next: { node: ctx.node },
-          };
-        }
-
         ctx.scope["input"] = raw;
         ctx.session.state["input"] = raw;
         const tkey = tagOutKey(atts);
@@ -2311,7 +2240,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           }
         }
 
-        ctx.session.inputTries[ctx.node.addr] = 0;
         ctx.session.input = null;
         return { ops: [], next: nextAfter ?? null };
       }
@@ -2320,6 +2248,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ops: [
           {
             type: "get-input",
+            atts,
           },
         ],
         next: { node: ctx.node },

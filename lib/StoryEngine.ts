@@ -121,8 +121,6 @@ export async function advanceStory(
     return { ops: out, session, seam, addr, info };
   }
 
-  const handlers = findNodes(source.root, (node) => node.type === "event");
-
   const visits: Record<string, number> = {};
   let iterations = 0;
 
@@ -175,8 +173,8 @@ export async function advanceStory(
     if (session.input) {
       const { body, atts } = session.input;
       recordEvent(evs, {
-        from: PLAYER_ID,
         body: castToString(body),
+        from: atts.from ?? PLAYER_ID,
         to: cleanSplit(atts.to, ","),
         obs: cleanSplit(atts.obs, ","),
         tags: cleanSplit(atts.tags, ","),

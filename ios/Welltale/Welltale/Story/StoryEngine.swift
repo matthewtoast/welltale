@@ -57,9 +57,7 @@ class StoryEngine: ObservableObject {
             meta: [:],
             cache: [:],
             flowTarget: nil,
-            genie: nil,
-            inputTries: [:],
-            inputLast: nil
+            genie: nil
         )
     }
     
@@ -122,9 +120,7 @@ class StoryEngine: ObservableObject {
             meta: session.meta,
             cache: session.cache,
             flowTarget: session.flowTarget,
-            genie: session.genie,
-            inputTries: session.inputTries,
-            inputLast: input
+            genie: session.genie
         )
     }
     

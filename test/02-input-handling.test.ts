@@ -87,28 +87,6 @@ async function testInputHandling() {
 
   expect(seam3, "finish");
 
-  console.log("Test 4: Input retry failure");
-  const xmlContent4 = `
-  <p>Enter something</p>
-  <input retryMax="2" />
-  <p>Thanks</p>
-  `;
-
-  const {
-    ops: ops4,
-    seam: seam4,
-    session: session4,
-  } = await runTestStory(xmlContent4, ["oops", "still wrong"]);
-
-  const errorOps = ops4.filter((op) => op.type === "story-error");
-  expect(errorOps.length, 1);
-  const addr4 = session4.inputLast ?? "";
-  expect(addr4, "0.1");
-  const expectedReason = `Input ${addr4} failed after 2 attempts`;
-  expect(errorOps[0]?.reason, expectedReason);
-  expect(seam4, "error");
-  expect(session4.inputTries[addr4], 2);
-
   console.log("✓ input-handling.test.ts passed");
 }
 

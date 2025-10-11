@@ -82,7 +82,6 @@ export const StorySessionSchema = z.object({
   address: z.string().nullable(),
   input: z.union([
     z.object({
-      from: z.string(),
       body: z.string().nullable(),
       atts: z.record(z.any()),
     }),
@@ -96,8 +95,6 @@ export const StorySessionSchema = z.object({
   cache: z.record(z.any()),
   flowTarget: z.string().nullable().optional(),
   genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
-  inputTries: z.record(z.number()).default({}),
-  inputLast: z.string().nullable().default(null),
   ddv: DDVStateSchema,
 });
 
@@ -135,12 +132,12 @@ export const IMAGE_MODEL_SLUGS = [
 
 export const IMAGE_ASPECT_RATIOS = [
   "1:1",
-  "2:3", 
+  "2:3",
   "3:2",
   "3:4",
   "4:3",
   "4:5",
-  "5:4", 
+  "5:4",
   "9:16",
   "16:9",
   "21:9",
@@ -216,8 +213,6 @@ export function createDefaultSession(
     flowTarget: null,
     checkpoints: [],
     outroed: false,
-    inputTries: {},
-    inputLast: null,
     ddv: {
       cycles: {},
       bags: {},
@@ -235,7 +230,7 @@ export type PlayMediaOptions = {
 
 export type OP =
   | { type: "sleep"; duration: number }
-  | { type: "get-input" }
+  | { type: "get-input"; atts: Record<string, TSerial> }
   | ({ type: "play-media"; event: StoryEvent | null } & PlayMediaOptions)
   | { type: "show-media"; media: string; event: StoryEvent | null }
   | { type: "story-error"; reason: string }
