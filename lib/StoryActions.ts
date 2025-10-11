@@ -3,7 +3,6 @@ import { omit } from "lodash";
 import { TSerial } from "../typings";
 import {
   castToBoolean,
-  castToString,
   castToTypeEnhanced,
   ensureArray,
   isTruthy,
@@ -2213,19 +2212,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
 
       if (ctx.session.input && ctx.session.input.body !== null) {
-        if (ctx.session.input) {
-          const { body, atts } = ctx.session.input;
-          recordEvent(ctx.events, {
-            body: castToString(body),
-            from: atts.from ?? PLAYER_ID,
-            to: cleanSplit(atts.to, ","),
-            obs: cleanSplit(atts.obs, ","),
-            tags: cleanSplit(atts.tags, ","),
-            time: Date.now(),
-          });
-        }
+        // We return to the same node when input was collected; here we can grab any attributes
+        const { body, atts } = ctx.session.input;
+        const raw = snorm(body);
 
-        const raw = snorm(ctx.session.input.body);
+        recordEvent(ctx.events, {
+          body: raw,
+          from: atts.from ?? PLAYER_ID,
+          to: cleanSplit(atts.to, ","),
+          obs: cleanSplit(atts.obs, ","),
+          tags: cleanSplit(atts.tags, ","),
+          time: Date.now(),
+        });
+
         const extracted: Record<string, TSerial> = {};
 
         if (ctx.options.verbose) {
@@ -2257,6 +2256,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return { ops: [], next: nextAfter ?? null };
       }
 
+      // If this is a *request for* input, return to the same node for handling on next advance
       return {
         ops: [
           {
