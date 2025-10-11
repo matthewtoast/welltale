@@ -1,12 +1,10 @@
 import { isEmpty } from "lodash";
 import { TSerial } from "../typings";
-import { castToString } from "./EvalCasting";
 import { buildDefaultFuncs } from "./EvalMethods";
 import { createRunner, evaluateScript } from "./QuickJSUtils";
 import { PRNG } from "./RandHelpers";
 import { ACTION_HANDLERS } from "./StoryActions";
-import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
-import { PLAYER_ID } from "./StoryConstants";
+import { makeCheckpoint } from "./StoryCheckpointUtils";
 import {
   dumpTree,
   findNodes,
@@ -25,7 +23,6 @@ import {
   StorySession,
   StorySource,
 } from "./StoryTypes";
-import { cleanSplit } from "./TextHelpers";
 const OUTRO_RETURN_ADDR = "__outro:return__";
 
 let calls = 0;
@@ -169,18 +166,6 @@ export async function advanceStory(
       evaluator,
       events: evs,
     };
-
-    if (session.input) {
-      const { body, atts } = session.input;
-      recordEvent(evs, {
-        body: castToString(body),
-        from: atts.from ?? PLAYER_ID,
-        to: cleanSplit(atts.to, ","),
-        obs: cleanSplit(atts.obs, ","),
-        tags: cleanSplit(atts.tags, ","),
-        time: Date.now(),
-      });
-    }
 
     const handler = ACTION_HANDLERS.find(
       (h) => h.tags.length === 0 || h.tags.includes(node.type)

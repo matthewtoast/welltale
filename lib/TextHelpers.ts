@@ -73,7 +73,7 @@ export function removeLeading(t: string, c: string): string {
 }
 
 export function cleanSplit(s: string | null | undefined, sep: string = "\n") {
-  if (!s) {
+  if (typeof s !== "string") {
     return [];
   }
   return s
@@ -83,7 +83,7 @@ export function cleanSplit(s: string | null | undefined, sep: string = "\n") {
 }
 
 export function cleanSplitRegex(s: string, sep: RegExp) {
-  if (!s) {
+  if (typeof s !== "string") {
     return [];
   }
   return s

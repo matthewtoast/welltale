@@ -3,6 +3,7 @@ import { omit } from "lodash";
 import { TSerial } from "../typings";
 import {
   castToBoolean,
+  castToString,
   castToTypeEnhanced,
   ensureArray,
   isTruthy,
@@ -2212,6 +2213,18 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
 
       if (ctx.session.input && ctx.session.input.body !== null) {
+        if (ctx.session.input) {
+          const { body, atts } = ctx.session.input;
+          recordEvent(ctx.events, {
+            body: castToString(body),
+            from: atts.from ?? PLAYER_ID,
+            to: cleanSplit(atts.to, ","),
+            obs: cleanSplit(atts.obs, ","),
+            tags: cleanSplit(atts.tags, ","),
+            time: Date.now(),
+          });
+        }
+
         const raw = snorm(ctx.session.input.body);
         const extracted: Record<string, TSerial> = {};
 
