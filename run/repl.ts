@@ -163,13 +163,7 @@ async function runRepl() {
     await terminalRenderOps(ops, runnerOptions);
   }
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
-    return await advanceToNext(
-      input,
-      session,
-      sources,
-      runnerOptions,
-      provider
-    );
+    return await advanceToNext(input, session, runnerOptions, provider);
   }
   await instantiateREPL(advance, render, save);
 }

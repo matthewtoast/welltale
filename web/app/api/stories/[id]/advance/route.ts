@@ -57,7 +57,6 @@ export async function POST(req: Request, ctx: StoryCtx) {
   if (!b) return NextResponse.json({ ok: false }, { status: 400 });
   const { ops, session, seam, info, addr } = await advanceStory(
     provider,
-    source,
     b.session,
     b.options
   );

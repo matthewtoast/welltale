@@ -66,7 +66,6 @@ export async function runUntilComplete(
     const result = await advanceToNextUntilBlocking(
       input,
       info.session,
-      info.sources,
       info.options,
       info.provider
     );

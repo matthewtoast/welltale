@@ -21,7 +21,6 @@ import {
   StoryNode,
   StoryOptions,
   StorySession,
-  StorySource,
 } from "./StoryTypes";
 
 const OUTRO_RETURN_ADDR = "__outro:return__";
@@ -30,7 +29,6 @@ let calls = 0;
 
 export async function advanceStory(
   provider: StoryServiceProvider,
-  source: StorySource,
   session: StorySession,
   options: StoryOptions
 ): Promise<StoryAdvanceResult> {
@@ -41,14 +39,15 @@ export async function advanceStory(
   session.turn += 1;
 
   if (calls++ < 1 && options.verbose) {
-    console.info(dumpTree(source.root));
+    console.info(dumpTree(session.root));
   }
 
   // The origin (if present) is the node the author wants to treat as playback origin
   const origin =
-    findNodes(source.root, (node) => node.type === "origin")[0] ?? source.root;
+    findNodes(session.root, (node) => node.type === "origin")[0] ??
+    session.root;
   const outro =
-    findNodes(source.root, (node) => node.type === "outro")[0] ?? null;
+    findNodes(session.root, (node) => node.type === "outro")[0] ?? null;
 
   const funcs = buildDefaultFuncs(
     {
@@ -70,11 +69,10 @@ export async function advanceStory(
   // <var> etc may be declared at the top level so evaluate those sequentially
   if (session.turn === 1 && !session.resume) {
     await execNodes(
-      source.root.kids.filter((node) =>
+      session.root.kids.filter((node) =>
         ["var", "code", "script", "data"].includes(node.type)
       ),
       provider,
-      source,
       session,
       options,
       rng,
@@ -86,7 +84,7 @@ export async function advanceStory(
   // Check for resume first (takes precedence over intro)
   if (session.resume) {
     session.resume = false;
-    const resume = findNodes(source.root, (node) => node.type === "resume")[0];
+    const resume = findNodes(session.root, (node) => node.type === "resume")[0];
     if (resume) {
       session.stack.push({
         returnAddress: session.address || origin.addr,
@@ -100,7 +98,7 @@ export async function advanceStory(
     }
   } else if (session.turn === 1) {
     // Check for intro on first turn (only if not resuming)
-    const intro = findNodes(source.root, (node) => node.type === "intro")[0];
+    const intro = findNodes(session.root, (node) => node.type === "intro")[0];
     if (intro) {
       session.stack.push({
         returnAddress: origin.addr,
@@ -137,7 +135,7 @@ export async function advanceStory(
     }
 
     let node: StoryNode | null =
-      findNodes(source.root, (node) => node.addr === session.address)[0] ??
+      findNodes(session.root, (node) => node.addr === session.address)[0] ??
       null;
 
     if (!node) {
@@ -164,13 +162,12 @@ export async function advanceStory(
     const ctx: ActionContext = {
       options,
       origin,
-      source,
       node,
       session,
       rng,
       provider,
       // We need to get a new scope on every node since it may have introduced new scope
-      scope: createScope(session, source.meta),
+      scope: createScope(session, session.meta),
       evaluator,
     };
 
@@ -202,7 +199,7 @@ export async function advanceStory(
       // Check if we're currently in a yielded block and the next node escapes it
       if (
         session.stack.length > 0 &&
-        wouldEscapeCurrentBlock(node, result.next.node, source.root)
+        wouldEscapeCurrentBlock(node, result.next.node, session.root)
       ) {
         const topFrame = session.stack[session.stack.length - 1];
         if (topFrame.blockType === "yield") {
@@ -356,7 +353,6 @@ export function createScope(
 export async function execNodes(
   nodes: StoryNode[],
   provider: StoryServiceProvider,
-  source: StorySource,
   session: StorySession,
   options: StoryOptions,
   rng: PRNG,
@@ -375,12 +371,11 @@ export async function execNodes(
     const ctx: ActionContext = {
       options,
       origin,
-      source,
       node,
       session,
       rng,
       provider,
-      scope: createScope(session, source.meta),
+      scope: createScope(session, session.meta),
       evaluator,
     };
     await handler.exec(ctx);

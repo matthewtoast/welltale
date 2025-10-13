@@ -7,7 +7,6 @@ import {
   assignAddrs,
   BaseNode,
   cloneNode,
-  collateText,
   findNodes,
   parseXmlFragment,
   walkTree,
@@ -27,10 +26,7 @@ export { parseXmlFragment } from "./StoryNodeHelpers";
 
 const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body", "macro"];
 
-const COMPILE_TIME_TAGS = [
-  "macro",
-  "include",
-];
+const COMPILE_TIME_TAGS = ["macro", "include"];
 
 export function processIncludes(root: StoryNode): void {
   const moduleables = findNodes(
@@ -251,8 +247,6 @@ export async function compileStory(
       const last = parts[parts.length - 1];
       cur[last] = src.toString();
     });
-
-
 
   if (options.doCompileVoices) {
     await compilePendingDataVoices(

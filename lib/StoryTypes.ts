@@ -64,9 +64,9 @@ export type DDVState = {
 
 export type StorySource = {
   root: StoryNode;
+  scripts: NestedRecords;
   voices: Record<string, VoiceSpec>;
   pronunciations: Record<string, string>;
-  scripts: NestedRecords;
   meta: {
     [key: string]: TSerial;
   };
@@ -82,21 +82,20 @@ export type StorySession = {
   address: string | null;
   input: {
     body: string | null;
-    atts: Record<string, any>;
+    atts: Record<string, TSerial>;
   } | null;
   player: {
     id: string;
   };
   outroed: boolean;
   stack: TSessionStackObj[];
-  state: Record<string, any>;
+  state: Record<string, TSerial>;
   checkpoints: StoryCheckpoint[];
-  meta: Record<string, any>;
-  cache: Record<string, any>;
+  cache: Record<string, TSerial>;
   target?: string | null;
   genie?: Record<string, Buffer | string>;
   ddv: DDVState;
-};
+} & StorySource;
 
 export const LLM_SLUGS = [
   "openai/gpt-5",
@@ -209,8 +208,8 @@ export type StoryAdvanceResult = {
 
 export function createDefaultSession(
   id: string,
-  state: Record<string, TSerial> = {},
-  meta: Record<string, TSerial> = {}
+  sources: StorySource,
+  state: Record<string, TSerial> = {}
 ): StorySession {
   return {
     id,
@@ -226,7 +225,6 @@ export function createDefaultSession(
     input: null,
     stack: [],
     state,
-    meta,
     cache: {},
     target: null,
     checkpoints: [],
@@ -235,6 +233,7 @@ export function createDefaultSession(
       cycles: {},
       bags: {},
     },
+    ...sources,
   };
 }
 
@@ -279,7 +278,6 @@ export interface BaseActionContext {
 export interface ActionContext extends BaseActionContext {
   origin: StoryNode;
   node: StoryNode;
-  source: StorySource;
 }
 
 export interface ActionResult {

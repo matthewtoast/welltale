@@ -84,7 +84,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       // Push a new scope onto the callStack when entering
       const returnAddress =
-        nextNode(ctx.node, ctx.source.root, false)?.node.addr ??
+        nextNode(ctx.node, ctx.session.root, false)?.node.addr ??
         ctx.origin.addr;
       const readableWriteableScope = {};
       ctx.session.stack.push({
@@ -97,7 +97,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const next =
         ctx.node.kids.length > 0
           ? { node: ctx.node.kids[0] }
-          : nextNode(ctx.node, ctx.source.root, false);
+          : nextNode(ctx.node, ctx.session.root, false);
       return {
         ops: [],
         next,
@@ -223,7 +223,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         { models, useWebSearch, seed }
       );
       setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -298,7 +298,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         { models, useWebSearch }
       );
       setState(ctx.scope, tagOutKey(atts), ensureArray(out.labels ?? []));
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -373,7 +373,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         { models, useWebSearch, seed }
       );
       setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -493,7 +493,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         { models, useWebSearch, seed }
       );
       setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -567,7 +567,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         seed,
       });
       setState(ctx.scope, tagOutKey(atts), snorm(result));
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -637,7 +637,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       setState(ctx.scope, key, castToTypeEnhanced(value, atts.type));
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
+        next: nextNode(ctx.node, ctx.session.root, false),
       };
     },
   },
@@ -686,7 +686,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       await ctx.evaluator(text, ctx.scope);
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
+        next: nextNode(ctx.node, ctx.session.root, false),
       };
     },
   },
@@ -797,7 +797,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         val = raw;
       }
       setState(ctx.scope, tagOutKey(atts), val);
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -841,7 +841,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       if (ctx.node.type === "sec") {
         makeCheckpoint(ctx, []);
       }
-      const next = nextNode(ctx.node, ctx.source.root, true);
+      const next = nextNode(ctx.node, ctx.session.root, true);
       return {
         ops: [],
         next: next,
@@ -932,7 +932,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const next = nextNode(ctx.node, ctx.source.root, false);
+      const next = nextNode(ctx.node, ctx.session.root, false);
       const ops: OP[] = [];
       const atts = await renderAtts(ctx.node.atts, ctx);
       let text = "";
@@ -967,9 +967,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               voice: atts.voice ?? event.from,
               tags: event.tags,
               body: event.body,
-              pronunciations: ctx.source.pronunciations,
+              pronunciations: ctx.session.pronunciations,
             },
-            userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
+            userVoicesAndPresetVoices(Object.values(ctx.session.voices)),
             { seed: atts.seed }
           )
         : { url: "" };
@@ -1021,7 +1021,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
     exec: async (ctx) => {
       makeCheckpoint(ctx, []);
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -1068,7 +1068,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         if (firstNonElse) {
           next = { node: firstNonElse };
         } else {
-          next = nextNode(ctx.node, ctx.source.root, false);
+          next = nextNode(ctx.node, ctx.session.root, false);
         }
       } else {
         // Look for else block
@@ -1076,7 +1076,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         if (elseChild && elseChild.kids.length > 0) {
           next = { node: elseChild.kids[0] };
         } else {
-          next = nextNode(ctx.node, ctx.source.root, false);
+          next = nextNode(ctx.node, ctx.session.root, false);
         }
       }
       return {
@@ -1138,9 +1138,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let next;
       const conditionTrue = await ctx.evaluator(atts.cond, ctx.scope);
       if (conditionTrue && ctx.node.kids.length > 0) {
-        next = nextNode(ctx.node, ctx.source.root, true);
+        next = nextNode(ctx.node, ctx.session.root, true);
       } else {
-        next = nextNode(ctx.node, ctx.source.root, false);
+        next = nextNode(ctx.node, ctx.session.root, false);
       }
       return {
         ops: [],
@@ -1155,15 +1155,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {},
     },
     exec: async (ctx) => {
-      const w = nearestAncestorOfType(ctx.node, ctx.source.root, "while");
+      const w = nearestAncestorOfType(ctx.node, ctx.session.root, "while");
       if (!w) {
-        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
-      const count = countStackContainersBetween(ctx.node, w, ctx.source.root);
+      const count = countStackContainersBetween(ctx.node, w, ctx.session.root);
       const toPop = Math.min(count, ctx.session.stack.length);
       for (let i = 0; i < toPop; i++) ctx.session.stack.pop();
       ctx.session.target = w.addr;
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -1173,19 +1173,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {},
     },
     exec: async (ctx) => {
-      const w = nearestAncestorOfType(ctx.node, ctx.source.root, "while");
+      const w = nearestAncestorOfType(ctx.node, ctx.session.root, "while");
       if (!w) {
-        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
-      const after = nextNode(w, ctx.source.root, false);
+      const after = nextNode(w, ctx.session.root, false);
       if (!after) {
-        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
-      const count = countStackContainersBetween(ctx.node, w, ctx.source.root);
+      const count = countStackContainersBetween(ctx.node, w, ctx.session.root);
       const toPop = Math.min(count, ctx.session.stack.length);
       for (let i = 0; i < toPop; i++) ctx.session.stack.pop();
       ctx.session.target = after.node.addr;
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -1235,11 +1235,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       let next: { node: StoryNode } | null = null;
       if (!atts.if || (await ctx.evaluator(atts.if, ctx.scope))) {
         next = searchForNode(
-          ctx.source.root,
+          ctx.session.root,
           atts.to ?? atts.target ?? atts.destination
         );
       } else {
-        next = nextNode(ctx.node, ctx.source.root, false);
+        next = nextNode(ctx.node, ctx.session.root, false);
       }
       if (next && next.node === ctx.node) {
         console.warn("Attempted <jump> to same node; nullifying path");
@@ -1292,7 +1292,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               parseNumberOrNull(atts.duration ?? atts.for ?? atts.ms) ?? 1,
           },
         ],
-        next: nextNode(ctx.node, ctx.source.root, false),
+        next: nextNode(ctx.node, ctx.session.root, false),
       };
     },
   },
@@ -1333,11 +1333,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
 
       if (inIntroContext) {
         // We're executing the intro from the engine, process children
-        const next = nextNode(ctx.node, ctx.source.root, true);
+        const next = nextNode(ctx.node, ctx.session.root, true);
         return { ops: [], next };
       } else {
         // Skip intro in normal flow
-        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
     },
   },
@@ -1378,10 +1378,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const next =
           ctx.node.kids.length > 0
             ? { node: ctx.node.kids[0] }
-            : nextNode(ctx.node, ctx.source.root, false);
+            : nextNode(ctx.node, ctx.session.root, false);
         return { ops: [], next };
       }
-      return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -1438,11 +1438,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const next =
           ctx.node.kids.length > 0
             ? { node: ctx.node.kids[0] }
-            : nextNode(ctx.node, ctx.source.root, false);
+            : nextNode(ctx.node, ctx.session.root, false);
         return { ops: [], next };
       } else {
         // Skip resume block in normal flow
-        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
     },
   },
@@ -1512,11 +1512,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const next =
           ctx.node.kids.length > 0
             ? { node: ctx.node.kids[0] }
-            : nextNode(ctx.node, ctx.source.root, false);
+            : nextNode(ctx.node, ctx.session.root, false);
         return { ops: [], next };
       } else {
         // Skip block in normal flow
-        return { ops: [], next: skipBlock(ctx.node, ctx.source.root) };
+        return { ops: [], next: skipBlock(ctx.node, ctx.session.root) };
       }
     },
   },
@@ -1561,29 +1561,29 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       if (!targetBlockId) {
         return {
           ops: [],
-          next: nextNode(ctx.node, ctx.source.root, false),
+          next: nextNode(ctx.node, ctx.session.root, false),
         };
       }
       // Find the target block
-      const blockResult = searchForNode(ctx.source.root, targetBlockId);
+      const blockResult = searchForNode(ctx.session.root, targetBlockId);
       if (!blockResult || blockResult.node.type !== "block") {
         return {
           ops: [],
-          next: nextNode(ctx.node, ctx.source.root, false),
+          next: nextNode(ctx.node, ctx.session.root, false),
         };
       }
       // Determine return address
       let returnAddress: string;
       if (returnToNodeId) {
-        const returnResult = searchForNode(ctx.source.root, returnToNodeId);
+        const returnResult = searchForNode(ctx.session.root, returnToNodeId);
         if (returnResult) {
           returnAddress = returnResult.node.addr;
         } else {
-          const next = nextNode(ctx.node, ctx.source.root, false);
+          const next = nextNode(ctx.node, ctx.session.root, false);
           returnAddress = next?.node.addr ?? ctx.origin.addr;
         }
       } else {
-        const next = nextNode(ctx.node, ctx.source.root, false);
+        const next = nextNode(ctx.node, ctx.session.root, false);
         returnAddress = next?.node.addr ?? ctx.origin.addr;
       }
       const readableScope: { [key: string]: TSerial } = {};
@@ -1704,12 +1704,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       if (isBlank(raw)) {
         console.warn("<read> missing content");
-        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
       const blocks = extractReadableBlocks(raw);
       if (blocks.length === 0) {
         console.warn("<read> missing readable blocks");
-        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
       const from = atts.from ?? atts.speaker ?? atts.label ?? HOST_ID;
       const to = atts.to ?? PLAYER_ID;
@@ -1745,9 +1745,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                 voice: atts.voice ?? event.from,
                 tags: event.tags,
                 body: event.body,
-                pronunciations: ctx.source.pronunciations,
+                pronunciations: ctx.session.pronunciations,
               },
-              userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
+              userVoicesAndPresetVoices(Object.values(ctx.session.voices)),
               { seed: atts.seed }
             )
           : { url: "" };
@@ -1764,9 +1764,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       if (ops.length === 0) {
         console.warn("inject generated no events");
-        return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
-      return { ops, next: nextNode(ctx.node, ctx.source.root, false) };
+      return { ops, next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
   {
@@ -1865,7 +1865,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let url = atts.href ?? atts.url ?? atts.src ?? "";
-      const next = nextNode(ctx.node, ctx.source.root, false);
+      const next = nextNode(ctx.node, ctx.session.root, false);
       const ops: OP[] = [];
       if (!url) {
         const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
@@ -1899,9 +1899,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                     speaker: atts.from ?? atts.speaker ?? atts.voice,
                     body: prompt,
                     tags: cleanSplit(atts.tags, ","),
-                    pronunciations: ctx.source.pronunciations,
+                    pronunciations: ctx.session.pronunciations,
                   },
-                  userVoicesAndPresetVoices(Object.values(ctx.source.voices)),
+                  userVoicesAndPresetVoices(Object.values(ctx.session.voices)),
                   { seed: atts.seed }
                 );
                 url = voice.url;
@@ -1999,7 +1999,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let url = atts.href ?? atts.url ?? atts.src ?? "";
-      const next = nextNode(ctx.node, ctx.source.root, false);
+      const next = nextNode(ctx.node, ctx.session.root, false);
       const ops: OP[] = [];
       if (!url) {
         const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
@@ -2104,7 +2104,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const nextAfter = nextNode(ctx.node, ctx.source.root, false);
+      const nextAfter = nextNode(ctx.node, ctx.session.root, false);
       const atts = await renderAtts(ctx.node.atts, ctx);
 
       if (!ctx.session.input) {
@@ -2256,7 +2256,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
+        next: nextNode(ctx.node, ctx.session.root, false),
       };
     },
   },
@@ -2299,7 +2299,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // This is a compile-time tag - should not be executed at runtime
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
+        next: nextNode(ctx.node, ctx.session.root, false),
       };
     },
   },
@@ -2353,7 +2353,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // This is a compile-time tag - should not be executed at runtime
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
+        next: nextNode(ctx.node, ctx.session.root, false),
       };
     },
   },
@@ -2485,7 +2485,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // This tag is processed during marshallText, not during normal execution
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
+        next: nextNode(ctx.node, ctx.session.root, false),
       };
     },
   },
@@ -2495,7 +2495,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
+        next: nextNode(ctx.node, ctx.session.root, false),
       };
     },
   },
