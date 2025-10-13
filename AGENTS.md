@@ -16,6 +16,8 @@ Read @README.md first.
 - Don't create classes (unless instructed)
 - When researching APIs and docs, use latest content (2025)
 - Put reusable/generic utility functions in separate files
+- Never include backward compat code unless asked
+- Clean up cruft after every task
 
 ## JavaScript & TypeScript
 

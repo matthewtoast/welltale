@@ -1,13 +1,13 @@
 import { castToString } from "./EvalCasting";
 import { NONRENDER_ATTS } from "./StoryConstants";
 import { resolveBracketDDV } from "./StoryDDVHelpers";
-import { BaseActionContext, DEFAULT_LLM_SLUGS } from "./StoryTypes";
+import { BaseActionContext, CompilerContext, DEFAULT_LLM_SLUGS } from "./StoryTypes";
 import { renderTemplate } from "./Template";
 import { DOLLAR, enhanceText, isBlank, LIQUID } from "./TextHelpers";
 
 export async function renderText(
   text: string,
-  ctx: BaseActionContext
+  ctx: BaseActionContext | CompilerContext
 ): Promise<string> {
   if (isBlank(text) || text.length < 3) {
     return text;
@@ -23,7 +23,10 @@ export async function renderText(
     DOLLAR
   );
   // [[this|kind|of]] dynamic variation
-  result = resolveBracketDDV(result, ctx);
+  const ddvCtx = 'session' in ctx 
+    ? { rng: ctx.rng, session: { ddv: ctx.session.ddv } } 
+    : { rng: ctx.rng, session: { ddv: ctx.ddv } };
+  result = resolveBracketDDV(result, ddvCtx);
   // {%liquid%} for inline LLM calls
   result = await enhanceText(
     result,
@@ -40,7 +43,7 @@ export async function renderText(
 
 export async function renderAtts(
   atts: Record<string, string>,
-  ctx: BaseActionContext
+  ctx: BaseActionContext | CompilerContext
 ) {
   const out: Record<string, string> = {};
   for (const key in atts) {

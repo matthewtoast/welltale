@@ -102,8 +102,15 @@ async function test() {
   const scriptRunner = await createRunner();
   const funcs = buildDefaultFuncs({}, rng);
   const mockProvider = new MockStoryServiceProvider();
+  const emptySource = {
+    root: { addr: "", type: "root", atts: {}, kids: [], text: "" },
+    voices: {},
+    pronunciations: {},
+    scripts: {},
+    meta: {}
+  };
   const context: BaseActionContext = {
-    session: createDefaultSession("test"),
+    session: createDefaultSession("test", emptySource),
     rng,
     provider: mockProvider,
     scope: {},

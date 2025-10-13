@@ -27,8 +27,15 @@ export function StoryPlayer(props: StoryMeta) {
   const [isSkippable, setIsSkippable] = useState(false);
   const [hasMoreOps, setHasMoreOps] = useState(false);
   const skipAbortRef = useRef<AbortController | null>(null);
+  const emptySource = {
+    root: { addr: "", type: "root", atts: {}, kids: [], text: "" },
+    voices: {},
+    pronunciations: {},
+    scripts: {},
+    meta: {}
+  };
   const sessionRef = useRef<StorySession>(
-    createDefaultSession(`web-${props.id}`)
+    createDefaultSession(`web-${props.id}`, emptySource)
   );
   const optionsRef = useRef<StoryOptions>({
     verbose: true,

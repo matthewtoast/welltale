@@ -22,7 +22,7 @@ import { PRNG } from "./../lib/RandHelpers";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
 import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
 import {
-  BaseActionContext,
+  CompilerContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   OP,
@@ -167,16 +167,17 @@ async function runAutorun() {
         }
       );
 
-  const baseContext: BaseActionContext = {
-    session: createDefaultSession(gameId),
-    rng: new PRNG("auto"),
+  const rng = new PRNG("auto");
+  const compilerContext: CompilerContext = {
+    rng,
     provider,
     scope: {},
     options: runnerOptions,
     evaluator: async () => null,
+    ddv: { cycles: {}, bags: {} },
   };
 
-  const sources = await compileStory(baseContext, cartridge, compileOptions);
+  const sources = await compileStory(compilerContext, cartridge, compileOptions);
 
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);

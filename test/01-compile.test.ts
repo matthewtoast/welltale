@@ -3,8 +3,7 @@ import { compileStory, parseXmlFragment } from "../lib/StoryCompiler";
 import { dumpTree } from "../lib/StoryNodeHelpers";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
 import {
-  BaseActionContext,
-  createDefaultSession,
+  CompilerContext,
   DEFAULT_LLM_SLUGS,
 } from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
@@ -62,16 +61,17 @@ async function go() {
     models: DEFAULT_LLM_SLUGS,
   };
 
-  const baseContext: BaseActionContext = {
-    session: createDefaultSession("compile-test"),
-    rng: new PRNG("test-compile", 0),
+  const rng = new PRNG("test-compile", 0);
+  const compilerContext: CompilerContext = {
+    rng,
     provider: p,
     scope: {},
     options,
     evaluator: async () => null,
+    ddv: { cycles: {}, bags: {} },
   };
 
-  const c1 = await compileStory(baseContext, cartridge, {
+  const c1 = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
   });
 
@@ -138,16 +138,17 @@ async function go() {
   };
   const p2 = new MockStoryServiceProvider();
 
-  const baseContext2: BaseActionContext = {
-    session: createDefaultSession("compile-test-2"),
-    rng: new PRNG("test-compile-2", 0),
+  const rng2 = new PRNG("test-compile-2", 0);
+  const compilerContext2: CompilerContext = {
+    rng: rng2,
     provider: p,
     scope: {},
     options,
     evaluator: async () => null,
+    ddv: { cycles: {}, bags: {} },
   };
 
-  const c2 = await compileStory(baseContext2, cart2, {
+  const c2 = await compileStory(compilerContext2, cart2, {
     doCompileVoices: false,
   });
   expect(c2.root, {

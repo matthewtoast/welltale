@@ -2,8 +2,7 @@ import { PRNG } from "../lib/RandHelpers";
 import { compileStory } from "../lib/StoryCompiler";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
 import {
-  BaseActionContext,
-  createDefaultSession,
+  CompilerContext,
   DEFAULT_LLM_SLUGS,
   StoryNode,
 } from "../lib/StoryTypes";
@@ -25,16 +24,17 @@ async function compileMacroStory(xml: string): Promise<StoryNode> {
     models: DEFAULT_LLM_SLUGS,
   };
 
-  const baseContext: BaseActionContext = {
-    session: createDefaultSession("macro-test"),
-    rng: new PRNG("test-macro", 0),
+  const rng = new PRNG("test-macro", 0);
+  const compilerContext: CompilerContext = {
+    rng,
     provider,
     scope: {},
     options,
     evaluator: async () => null,
+    ddv: { cycles: {}, bags: {} },
   };
 
-  const compiled = await compileStory(baseContext, cartridge, {
+  const compiled = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
   });
   return compiled.root;

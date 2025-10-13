@@ -13,7 +13,7 @@ import {
 } from "./StoryNodeHelpers";
 import { renderText } from "./StoryRenderMethods";
 import {
-  BaseActionContext,
+  CompilerContext,
   NestedRecords,
   StoryCartridge,
   StoryNode,
@@ -97,7 +97,7 @@ export type CompileOptions = {
 
 async function buildStoryRoot(
   cartridge: StoryCartridge,
-  context: BaseActionContext,
+  context: CompilerContext,
   verbose: boolean | undefined,
   collect:
     | ((path: string, severity: ParseSeverity, message: string) => void)
@@ -172,7 +172,7 @@ async function buildStoryRoot(
 }
 
 export async function compileStory(
-  context: BaseActionContext,
+  context: CompilerContext,
   cartridge: StoryCartridge,
   options: CompileOptions
 ): Promise<StorySource> {
@@ -271,7 +271,7 @@ export async function compileStory(
 
 async function expandCreateNodes(
   nodes: BaseNode[],
-  context: BaseActionContext,
+  context: CompilerContext,
   collect: ((severity: ParseSeverity, message: string) => void) | undefined,
   verbose: boolean | undefined,
   source: string
@@ -348,7 +348,7 @@ type DataArtifacts = {
 async function compilePendingDataVoices(
   pending: PendingDataVoice[],
   voices: Record<string, VoiceSpec>,
-  context: BaseActionContext,
+  context: CompilerContext,
   verbose: boolean | undefined
 ): Promise<void> {
   for (let i = 0; i < pending.length; i++) {

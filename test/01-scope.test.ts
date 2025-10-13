@@ -13,7 +13,14 @@ import {
 import { expect } from "./TestUtils";
 
 async function go() {
-  const session = createDefaultSession("test", {
+  const emptySource = {
+    root: { addr: "", type: "root", atts: {}, kids: [], text: "" },
+    voices: {},
+    pronunciations: {},
+    scripts: {},
+    meta: {}
+  };
+  const session = createDefaultSession("test", emptySource, {
     a: {
       b: {
         c: "coco",
@@ -60,7 +67,7 @@ async function go() {
   );
   expect(text, "hello foo or coco or 4");
 
-  const introSession = createDefaultSession("intro");
+  const introSession = createDefaultSession("intro", emptySource);
   introSession.stack.push({
     returnAddress: "0",
     writeableScope: null,
@@ -71,7 +78,7 @@ async function go() {
   introScope.introVar = "intro";
   expect(introSession.state.introVar, "intro");
 
-  const mixedSession = createDefaultSession("mixed");
+  const mixedSession = createDefaultSession("mixed", emptySource);
   const scopeFrame: TSessionStackObj = {
     returnAddress: "1",
     writeableScope: {},
@@ -89,7 +96,7 @@ async function go() {
   mixedScope.blockVar = "block";
   expect(scopeFrame.writeableScope!.blockVar, "block");
 
-  const yieldSession = createDefaultSession("yield");
+  const yieldSession = createDefaultSession("yield", emptySource);
   const yieldFrame: TSessionStackObj = {
     returnAddress: "3",
     writeableScope: {},

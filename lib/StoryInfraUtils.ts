@@ -13,12 +13,11 @@ import { compileStory } from "./StoryCompiler";
 import { DefaultStoryServiceProvider } from "./StoryDefaultServiceProvider";
 import { createStoryRepo, uploadKey } from "./StoryRepo";
 import {
-  BaseActionContext,
+  CompilerContext,
   DEFAULT_LLM_SLUGS,
   EvaluatorFunc,
   StoryCartridge,
   StoryOptions,
-  createDefaultSession,
 } from "./StoryTypes";
 
 const env = loadAppEnv();
@@ -82,16 +81,16 @@ export async function compileStoryJob(storyId: string) {
     return await evaluateScript(expr, scope, funcs, scriptRunner);
   };
 
-  const baseContext: BaseActionContext = {
-    session: createDefaultSession(storyId),
-    rng: new PRNG("compile"),
+  const compilerContext: CompilerContext = {
+    rng,
     provider,
     scope: {},
     options,
     evaluator,
+    ddv: { cycles: {}, bags: {} },
   };
 
-  const compiled = await compileStory(baseContext, cartridge, {
+  const compiled = await compileStory(compilerContext, cartridge, {
     doCompileVoices: true,
   });
   console.info(`[compile] Done ${storyId}`);

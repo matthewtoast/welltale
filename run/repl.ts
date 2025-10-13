@@ -21,7 +21,7 @@ import { PRNG } from "./../lib/RandHelpers";
 import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
 import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
 import {
-  BaseActionContext,
+  CompilerContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   OP,
@@ -112,7 +112,6 @@ async function runRepl() {
 
   const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
-  const session = createDefaultSession(gameId);
 
   const compileOptions: CompileOptions = {
     doCompileVoices: argv.doCompileVoices,
@@ -148,16 +147,18 @@ async function runRepl() {
         }
       );
 
-  const baseContext: BaseActionContext = {
-    session,
-    rng: new PRNG("repl"),
+  const rng = new PRNG("repl");
+  const compilerContext: CompilerContext = {
+    rng,
     provider,
     scope: {},
     options: runnerOptions,
     evaluator: async () => null,
+    ddv: { cycles: {}, bags: {} },
   };
 
-  const sources = await compileStory(baseContext, cartridge, compileOptions);
+  const sources = await compileStory(compilerContext, cartridge, compileOptions);
+  const session = createDefaultSession(gameId, sources);
   const save = async () => await saveSessionToDisk(session, argv.sessionPath);
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);

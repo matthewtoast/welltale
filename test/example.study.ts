@@ -12,7 +12,7 @@ import { compileStory } from "../lib/StoryCompiler";
 import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
 import { LocalStoryRunnerOptions } from "../lib/StoryLocalRunnerUtils";
 import {
-  BaseActionContext,
+  CompilerContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
 } from "../lib/StoryTypes";
@@ -51,12 +51,10 @@ async function testTestStory() {
       verbose: true,
     }
   );
-  const session = createDefaultSession(options.seed);
   const rng = new PRNG(options.seed, 0);
   const funcs = buildDefaultFuncs({}, rng);
   const runner = await createRunner();
-  const context: BaseActionContext = {
-    session,
+  const compilerContext: CompilerContext = {
     rng,
     provider,
     scope: {},
@@ -64,6 +62,7 @@ async function testTestStory() {
     evaluator: async (expr, scope) => {
       return await evaluateScript(expr, scope, funcs, runner);
     },
+    ddv: { cycles: {}, bags: {} },
   };
   const content = await createWelltaleContent(
     dedent`
@@ -84,9 +83,10 @@ async function testTestStory() {
   );
   console.log(content);
   return;
-  const sources = await compileStory(context, cartridge, {
+  const sources = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
   });
+  const session = createDefaultSession(options.seed, sources);
   const result = await runUntilComplete({
     options,
     provider,

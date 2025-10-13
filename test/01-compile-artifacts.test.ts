@@ -3,8 +3,7 @@ import { compileStory } from "../lib/StoryCompiler";
 import { findNodes } from "../lib/StoryNodeHelpers";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
 import {
-  BaseActionContext,
-  createDefaultSession,
+  CompilerContext,
   DEFAULT_LLM_SLUGS,
 } from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
@@ -59,13 +58,13 @@ voices:
     models: DEFAULT_LLM_SLUGS,
   };
 
-  const context: BaseActionContext = {
-    session: createDefaultSession("artifact-session"),
+  const context: CompilerContext = {
     rng: new PRNG("artifact-test", 0),
     provider,
     scope: { playerName: "Rin" },
     options,
     evaluator: async () => null,
+    ddv: { cycles: {}, bags: {} },
   };
 
   const source = await compileStory(context, cartridge, {

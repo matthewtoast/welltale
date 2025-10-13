@@ -30,7 +30,14 @@ export function loadSessionFromDisk(
   if (isBlank(id)) {
     id = railsTimestamp();
   }
-  const fallback = createDefaultSession(id!);
+  const emptySource = {
+    root: { addr: "", type: "root", atts: {}, kids: [], text: "" },
+    voices: {},
+    pronunciations: {},
+    scripts: {},
+    meta: {}
+  };
+  const fallback = createDefaultSession(id!, emptySource);
   const dir = dirname(abspath);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });

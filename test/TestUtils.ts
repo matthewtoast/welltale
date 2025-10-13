@@ -9,6 +9,7 @@ import {
 } from "./../lib/StoryServiceProvider";
 import {
   BaseActionContext,
+  CompilerContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   OP,
@@ -97,31 +98,33 @@ export async function runTestStory(
     doGenerateImage: false,
     doPlayMedia: false,
   };
-  const baseContext: BaseActionContext = {
-    session: createDefaultSession("test"),
-    rng: new PRNG("test-seed", 0),
+  const rng = new PRNG("test-seed", 0);
+  const compilerContext: CompilerContext = {
+    rng,
     provider,
     scope: {},
     options,
     evaluator: async () => null,
+    ddv: { cycles: {}, bags: {} },
   };
-  const sources = await compileStory(baseContext, cartridge, {
+  const sources = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
   });
+  const session = createDefaultSession("test", sources);
   if (testOptions) {
     if (testOptions.resume !== undefined)
-      baseContext.session.resume = testOptions.resume;
+      session.resume = testOptions.resume;
     if (testOptions.turn !== undefined)
-      baseContext.session.turn = testOptions.turn;
+      session.turn = testOptions.turn;
     if (testOptions.address !== undefined)
-      baseContext.session.address = testOptions.address;
+      session.address = testOptions.address;
   }
   const outcome = await runUntilComplete({
     options,
     provider,
-    session: baseContext.session,
+    session,
     sources,
     inputs,
   });
-  return { ...outcome, session: baseContext.session };
+  return { ...outcome, session };
 }

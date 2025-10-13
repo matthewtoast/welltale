@@ -266,6 +266,15 @@ export type EvaluatorFunc = (
   scope: Record<string, TSerial>
 ) => Promise<TSerial>;
 
+export interface CompilerContext {
+  rng: PRNG;
+  provider: StoryServiceProvider;
+  scope: { [key: string]: TSerial };
+  options: StoryOptions;
+  evaluator: EvaluatorFunc;
+  ddv: DDVState;
+}
+
 export interface BaseActionContext {
   session: StorySession;
   rng: PRNG;

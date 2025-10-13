@@ -76,7 +76,14 @@ async function go() {
     doPlayMedia: argv.doPlayMedia,
   };
 
-  const session = createDefaultSession("dev");
+  const emptySource = {
+    root: { addr: "", type: "root", atts: {}, kids: [], text: "" },
+    voices: {},
+    pronunciations: {},
+    scripts: {},
+    meta: {}
+  };
+  const session = createDefaultSession("dev", emptySource);
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);
   }
