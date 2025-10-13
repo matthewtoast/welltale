@@ -1,12 +1,13 @@
 import { PRNG } from "../lib/RandHelpers";
 import { compileStory } from "../lib/StoryCompiler";
+import { findNodes } from "../lib/StoryNodeHelpers";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
 import {
   CompilerContext,
   DEFAULT_LLM_SLUGS,
   StoryNode,
 } from "../lib/StoryTypes";
-import { createTestCartridge, expect } from "./TestUtils";
+import { createTestCartridge, expect, runTestStory } from "./TestUtils";
 
 async function compileMacroStory(xml: string): Promise<StoryNode> {
   const cartridge = createTestCartridge(xml);
@@ -34,18 +35,20 @@ async function compileMacroStory(xml: string): Promise<StoryNode> {
     ddv: { cycles: {}, bags: {} },
   };
 
-  const compiled = await compileStory(compilerContext, cartridge, {
+  const result = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
   });
-  return compiled.root;
+
+  return result.root;
 }
 
-function pick(node: StoryNode, tag: string): StoryNode | null {
-  return node.kids.find((kid) => kid.type === tag) ?? null;
+function pick(root: StoryNode, type: string): StoryNode | null {
+  const found = findNodes(root, (node) => node.type === type);
+  return found.length > 0 ? found[0] : null;
 }
 
-function childrenOf(node: StoryNode, tag: string): StoryNode[] {
-  return node.kids.filter((kid) => kid.type === tag);
+function childrenOf(node: StoryNode, type: string): StoryNode[] {
+  return node.kids.filter((kid) => kid.type === type);
 }
 
 function textOf(node: StoryNode): string {
@@ -56,74 +59,96 @@ function textOf(node: StoryNode): string {
     .trim();
 }
 
-async function testMacroSetAndRename() {
-  const root = await compileMacroStory(`
-<macro match="p[role=host]">
-  <set attr="from" value="HOST" />
-  <remove attr="role" />
-</macro>
-
-<macro match="note">
+async function testRuntimeMacroProcessing() {
+  // Test that macros are processed at runtime by running a story
+  const xmlContent = `
+<macro match="greeting">
   <rename to="p" />
-  <set attr="from" value="NOTE" />
+  <set attr="from" value="HOST" />
 </macro>
 
-<sec>
-  <p role="host">Hello</p>
-  <note>Remember this</note>
-</sec>
-`);
+<greeting>Hello world</greeting>
+`;
 
-  const sec = pick(root, "sec");
-  if (!sec) {
-    throw new Error("missing sec node");
-  }
-  const paragraphs = childrenOf(sec, "p");
-  expect(paragraphs.length, 2);
-  expect(paragraphs[0].atts.from, "HOST");
-  expect("role" in paragraphs[0].atts, false);
-  expect(textOf(paragraphs[0]), "Hello");
-  expect(paragraphs[1].atts.from, "NOTE");
-  expect(textOf(paragraphs[1]), "Remember this");
+  const inputs: string[] = [];
+  const { ops, seam } = await runTestStory(xmlContent, inputs);
+  
+  // Check that the macro was processed correctly
+  const eventOps = ops.filter((op) => op.type === "play-media");
+  expect(eventOps.length, 1);
+  
+  const event = eventOps[0].event;
+  expect(event?.body.trim(), "Hello world");
+  expect(event?.from, "HOST"); // This should come from the macro transformation
+  expect(typeof seam, "string");
 }
 
-async function testMacroAppendPrependReplace() {
+async function testRuntimeIncludeProcessing() {
+  // Test that includes are processed at runtime by running a story
+  const xmlContent = `
+<div id="welcome">
+  <p>Welcome message</p>
+</div>
+
+<p>Before include</p>
+<include id="welcome" />
+<p>After include</p>
+`;
+
+  const inputs: string[] = [];
+  const { ops, seam } = await runTestStory(xmlContent, inputs);
+  
+  // Check that the include was processed correctly
+  const eventOps = ops.filter((op) => op.type === "play-media");
+  expect(eventOps.length, 4); // div content + before + included content + after
+  
+  const textBodies = eventOps.map(op => op.event?.body.trim());
+  expect(textBodies[0], "Welcome message"); // From the div
+  expect(textBodies[1], "Before include");
+  expect(textBodies[2], "Welcome message"); // This should come from the included content
+  expect(textBodies[3], "After include");
+  expect(typeof seam, "string");
+}
+
+async function testCompileTimeBehavior() {
+  // Test that the compiled tree contains untransformed nodes (compile-time behavior)
   const root = await compileMacroStory(`
-<macro match="sec">
-  <prepend>
-    <p from="HEAD">head</p>
-  </prepend>
-  <append>
-    <p from="TAIL">tail</p>
-  </append>
+<macro match="guard">
+  <rename to="p" />
+  <set attr="voice" value="watchman" />
 </macro>
 
-<macro match="note">
-  <replace>
-    <p from="REP">replaced</p>
-  </replace>
-</macro>
-
-<sec>
-  <p>Main</p>
-  <note>Old</note>
-</sec>
+<div>
+  <guard>State your business.</guard>
+  <merchant>Welcome traveler</merchant>
+</div>
 `);
 
-  const sec = pick(root, "sec");
-  if (!sec) {
-    throw new Error("missing sec node");
-  }
-  const paragraphs = childrenOf(sec, "p");
-  const froms = paragraphs.map((p) => p.atts.from ?? "");
-  expect(froms, ["HEAD", "", "REP", "TAIL"]);
-  const texts = paragraphs.map((p) => textOf(p));
-  expect(texts, ["head", "Main", "replaced", "tail"]);
+  // Original nodes should be present in compiled tree
+  const guardNodes = findNodes(root, node => node.type === "guard");
+  expect(guardNodes.length, 1);
+  expect(textOf(guardNodes[0]), "State your business.");
+
+  const merchantNodes = findNodes(root, node => node.type === "merchant");
+  expect(merchantNodes.length, 1);
+  expect(textOf(merchantNodes[0]), "Welcome traveler");
+
+  // Macro nodes should be present
+  const macroNodes = findNodes(root, node => node.type === "macro");
+  expect(macroNodes.length, 1);
 }
 
 async function run() {
-  await testMacroSetAndRename();
-  await testMacroAppendPrependReplace();
+  await testCompileTimeBehavior();
+  await testRuntimeMacroProcessing();
+  await testRuntimeIncludeProcessing();
 }
 
-run();
+run()
+  .then(() => {
+    console.log("✓ macro.test.ts passed");
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

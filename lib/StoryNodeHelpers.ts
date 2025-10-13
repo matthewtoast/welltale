@@ -259,6 +259,14 @@ export function assignAddrs(node: StoryNode) {
   walk(node, start);
 }
 
+export function updateChildAddresses(node: StoryNode): void {
+  for (let i = 0; i < node.kids.length; i++) {
+    const child = node.kids[i];
+    child.addr = `${node.addr}.${i}`;
+    updateChildAddresses(child);
+  }
+}
+
 export function dumpTree(node: BaseNode | null, indent = ""): string {
   if (!node) {
     return "";

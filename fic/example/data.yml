@@ -23,32 +23,10 @@ shop:
   compass: 50
   sword: 20
 
-# Macros can be defined in data files or directly in story files using <macro> tags
+# Macros are now defined directly in story files using <macro> tags
 # These transform your tags based on rules to make story authoring easier
-macros:
-  - match: merchant
-    rename:
-      to: p
-    set:
-      voice: merchant
-  - match: rhymer
-    rename:
-      to: p
-    set:
-      voice: rhymer
-  - match: wretch
-    rename:
-      to: p
-    set:
-      voice: wretch
-  - match: troll
-    rename:
-      to: p
-    set:
-      voice: troll
-      from: troll
 
-# Voices can be defined in data files or directly in story files using <voice> tags
+# Voices are defined in data files using this format
 voices:
   narrator:
     prompt: British storybook narrator, classic deep voice, expressive

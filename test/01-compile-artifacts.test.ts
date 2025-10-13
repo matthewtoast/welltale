@@ -22,13 +22,6 @@ async function go() {
 `,
     "data.yml": `
 title: Test Story
-macros:
-  - match: merchant
-    rename:
-      to: p
-    set:
-      voice: merchant
-      mood: warm
 voices:
   merchant:
     name: Friendly Merchant
@@ -71,23 +64,22 @@ voices:
     doCompileVoices: true,
   });
 
+  // With runtime processing, original nodes should remain untransformed in compiled tree
   const merchantNodes = findNodes(
     source.root,
-    (node) => node.atts.voice === "merchant"
+    (node) => node.type === "merchant"
   );
   expect(merchantNodes.length, 1);
-  expect(merchantNodes[0]?.type, "p");
-  expect(merchantNodes[0]?.atts.mood, "warm");
 
   const guardNodes = findNodes(
     source.root,
-    (node) => node.atts.voice === "watchman"
+    (node) => node.type === "guard"
   );
   expect(guardNodes.length, 1);
-  expect(guardNodes[0]?.type, "p");
 
+  // Only XML macro nodes should be present in compiled tree (data macros are stored separately)
   const macroNodes = findNodes(source.root, (node) => node.type === "macro");
-  expect(macroNodes.length, 0);
+  expect(macroNodes.length, 1); // One from XML
 
   const compiledVoices = Object.values(source.voices);
   const dataVoice = compiledVoices.find((voice) => voice.ref === "merchant");

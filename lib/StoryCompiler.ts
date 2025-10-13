@@ -1,7 +1,6 @@
 import { omit } from "lodash";
 import { TSerial } from "../typings";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
-import { applyMacros, collectMacros, MacroDefinition } from "./StoryMacro";
 import type { ParseSeverity } from "./StoryNodeHelpers";
 import {
   assignAddrs,
@@ -24,36 +23,10 @@ import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
 import { createWelltaleContent } from "./WelltaleKnowledgeContext";
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
-const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body", "macro"];
+const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body"];
 
-const COMPILE_TIME_TAGS = ["macro", "include"];
+const COMPILE_TIME_TAGS: string[] = [];
 
-export function processIncludes(root: StoryNode): void {
-  const moduleables = findNodes(
-    root,
-    (node) =>
-      !NON_INCLUDABLE_TAGS.includes(node.type) &&
-      !node.type.startsWith("#") &&
-      node.kids.length > 0 &&
-      !isBlank(node.atts.id)
-  );
-  if (moduleables.length === 0) return;
-
-  // Pre-collect <include> tags so we don't end up in an infinite loop if modules include an <include>
-  const includes: { node: StoryNode; parent: StoryNode; idx: number }[] = [];
-  walkTree(root, (node, parent, idx) => {
-    if (parent && node.type === "include" && !isBlank(node.atts.id)) {
-      includes.push({ node, parent, idx });
-    }
-    return null;
-  });
-
-  for (let i = 0; i < includes.length; i++) {
-    const { node, parent, idx } = includes[i];
-    const found = moduleables.find((mod) => mod.atts.id === node.atts.id);
-    parent.kids.splice(idx, 1, ...(found?.kids.map(cloneNode) ?? []));
-  }
-}
 
 export function stripCompileTimeTags(root: StoryNode): void {
   walkTree(root, (node, parent, idx) => {
@@ -101,8 +74,7 @@ async function buildStoryRoot(
   verbose: boolean | undefined,
   collect:
     | ((path: string, severity: ParseSeverity, message: string) => void)
-    | undefined,
-  externalMacros: MacroDefinition[]
+    | undefined
 ): Promise<StoryNode> {
   const root: StoryNode = {
     addr: "0",
@@ -127,7 +99,6 @@ async function buildStoryRoot(
   const mains = all.filter(isMain);
   const rest = all.filter((k) => !isMain(k));
   const keys = [...mains, ...rest];
-  const collectedMacros: ReturnType<typeof collectMacros>["macros"] = [];
   const accumulatedNodes: BaseNode[] = [];
   for (let i = 0; i < keys.length; i++) {
     const path = keys[i];
@@ -147,14 +118,9 @@ async function buildStoryRoot(
       verbose,
       path
     );
-    const { nodes, macros } = collectMacros(expanded, "macro");
-    collectedMacros.push(...macros);
-    accumulatedNodes.push(...nodes);
+    accumulatedNodes.push(...expanded);
   }
-  if (externalMacros.length > 0) {
-    collectedMacros.push(...externalMacros);
-  }
-  const transformed = applyMacros(accumulatedNodes, collectedMacros);
+  const transformed = accumulatedNodes;
   for (let i = 0; i < transformed.length; i++) {
     const mapped = walkMap(
       transformed[i],
@@ -203,10 +169,8 @@ export async function compileStory(
     cartridge,
     context,
     options.verbose,
-    collect,
-    dataArtifacts.macros
+    collect
   );
-  processIncludes(root);
   assignAddrs(root);
 
   const pronunciations: Record<string, string> = {
@@ -338,7 +302,6 @@ type PendingDataVoice = {
 };
 
 type DataArtifacts = {
-  macros: MacroDefinition[];
   pronunciations: Record<string, string>;
   meta: Record<string, TSerial>;
   readyVoices: Record<string, VoiceSpec>;
@@ -372,7 +335,6 @@ async function compilePendingDataVoices(
 }
 
 function collectDataArtifacts(entries: unknown[]): DataArtifacts {
-  const macros: MacroDefinition[] = [];
   const pronunciations: Record<string, string> = {};
   const meta: Record<string, TSerial> = {};
   const readyVoices: Record<string, VoiceSpec> = {};
@@ -381,15 +343,6 @@ function collectDataArtifacts(entries: unknown[]): DataArtifacts {
     const entry = entries[i];
     if (!isRecord(entry)) {
       continue;
-    }
-    const macroSource = entry["macros"];
-    if (Array.isArray(macroSource)) {
-      for (let j = 0; j < macroSource.length; j++) {
-        const parsed = toMacroDefinition(macroSource[j]);
-        if (parsed) {
-          macros.push(parsed);
-        }
-      }
     }
     const voiceSource = entry["voices"];
     if (isRecord(voiceSource)) {
@@ -424,7 +377,7 @@ function collectDataArtifacts(entries: unknown[]): DataArtifacts {
     const keys = Object.keys(entry);
     for (let j = 0; j < keys.length; j++) {
       const key = keys[j];
-      if (key === "pronunciations" || key === "voices" || key === "macros") {
+      if (key === "pronunciations" || key === "voices") {
         continue;
       }
       const value = entry[key];
@@ -433,7 +386,7 @@ function collectDataArtifacts(entries: unknown[]): DataArtifacts {
       }
     }
   }
-  return { macros, pronunciations, meta, readyVoices, pendingVoices };
+  return { pronunciations, meta, readyVoices, pendingVoices };
 }
 
 function collectText(node: BaseNode): string {
@@ -447,49 +400,6 @@ function collectText(node: BaseNode): string {
   return out;
 }
 
-function toMacroDefinition(source: unknown): MacroDefinition | null {
-  if (!isRecord(source)) {
-    console.warn("Ignoring macro without object data");
-    return null;
-  }
-  const match = toNonEmptyString(source["match"]);
-  if (!match) {
-    console.warn("Ignoring macro without match selector");
-    return null;
-  }
-  const node = createNode("macro", { match });
-  const id = toNonEmptyString(source["id"]);
-  if (id) {
-    node.atts.id = id;
-  }
-  const keys = Object.keys(source);
-  const kids: BaseNode[] = [];
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    if (key === "match" || key === "id") {
-      continue;
-    }
-    if (key === "rename") {
-      kids.push(...buildRenameNodes(source[key]));
-      continue;
-    }
-    if (key === "set") {
-      kids.push(...buildSetNodes(source[key]));
-      continue;
-    }
-    if (key === "remove") {
-      kids.push(...buildRemoveNodes(source[key]));
-      continue;
-    }
-    console.warn(`Unsupported macro operation in data: ${key}`);
-  }
-  node.kids = kids;
-  const parsed = collectMacros([node], "macro").macros;
-  if (!parsed.length) {
-    return null;
-  }
-  return parsed[0];
-}
 
 function toVoiceSpec(source: unknown, key: string): VoiceSpec | null {
   if (!isRecord(source)) {
@@ -521,89 +431,6 @@ function toPendingVoice(source: unknown, key: string): PendingDataVoice | null {
   return { ref, prompt, name, tags };
 }
 
-function buildRenameNodes(value: unknown): BaseNode[] {
-  const direct = toNonEmptyString(value);
-  if (direct) {
-    return [createNode("rename", { to: direct })];
-  }
-  if (!isRecord(value)) {
-    console.warn("Ignoring rename macro with invalid data");
-    return [];
-  }
-  const target = toNonEmptyString(value["to"]);
-  if (!target) {
-    console.warn("Ignoring rename macro without target");
-    return [];
-  }
-  return [createNode("rename", { to: target })];
-}
-
-function buildSetNodes(value: unknown): BaseNode[] {
-  if (Array.isArray(value)) {
-    const nodes: BaseNode[] = [];
-    for (let i = 0; i < value.length; i++) {
-      nodes.push(...buildSetNodes(value[i]));
-    }
-    return nodes;
-  }
-  if (!isRecord(value)) {
-    console.warn("Ignoring set macro with invalid data");
-    return [];
-  }
-  const nodes: BaseNode[] = [];
-  const hasAttrKey = Object.prototype.hasOwnProperty.call(value, "attr");
-  const hasValueKey = Object.prototype.hasOwnProperty.call(value, "value");
-  if (hasAttrKey || hasValueKey) {
-    const attr = toNonEmptyString(value["attr"]);
-    const val = toStringValue(value["value"]);
-    if (attr && val !== null) {
-      nodes.push(createNode("set", { attr, value: val }));
-    } else {
-      console.warn("Ignoring set macro without attr or value");
-    }
-  }
-  if (Object.prototype.hasOwnProperty.call(value, "attrs")) {
-    nodes.push(...buildSetNodes(value["attrs"]));
-  }
-  const keys = Object.keys(value);
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    if (key === "attr" || key === "value" || key === "attrs") {
-      continue;
-    }
-    const val = toStringValue(value[key]);
-    if (val === null) {
-      console.warn(`Ignoring set macro value for ${key}`);
-      continue;
-    }
-    nodes.push(createNode("set", { attr: key, value: val }));
-  }
-  return nodes;
-}
-
-function buildRemoveNodes(value: unknown): BaseNode[] {
-  if (Array.isArray(value)) {
-    const nodes: BaseNode[] = [];
-    for (let i = 0; i < value.length; i++) {
-      nodes.push(...buildRemoveNodes(value[i]));
-    }
-    return nodes;
-  }
-  const attr = toNonEmptyString(value);
-  if (attr) {
-    return [createNode("remove", { attr })];
-  }
-  if (!isRecord(value)) {
-    console.warn("Ignoring remove macro with invalid data");
-    return [];
-  }
-  const target = toNonEmptyString(value["attr"]);
-  if (!target) {
-    console.warn("Ignoring remove macro without attr");
-    return [];
-  }
-  return [createNode("remove", { attr: target })];
-}
 
 function createNode(type: string, atts: Record<string, string>): BaseNode {
   return {

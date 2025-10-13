@@ -177,11 +177,11 @@ async function go() {
         text: "",
         kids: [
           {
-            addr: "0.1.0",
-            type: "#text",
-            atts: {},
-            text: "\n      hi\n    ",
+            type: "include",
+            atts: { id: "foo" },
             kids: [],
+            text: "",
+            addr: "0.1.0",
           },
         ],
         addr: "0.1",

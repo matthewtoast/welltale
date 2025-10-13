@@ -1,7 +1,5 @@
 <!-- This is an example interactive audio story written in Welltale Story Language (WSL). -->
 
-<!-- Voices and pronunciations are defined in data files (data.yml or data.json) in your story directory. -->
-
 <!-- The <intro> tag plays content only once: when the player first begins a story. -->
 <intro>
   <!-- The <music> tag generates a music clip according to a prompt -->
@@ -29,6 +27,28 @@
     Welcome back to {{title}}, by {{author}}.
   </p>
 </resume>
+
+<!-- Macro definitions - these transform tags to make story authoring easier -->
+<macro match="merchant">
+  <rename to="p" />
+  <set attr="voice" value="merchant" />
+</macro>
+
+<macro match="rhymer">
+  <rename to="p" />
+  <set attr="voice" value="rhymer" />
+</macro>
+
+<macro match="wretch">
+  <rename to="p" />
+  <set attr="voice" value="wretch" />
+</macro>
+
+<macro match="troll">
+  <rename to="p" />
+  <set attr="voice" value="troll" />
+  <set attr="from" value="troll" />
+</macro>
 
 <!--
   The <origin> tag defines your story's actual starting point. It only plays once per story.
@@ -112,7 +132,7 @@
     From somewhere within the thicket of trees, you hear a strange voice.
   </narrator>
 
-  <!-- Macros and voices can also be defined in your data files; see data.yml for how <wretch> is defined -->
+  <!-- The <wretch> tag is defined by the macro at the top of this file -->
   <wretch>
     Who goes there...?
   </wretch>
@@ -218,7 +238,7 @@
     Soon, a large, slimy creature emerges from the muck.
   </narrator>
 
-  <!-- Macros and voices can also be defined in your data files; see data.yml -->
+  <!-- The <rhymer> tag is defined by the macro at the top of this file -->
   <rhymer>
     Speak a word, and I'll reply in rhyme.
     I'll keep you here till the end of time.
@@ -289,7 +309,7 @@
     There is a stone outpost here with a small wooden door. You push it open and find a merchant inside.
   </narrator>
 
-  <!-- Macros and voices can also be defined in your data files; see data.yml for how <merchant> is defined -->
+  <!-- The <merchant> tag is defined by the macro at the top of this file -->
   <merchant>
     [enthusiastically] Ah, a customer! Welcome, welcome! I have many fine wares for sale!
   </merchant>

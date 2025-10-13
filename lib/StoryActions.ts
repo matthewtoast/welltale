@@ -11,6 +11,7 @@ import { isValidUrl, toHttpMethod } from "./HTTPHelpers";
 import { parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { parseNumberOrNull } from "./MathHelpers";
+import { collectMacros } from "./StoryMacro";
 import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import {
   DESCENDABLE_TAGS,
@@ -31,10 +32,13 @@ import {
   marshallText,
   nearestAncestorOfType,
   nextNode,
+  parentNodeOf,
   searchForNode,
   skipBlock,
+  updateChildAddresses,
 } from "./StoryNodeHelpers";
 import { renderAtts, renderText } from "./StoryRenderMethods";
+import { processIncludeRuntime, applyMacroRuntimeToNode } from "./StoryRuntimeUtils";
 import {
   ActionHandler,
   ImageAspectRatio,
@@ -2296,10 +2300,55 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      // This is a compile-time tag - should not be executed at runtime
+      // Runtime macro processing - extract macro definition and apply it throughout the tree
+      try {
+        const { macros } = collectMacros([ctx.node], "macro");
+        
+        if (macros.length > 0) {
+          const macro = macros[0];
+          // Apply this macro to all matching nodes in the entire story tree
+          // We need to traverse and apply the macro to matching nodes
+          const applyToTree = (node: StoryNode) => {
+            // Apply macro to current node if it matches
+            applyMacroRuntimeToNode(node, [macro]);
+            // Recursively apply to children
+            for (const child of node.kids) {
+              applyToTree(child);
+            }
+          };
+          
+          applyToTree(ctx.session.root);
+        }
+      } catch (error) {
+        console.warn("Failed to process macro at runtime:", error);
+      }
+      
+      // Remove this macro node from the tree after processing
+      const parent = parentNodeOf(ctx.node, ctx.session.root);
+      let nextNodeResult = nextNode(ctx.node, ctx.session.root, false);
+      
+      if (parent) {
+        const childIndex = parent.kids.findIndex(k => k.addr === ctx.node.addr);
+        if (childIndex >= 0) {
+          parent.kids.splice(childIndex, 1);
+          // Update addresses for remaining children
+          updateChildAddresses(parent);
+          
+          // Recalculate next node after removal
+          // If there's a child at the same index, use it; otherwise continue normally
+          if (childIndex < parent.kids.length) {
+            nextNodeResult = { node: parent.kids[childIndex] };
+          } else {
+            // No more siblings, continue with original next node logic
+            nextNodeResult = nextNode(parent, ctx.session.root, false);
+          }
+        }
+      }
+      
+      // Skip to next node after processing macro
       return {
         ops: [],
-        next: nextNode(ctx.node, ctx.session.root, false),
+        next: nextNodeResult,
       };
     },
   },
@@ -2350,7 +2399,29 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      // This is a compile-time tag - should not be executed at runtime
+      // Runtime include processing - replace this node with included content
+      const replacements = processIncludeRuntime(ctx.node, ctx.session.root);
+      
+      if (replacements.length > 0) {
+        // Find parent and replace this include node with the included content
+        const parent = parentNodeOf(ctx.node, ctx.session.root);
+        if (parent) {
+          const childIndex = parent.kids.findIndex(k => k.addr === ctx.node.addr);
+          if (childIndex >= 0) {
+            // Replace the include node with the replacement nodes
+            parent.kids.splice(childIndex, 1, ...replacements);
+            // Update addresses for the new nodes
+            updateChildAddresses(parent);
+            // Move to the first replacement node if any, otherwise next sibling
+            const next = replacements.length > 0 
+              ? { node: replacements[0] }
+              : nextNode(ctx.node, ctx.session.root, false);
+            return { ops: [], next };
+          }
+        }
+      }
+      
+      // If no replacements or parent not found, skip to next node
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.session.root, false),
