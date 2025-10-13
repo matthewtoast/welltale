@@ -40,6 +40,7 @@ import { renderAtts, renderText } from "./StoryRenderMethods";
 import { applyRuntimeMacros, processIncludeRuntime } from "./StoryRuntimeUtils";
 import {
   ActionHandler,
+  BaseActionContext,
   ImageAspectRatio,
   ImageModelSlug,
   OP,
@@ -52,8 +53,12 @@ function tagOutKey(atts: Record<string, TSerial>, fallback: string = "_") {
   return (atts.key ?? fallback).toString();
 }
 
-function getDialogId(atts: Record<string, TSerial>) {
-  return atts.dialog ?? atts.id;
+async function meetsCond(
+  ifExpr: string,
+  ctx: BaseActionContext
+): Promise<boolean> {
+  const result = await ctx.evaluator(ifExpr, ctx.scope);
+  return isTruthy(result);
 }
 
 export const ACTION_HANDLERS: ActionHandler[] = [
@@ -1235,15 +1240,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
-      let next: { node: StoryNode } | null = null;
-      if (!atts.if || (await ctx.evaluator(atts.if, ctx.scope))) {
-        next = searchForNode(
-          ctx.session.root,
-          atts.to ?? atts.target ?? atts.destination
-        );
-      } else {
-        next = nextNode(ctx.node, ctx.session.root, false);
-      }
+      let next: { node: StoryNode } | null = searchForNode(
+        ctx.session.root,
+        atts.to ?? atts.target ?? atts.destination
+      );
       if (next && next.node === ctx.node) {
         console.warn("Attempted <jump> to same node; nullifying path");
         next = null;

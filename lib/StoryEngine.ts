@@ -2,18 +2,22 @@ import { isEmpty } from "lodash";
 import sift, { Query } from "sift";
 import { TSerial } from "../typings";
 import { buildDefaultFuncs } from "./EvalMethods";
+import { isTruthy } from "./EvalCasting";
 import { createRunner, evaluateScript } from "./QuickJSUtils";
 import { PRNG } from "./RandHelpers";
 import { ACTION_HANDLERS } from "./StoryActions";
 import { makeCheckpoint } from "./StoryCheckpointUtils";
+import { renderText } from "./StoryRenderMethods";
 import {
   dumpTree,
   findNodes,
+  nextNode,
   wouldEscapeCurrentBlock,
 } from "./StoryNodeHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   ActionContext,
+  ActionResult,
   EvaluatorFunc,
   OP,
   SeamType,
@@ -77,7 +81,7 @@ export async function advanceStory(
 
   // <var> etc may be declared at the top level so evaluate those sequentially
   if (session.turn === 1 && !session.resume) {
-    await execNodes(
+    await execNodesList(
       session.root.kids.filter((node) =>
         ["var", "code", "script", "data"].includes(node.type)
       ),
@@ -183,8 +187,20 @@ export async function advanceStory(
     const handler = ACTION_HANDLERS.find(
       (h) => h.tags.length === 0 || h.tags.includes(node.type)
     )!;
-    const result = await handler.exec(ctx);
-    out.push(...result.ops);
+    let result: ActionResult | null = null;
+    const guardExpr = node.atts.if;
+    if (typeof guardExpr === "string") {
+      const renderedGuard = await renderText(guardExpr, ctx);
+      const guard = isTruthy(await evaluator(renderedGuard, ctx.scope));
+      if (!guard) {
+        result = { ops: [], next: nextNode(node, session.root, false) };
+      }
+    }
+    if (result === null) {
+      result = await handler.exec(ctx);
+    }
+    const actionResult = result!;
+    out.push(...actionResult.ops);
 
     if (out.length > 0) {
       const recent = out[out.length - 1];
@@ -195,11 +211,11 @@ export async function advanceStory(
 
     if (options.verbose) {
       console.info(
-        `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${result.next?.node.addr} ${JSON.stringify(result.ops)}`
+        `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${actionResult.next?.node.addr} ${JSON.stringify(actionResult.ops)}`
       );
     }
 
-    if (result.next) {
+    if (actionResult.next) {
       if (session.target) {
         session.address = session.target;
         session.target = null;
@@ -208,16 +224,16 @@ export async function advanceStory(
       // Check if we're currently in a yielded block and the next node escapes it
       if (
         session.stack.length > 0 &&
-        wouldEscapeCurrentBlock(node, result.next.node, session.root)
+        wouldEscapeCurrentBlock(node, actionResult.next.node, session.root)
       ) {
         const topFrame = session.stack[session.stack.length - 1];
         if (topFrame.blockType === "yield") {
-          session.address = result.next.node.addr;
+          session.address = actionResult.next.node.addr;
         } else {
           const frame = session.stack.pop()!;
           if (frame.blockType === "intro" || frame.blockType === "resume") {
             if (node.type === "jump") {
-              session.address = result.next.node.addr;
+              session.address = actionResult.next.node.addr;
             } else {
               session.address = frame.returnAddress;
             }
@@ -226,7 +242,7 @@ export async function advanceStory(
           }
         }
       } else {
-        session.address = result.next.node.addr;
+        session.address = actionResult.next.node.addr;
       }
     } else {
       // No next node - check if we should return from a block
@@ -359,7 +375,7 @@ export function createScope(
   });
 }
 
-export async function execNodes(
+export async function execNodesList(
   nodes: StoryNode[],
   provider: StoryServiceProvider,
   session: StorySession,

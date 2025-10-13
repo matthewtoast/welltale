@@ -1,0 +1,26 @@
+
+<while cond="true">
+  <input />
+
+  <llm:text key="reply">
+    You are Bill, an angry farmer. You are having a dialog with Player.
+    This is what was said so far:
+    --
+    {$
+      dialog({
+        $or: [
+          { from: player.id, to: "bill" },
+          { from: "bill", to: player.id }
+        ]
+      })
+    $}
+    --
+    Respond in character as Bill. Return only the next line of dialog:
+  </llm:text>
+
+  <p from="Bill">{{reply}}</p>
+
+  <if cond="someCondTBD">
+    <break />
+  </if>
+</while>
