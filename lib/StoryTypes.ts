@@ -16,16 +16,6 @@ export type NestedRecords = {
   [key: string]: string | NestedRecords;
 };
 
-export type StorySource = {
-  root: StoryNode;
-  voices: Record<string, VoiceSpec>;
-  pronunciations: Record<string, string>;
-  scripts: NestedRecords;
-  meta: {
-    [key: string]: TSerial;
-  };
-};
-
 export type StoryNode = {
   addr: string; // a tree locator string like "0.2.1"
   type: string; // the tag name, e.g. p, block, #text, whatever
@@ -70,6 +60,16 @@ export type StoryCheckpoint = {
 export type DDVState = {
   cycles: Record<string, number>;
   bags: Record<string, { order: number[]; idx: number }>;
+};
+
+export type StorySource = {
+  root: StoryNode;
+  voices: Record<string, VoiceSpec>;
+  pronunciations: Record<string, string>;
+  scripts: NestedRecords;
+  meta: {
+    [key: string]: TSerial;
+  };
 };
 
 export type StorySession = {

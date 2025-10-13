@@ -2261,54 +2261,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    tags: ["meta"],
-    docs: {
-      desc: dedent`
-        Defines metadata for the story. Metadata values can be referred to in code and as template variables.
-
-        Note: Meta tags are processed at compile-time and their values are stored in the story's metadata object. They cannot reference story state.
-      `,
-      ex: [
-        {
-          code: dedent`
-            <meta name="difficulty" value="intermediate" />
-            <meta name="estimatedDuration" value="120" type="number" />
-            <meta name="genre" value="fantasy,adventure" />
-          `,
-        },
-      ],
-      cats: ["compile_time"],
-    },
-    syntax: {
-      block: true,
-      atts: {
-        name: {
-          type: "string",
-          desc: "Metadata property name",
-          req: true,
-        },
-        value: {
-          type: "string",
-          desc: "Metadata value. If omitted, uses inner content.",
-          req: false,
-        },
-        type: {
-          type: "string",
-          desc: "Value type for casting: string, number, boolean",
-          req: false,
-          default: "string",
-        },
-      },
-    },
-    exec: async (ctx) => {
-      // This is a compile-time tag - should not be executed at runtime
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
-      };
-    },
-  },
-  {
     tags: ["macro"],
     docs: {
       desc: dedent`

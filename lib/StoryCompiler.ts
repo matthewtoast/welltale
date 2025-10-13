@@ -28,7 +28,6 @@ export { parseXmlFragment } from "./StoryNodeHelpers";
 const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body", "macro"];
 
 const COMPILE_TIME_TAGS = [
-  "meta",
   "macro",
   "include",
 ];
@@ -253,19 +252,6 @@ export async function compileStory(
       cur[last] = src.toString();
     });
 
-  const metaNodes = findNodes(root, (node) => node.type === "meta");
-  for (let i = 0; i < metaNodes.length; i++) {
-    const node = metaNodes[i];
-    if (!isBlank(node.atts.description)) {
-      outputs.meta[node.atts.name ?? node.atts.property] = await renderText(
-        node.atts.description,
-        context
-      );
-      if (options.verbose) {
-        console.info("Found <meta>", node.atts);
-      }
-    }
-  }
 
 
   if (options.doCompileVoices) {
