@@ -1,10 +1,10 @@
-import { set } from "lodash";
+import { set, uniq } from "lodash";
 import { NonEmpty, TSerial } from "../typings";
 import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
 import {
   DEFAULT_LLM_SLUGS,
   LLM_SLUGS,
-  StoryOptions,
+  LLM_SLUGS_TAGGED,
   StorySession,
   VoiceSpec,
 } from "./StoryTypes";
@@ -18,6 +18,8 @@ export const TEXT_TAG = "#text";
 export const NONRENDER_ATTS = ["id", "type", ".type", ".pattern"];
 
 export const LOOP_TAGS = ["while"];
+
+export const INPUT_TAGS = ["input", "textarea"];
 
 export const TEXT_CONTENT_TAGS = [
   "p",
@@ -34,6 +36,7 @@ export const TEXT_CONTENT_TAGS = [
   "h4",
   "h5",
   "h6",
+  "output",
 ];
 
 export const DESCENDABLE_TAGS = [
@@ -73,19 +76,29 @@ export function assignInput(
 }
 
 export function normalizeModels(
-  options: StoryOptions,
+  options: { models: string[] },
   attms: string | undefined,
   defaultModels: NonEmpty<(typeof LLM_SLUGS)[number]> = DEFAULT_LLM_SLUGS
 ): NonEmpty<(typeof LLM_SLUGS)[number]> {
-  const models: (typeof LLM_SLUGS)[number][] = [...options.models];
-  const want = cleanSplit(attms, ",")
-    .filter((m) => (LLM_SLUGS as readonly string[]).includes(m))
-    .reverse();
-  for (const w of want) models.unshift(w as (typeof LLM_SLUGS)[number]);
-  const out = (models.length > 0 ? models : [...defaultModels]) as NonEmpty<
-    (typeof LLM_SLUGS)[number]
-  >;
-  return out;
+  if (attms === undefined && options.models.length === 0) {
+    return defaultModels;
+  }
+  const out: NonEmpty<(typeof LLM_SLUGS)[number]> = [...defaultModels];
+  const wantedModels = attms ? cleanSplit(attms, ",") : [];
+  wantedModels.push(...options.models);
+  wantedModels.forEach((modelString) => {
+    for (const modelName in LLM_SLUGS_TAGGED) {
+      const modelTags =
+        LLM_SLUGS_TAGGED[modelName as (typeof LLM_SLUGS)[number]];
+      if (modelTags.includes(modelString as any)) {
+        out.unshift(modelName as (typeof LLM_SLUGS)[number]);
+      }
+    }
+    if (LLM_SLUGS.includes(modelString as (typeof LLM_SLUGS)[number])) {
+      out.unshift(modelString as (typeof LLM_SLUGS)[number]);
+    }
+  });
+  return uniq(out) as any;
 }
 
 export function publicAtts<T extends Record<string, any>>(atts: T): T {

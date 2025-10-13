@@ -7,7 +7,15 @@ import { normalizeModels } from "./StoryConstants";
 import { BaseActionContext } from "./StoryTypes";
 import { isBlank } from "./TextHelpers";
 
-export const SPECIAL_INPUT_FIELD_ATTS = ["models", "key", "scope"];
+export const SPECIAL_INPUT_FIELD_ATTS = [
+  "models",
+  "key",
+  "scope",
+  "to",
+  "from",
+  "obs",
+  "tags",
+];
 
 function tryParseEnum(value: TSerial, enumString: string): string | null {
   const options = enumString.split("|").map((s) => s.trim());

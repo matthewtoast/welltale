@@ -80,7 +80,7 @@ async function testTestStory() {
       As the story progresses the lawyer should resort to ever more absurd and humorous ways to deal with the juror's attempts to disqualify himself.
     `,
     provider,
-    options
+    { ...options, useWebSearch: false }
   );
   console.log(content);
   return;

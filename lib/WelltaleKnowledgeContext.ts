@@ -6,7 +6,7 @@ import { loadDirRecursive } from "./FileUtils";
 import { ACTION_HANDLERS } from "./StoryActions";
 import { TEMPLATE_SYNTAX } from "./StoryDocs";
 import {
-  BaseGenerateOptions,
+  GenerateTextCompletionOptions,
   StoryServiceProvider,
 } from "./StoryServiceProvider";
 
@@ -96,7 +96,7 @@ ${content}
 export async function createWelltaleContent(
   prompt: string,
   provider: StoryServiceProvider,
-  options: BaseGenerateOptions
+  options: GenerateTextCompletionOptions
 ) {
   const result = await provider.generateChat(
     [

@@ -3,7 +3,7 @@ import { NonEmpty, TSerial } from "../typings";
 import type { FetchOptions } from "./HTTPHelpers";
 import { safeJsonParse } from "./JSONHelpers";
 import type { AIChatMessage } from "./OpenRouterUtils";
-import type { VoiceSpec, ImageModelSlug, ImageAspectRatio } from "./StoryTypes";
+import type { ImageAspectRatio, ImageModelSlug, VoiceSpec } from "./StoryTypes";
 import { LLM_SLUGS } from "./StoryTypes";
 import { parameterize } from "./TextHelpers";
 
@@ -42,6 +42,10 @@ export interface StoryServiceProvider {
     schema: Record<string, TSerial>,
     options: GenerateTextCompletionOptions
   ): Promise<Record<string, TSerial>>;
+  generateChat(
+    messages: AIChatMessage[],
+    options: GenerateTextCompletionOptions
+  ): Promise<AIChatMessage>;
   generateSound(
     prompt: string,
     durationMs: number,
@@ -65,10 +69,6 @@ export interface StoryServiceProvider {
     prompt: string,
     options: GenerateImageOptions
   ): Promise<{ url: string }>;
-  generateChat(
-    messages: AIChatMessage[],
-    options: BaseGenerateOptions
-  ): Promise<AIChatMessage>;
   fetchUrl(
     options: FetchOptions
   ): Promise<{ statusCode: number; data: string; contentType: string }>;

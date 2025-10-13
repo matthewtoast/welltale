@@ -19,7 +19,6 @@ async function go() {
   </macro>
   <merchant>Welcome {{playerName}}</merchant>
   <guard>State your business.</guard>
-  <voice id="town-voice" prompt="Town announcement for {{playerName}}" tags="news,urgent" />
 </root>
 `,
     "data.yml": `
@@ -40,6 +39,9 @@ voices:
     ref: herald
     name: Herald
     tags: [news]
+  town-voice:
+    prompt: Town announcement for {{playerName}}
+    tags: [news, urgent]
 `,
   };
 
@@ -98,8 +100,10 @@ voices:
   );
   expect(Boolean(readyVoice), true);
 
-  const xmlVoice = compiledVoices.find((voice) => voice.ref === "town-voice");
-  expect(Boolean(xmlVoice), true);
+  const townVoice = compiledVoices.find((voice) => voice.ref === "town-voice");
+  expect(Boolean(townVoice), true);
+  expect(townVoice?.tags?.includes("news"), true);
+  expect(townVoice?.tags?.includes("urgent"), true);
 }
 
 go();

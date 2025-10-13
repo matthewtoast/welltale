@@ -9,10 +9,6 @@ The foundation of Welltale is the Welltale Story Language (WSL). WSL is a lightw
 Here’s a minimal example:
 
 ```xml
-<voice id="narrator">
-  Storybook narrator, deep male voice, warm and expressive
-</voice>
-
 <intro>
   <music duration="8000" background="true">
     Gentle fantasy music with strings and flutes

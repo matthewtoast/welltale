@@ -4,6 +4,7 @@ Read @README.md first.
 
 ## General
 
+- Don't start making changes until instructed to do so
 - Keep code simple, minimal, and DRY
 - Keep variable names short
 - Write modular, elegant code

@@ -1,4 +1,6 @@
+import { last } from "lodash";
 import {
+  ActionContext,
   StoryCheckpoint,
   StoryEvent,
   StoryOptions,
@@ -25,25 +27,32 @@ export function snapshotSession(
 }
 
 export function makeCheckpoint(
-  session: StorySession,
-  options: StoryOptions,
+  ctx: {
+    session: StorySession;
+    options: StoryOptions;
+  },
   events: StoryEvent[]
 ): StoryCheckpoint {
-  const snap = snapshotSession(session);
+  const snap = snapshotSession(ctx.session);
   const cp: StoryCheckpoint = {
     ...snap,
     events: events.slice(),
   };
-  session.checkpoints.push(cp);
-  const cap = options.maxCheckpoints;
-  if (cap > 0 && session.checkpoints.length > cap) {
-    session.checkpoints.splice(0, session.checkpoints.length - cap);
+  ctx.session.checkpoints.push(cp);
+  const cap = ctx.options.maxCheckpoints;
+  if (cap > 0 && ctx.session.checkpoints.length > cap) {
+    ctx.session.checkpoints.splice(0, ctx.session.checkpoints.length - cap);
   }
   return cp;
 }
 
-export function recordEvent(buf: StoryEvent[], ev: StoryEvent) {
-  buf.push(ev);
+export function recordEvent(ctx: ActionContext, ev: StoryEvent) {
+  if (ctx.session.checkpoints.length === 0) {
+    makeCheckpoint(ctx, []);
+  }
+  const lc = last(ctx.session.checkpoints)!;
+  lc.events.push(ev);
+  return ev;
 }
 
 export function revertSession(

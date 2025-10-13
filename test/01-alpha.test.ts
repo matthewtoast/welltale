@@ -13,6 +13,12 @@ async function testBlockOrder() {
 <p>
   The number is {{mum}}
 </p>
+<p>
+  Player id is {{player.id}}
+</p>
+<script>
+  console.log(events({ from: "HOST" }))
+</script>
 `;
 
   const inputs: string[] = [];
@@ -22,7 +28,7 @@ async function testBlockOrder() {
   const textBodies = textEvents
     .filter((e) => e.event)
     .map((e) => e.event!.body.trim());
-  const expectedOrder = ["Hello boo", "The number is 24"];
+  const expectedOrder = ["Hello boo", "The number is 24", "Player id is test"];
   expect(textBodies.length, expectedOrder.length);
   for (let i = 0; i < expectedOrder.length; i++) {
     expect(textBodies[i], expectedOrder[i]);

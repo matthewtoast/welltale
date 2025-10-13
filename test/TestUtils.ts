@@ -88,7 +88,7 @@ export async function runTestStory(
   const provider = new MockStoryServiceProvider();
   const options: LocalStoryRunnerOptions = {
     seed: "test-seed",
-    verbose: false,
+    verbose: true,
     ream: 100,
     loop: 0,
     maxCheckpoints: 20,
@@ -99,7 +99,7 @@ export async function runTestStory(
     doPlayMedia: false,
   };
   const baseContext: BaseActionContext = {
-    session: createDefaultSession("compile-test"),
+    session: createDefaultSession("test"),
     rng: new PRNG("test-seed", 0),
     provider,
     scope: {},
@@ -109,19 +109,20 @@ export async function runTestStory(
   const sources = await compileStory(baseContext, cartridge, {
     doCompileVoices: false,
   });
-  const session = createDefaultSession(`test-session-${Date.now()}`);
   if (testOptions) {
-    if (testOptions.resume !== undefined) session.resume = testOptions.resume;
-    if (testOptions.turn !== undefined) session.turn = testOptions.turn;
+    if (testOptions.resume !== undefined)
+      baseContext.session.resume = testOptions.resume;
+    if (testOptions.turn !== undefined)
+      baseContext.session.turn = testOptions.turn;
     if (testOptions.address !== undefined)
-      session.address = testOptions.address;
+      baseContext.session.address = testOptions.address;
   }
   const outcome = await runUntilComplete({
     options,
     provider,
-    session,
+    session: baseContext.session,
     sources,
     inputs,
   });
-  return { ...outcome, session };
+  return { ...outcome, session: baseContext.session };
 }

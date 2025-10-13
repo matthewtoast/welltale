@@ -13,25 +13,22 @@ import {
   walkTree,
 } from "./StoryNodeHelpers";
 import { renderText } from "./StoryRenderMethods";
-import { createWelltaleContent } from "./WelltaleKnowledgeContext";
 import {
   BaseActionContext,
   NestedRecords,
   StoryCartridge,
   StoryNode,
   StorySource,
-  StoryVoiceSchema,
   VoiceSpec,
 } from "./StoryTypes";
 import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
+import { createWelltaleContent } from "./WelltaleKnowledgeContext";
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
 const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body", "macro"];
 
 const COMPILE_TIME_TAGS = [
   "meta",
-  "voice",
-  "pronunciation",
   "macro",
   "include",
 ];
@@ -270,22 +267,6 @@ export async function compileStory(
     }
   }
 
-  const pronunciationNodes = findNodes(
-    root,
-    (node) => node.type === "pronunciation"
-  );
-  for (let i = 0; i < pronunciationNodes.length; i++) {
-    const node = pronunciationNodes[i];
-    if (!isBlank(node.atts.word) && !isBlank(node.atts.pronunciation)) {
-      pronunciations[node.atts.word] = await renderText(
-        node.atts.pronunciation,
-        context
-      );
-      if (options.verbose) {
-        console.info("Found <pronunciation>", node.atts);
-      }
-    }
-  }
 
   if (options.doCompileVoices) {
     await compilePendingDataVoices(
@@ -294,45 +275,10 @@ export async function compileStory(
       context,
       options.verbose
     );
-    const voiceNodes = findNodes(root, (node) => node.type === "voice");
-    for (let i = 0; i < voiceNodes.length; i++) {
-      const node = voiceNodes[i];
-      if (isBlank(node.atts.id)) {
-        continue;
-      }
-      const text = snorm(
-        await renderText(
-          node.atts.prompt ??
-            node.atts.description ??
-            (await collateText(node)),
-          context
-        )
-      );
-      if (!isBlank(text)) {
-        if (options.verbose) {
-          console.info(`Generating voice ${node.atts.id}...`);
-        }
-        const { id } = await context.provider.generateVoice(text, {});
-        voices[id] = {
-          id,
-          ref: node.atts.id,
-          name: node.atts.name ?? id,
-          tags: cleanSplit(node.atts.tags, ","),
-        };
-      } else {
-        if (options.verbose) {
-          console.info(`Found <voice> ${node.atts.id}`);
-        }
-        voices[node.atts.id] = {
-          id: node.atts.id,
-          ref: node.atts.ref ?? node.atts.id,
-          name: node.atts.name ?? node.atts.id,
-          tags: cleanSplit(node.atts.tags, ","),
-        };
-      }
-    }
   } else if (dataArtifacts.pendingVoices.length > 0) {
-    console.warn("Skipping data voice prompts because voice compilation is disabled");
+    console.warn(
+      "Skipping data voice prompts because voice compilation is disabled"
+    );
   }
 
   // Strip compile-time tags from the tree after processing them
@@ -363,11 +309,10 @@ async function expandCreateNodes(
       if (verbose) {
         console.info(`Generating <create> content in ${source}`);
       }
-      const generated = await createWelltaleContent(
-        prompt,
-        context.provider,
-        context.options
-      );
+      const generated = await createWelltaleContent(prompt, context.provider, {
+        ...context.options,
+        useWebSearch: false,
+      });
       const fragment = parseXmlFragment(generated, collect);
       const kids = await expandCreateNodes(
         fragment.kids,
@@ -569,10 +514,6 @@ function toMacroDefinition(source: unknown): MacroDefinition | null {
 function toVoiceSpec(source: unknown, key: string): VoiceSpec | null {
   if (!isRecord(source)) {
     return null;
-  }
-  const parsed = StoryVoiceSchema.safeParse(source);
-  if (parsed.success) {
-    return parsed.data;
   }
   const id = toNonEmptyString(source["id"]);
   if (!id) {

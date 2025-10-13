@@ -74,8 +74,8 @@ async function go() {
   const mixedSession = createDefaultSession("mixed");
   const scopeFrame: TSessionStackObj = {
     returnAddress: "1",
-    writeableScope: {} as { [key: string]: unknown },
-    readableScope: {} as { [key: string]: unknown },
+    writeableScope: {},
+    readableScope: {},
     blockType: "scope" as const,
   };
   mixedSession.stack.push(scopeFrame);
@@ -92,8 +92,8 @@ async function go() {
   const yieldSession = createDefaultSession("yield");
   const yieldFrame: TSessionStackObj = {
     returnAddress: "3",
-    writeableScope: {} as { [key: string]: unknown },
-    readableScope: {} as { [key: string]: unknown },
+    writeableScope: {},
+    readableScope: {},
     blockType: "yield" as const,
   };
   yieldSession.stack.push(yieldFrame);

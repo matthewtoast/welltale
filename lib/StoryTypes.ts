@@ -1,4 +1,3 @@
-import z from "zod";
 import { NonEmpty, TSerial } from "../typings";
 import { PRNG } from "./RandHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
@@ -6,14 +5,12 @@ export { PLAYER_ID } from "./StoryConstants";
 
 export type StoryCartridge = Record<string, Buffer | string>;
 
-export const StoryVoiceSchema = z.object({
-  name: z.string(),
-  ref: z.string(),
-  id: z.string(),
-  tags: z.array(z.string()),
-});
-
-export type VoiceSpec = z.infer<typeof StoryVoiceSchema>;
+export type VoiceSpec = {
+  name: string;
+  ref: string;
+  id: string;
+  tags: string[];
+};
 
 export type NestedRecords = {
   [key: string]: string | NestedRecords;
@@ -37,68 +34,69 @@ export type StoryNode = {
   text: string; // its text value (can be empty string)
 };
 
-const StoryEventSchema = z.object({
-  time: z.number(),
-  from: z.string(),
-  to: z.array(z.string()),
-  obs: z.array(z.string()),
-  body: z.string(),
-  tags: z.array(z.string()),
-});
+export type StoryEvent = {
+  node: {
+    type: string;
+    addr: string;
+    atts: Record<string, TSerial>;
+  };
+  from: string;
+  to: string;
+  obs: string[];
+  body: string;
+  tags: string[];
+  time: number;
+};
 
-export const SessionStackObj = z.object({
-  returnAddress: z.string(),
-  writeableScope: z.record(z.any()).nullable(),
-  readableScope: z.record(z.any()).nullable(),
-  blockType: z.enum(["scope", "yield", "intro", "resume", "outro"]).optional(),
-});
+export type TSessionStackObj = {
+  returnAddress: string;
+  writeableScope: Record<string, TSerial> | null;
+  readableScope: Record<string, TSerial> | null;
+  blockType?: "scope" | "yield" | "intro" | "resume" | "outro";
+};
 
-export const StoryCheckpointSchema = z.object({
-  addr: z.string().nullable(),
-  turn: z.number(),
-  cycle: z.number(),
-  time: z.number(),
-  state: z.record(z.any()),
-  meta: z.record(z.any()),
-  outroed: z.boolean().optional(),
-  stack: z.array(SessionStackObj),
-  events: z.array(StoryEventSchema),
-});
+export type StoryCheckpoint = {
+  addr: string | null;
+  turn: number;
+  cycle: number;
+  time: number;
+  state: Record<string, TSerial>;
+  meta: Record<string, TSerial>;
+  outroed?: boolean;
+  stack: TSessionStackObj[];
+  events: StoryEvent[];
+};
 
-export const DDVStateSchema = z.object({
-  cycles: z.record(z.number()),
-  bags: z.record(z.object({ order: z.array(z.number()), idx: z.number() })),
-});
+export type DDVState = {
+  cycles: Record<string, number>;
+  bags: Record<string, { order: number[]; idx: number }>;
+};
 
-export type TSessionStackObj = z.infer<typeof SessionStackObj>;
-
-export const StorySessionSchema = z.object({
-  id: z.string(),
-  time: z.number(),
-  turn: z.number(),
-  cycle: z.number(),
-  loops: z.number(),
-  resume: z.boolean(),
-  address: z.string().nullable(),
-  input: z.union([
-    z.object({
-      body: z.string().nullable(),
-      atts: z.record(z.any()),
-    }),
-    z.null(),
-  ]),
-  outroed: z.boolean().default(false),
-  stack: z.array(SessionStackObj),
-  state: z.record(z.any()),
-  checkpoints: z.array(StoryCheckpointSchema),
-  meta: z.record(z.any()),
-  cache: z.record(z.any()),
-  flowTarget: z.string().nullable().optional(),
-  genie: z.record(z.union([z.instanceof(Buffer), z.string()])).optional(),
-  ddv: DDVStateSchema,
-});
-
-export type DDVState = z.infer<typeof DDVStateSchema>;
+export type StorySession = {
+  id: string;
+  time: number;
+  turn: number;
+  cycle: number;
+  loops: number;
+  resume: boolean;
+  address: string | null;
+  input: {
+    body: string | null;
+    atts: Record<string, any>;
+  } | null;
+  player: {
+    id: string;
+  };
+  outroed: boolean;
+  stack: TSessionStackObj[];
+  state: Record<string, any>;
+  checkpoints: StoryCheckpoint[];
+  meta: Record<string, any>;
+  cache: Record<string, any>;
+  flowTarget?: string | null;
+  genie?: Record<string, Buffer | string>;
+  ddv: DDVState;
+};
 
 export const LLM_SLUGS = [
   "openai/gpt-5",
@@ -113,7 +111,35 @@ export const LLM_SLUGS = [
   "deepseek/deepseek-v3.1",
   "mistralai/mistral-large",
   "meta-llama/llama-3.1-70b-instruct",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
 ] as const;
+
+export const LLM_MODEL_TAGS = ["mini", "uncensored"] as const;
+
+export const LLM_SLUGS_TAGGED: Record<
+  (typeof LLM_SLUGS)[number],
+  (typeof LLM_MODEL_TAGS)[number][]
+> = {
+  "openai/gpt-5": [],
+  "openai/gpt-5-mini": ["mini"],
+  "openai/gpt-5-nano": ["mini"],
+  "openai/gpt-4.1": [],
+  "openai/gpt-4.1-mini": ["mini"],
+  "openai/gpt-4.1-nano": ["mini"],
+  "openai/gpt-4o": [],
+  "anthropic/claude-3.5-sonnet": [],
+  "deepseek/deepseek-r1": [],
+  "deepseek/deepseek-v3.1": [],
+  "mistralai/mistral-large": [],
+  "meta-llama/llama-3.1-70b-instruct": [],
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": [
+    "uncensored",
+  ],
+  "meta-llama/llama-3.3-70b-instruct:free": ["uncensored"],
+  "meta-llama/llama-3.2-3b-instruct:free": ["uncensored"],
+};
 
 export const DEFAULT_LLM_SLUGS: NonEmpty<(typeof LLM_SLUGS)[number]> = [
   "openai/gpt-5-mini",
@@ -122,7 +148,7 @@ export const DEFAULT_LLM_SLUGS: NonEmpty<(typeof LLM_SLUGS)[number]> = [
   "openai/gpt-4.1-nano",
 ];
 
-export const LLMSlugSchema = z.enum(LLM_SLUGS);
+export type LLMSlug = (typeof LLM_SLUGS)[number];
 
 export const IMAGE_MODEL_SLUGS = [
   "google/gemini-2.5-flash-image-preview",
@@ -146,28 +172,17 @@ export const IMAGE_ASPECT_RATIOS = [
 export type ImageModelSlug = (typeof IMAGE_MODEL_SLUGS)[number];
 export type ImageAspectRatio = (typeof IMAGE_ASPECT_RATIOS)[number];
 
-export const ImageModelSlugSchema = z.enum(IMAGE_MODEL_SLUGS);
-export const ImageAspectRatioSchema = z.enum(IMAGE_ASPECT_RATIOS);
-
-export const StoryOptionsSchema = z.object({
-  verbose: z.boolean(),
-  seed: z.string(),
-  loop: z.number(),
-  ream: z.number(),
-  doGenerateAudio: z.boolean(),
-  doGenerateImage: z.boolean(),
-  maxCheckpoints: z.number().default(20),
-  inputRetryMax: z.number().default(3),
-  models: z
-    .tuple([LLMSlugSchema, LLMSlugSchema])
-    .rest(LLMSlugSchema)
-    .transform((val) => val as NonEmpty<(typeof LLM_SLUGS)[number]>),
-});
-
-export type StoryEvent = z.infer<typeof StoryEventSchema>;
-export type StoryCheckpoint = z.infer<typeof StoryCheckpointSchema>;
-export type StorySession = z.infer<typeof StorySessionSchema>;
-export type StoryOptions = z.infer<typeof StoryOptionsSchema>;
+export type StoryOptions = {
+  verbose: boolean;
+  seed: string;
+  loop: number;
+  ream: number;
+  doGenerateAudio: boolean;
+  doGenerateImage: boolean;
+  maxCheckpoints: number;
+  inputRetryMax: number;
+  models: NonEmpty<LLMSlug>;
+};
 
 export type StoryBaseMeta = {
   title: string;
@@ -199,6 +214,9 @@ export function createDefaultSession(
 ): StorySession {
   return {
     id,
+    player: {
+      id,
+    },
     time: Date.now(),
     turn: 0,
     cycle: 0,
@@ -262,7 +280,6 @@ export interface ActionContext extends BaseActionContext {
   origin: StoryNode;
   node: StoryNode;
   source: StorySource;
-  events: StoryEvent[];
 }
 
 export interface ActionResult {

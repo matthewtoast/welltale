@@ -1,6 +1,6 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { OpenAI } from "openai";
-import { NonEmpty, TSerial } from "../typings";
+import { TSerial } from "../typings";
 import { Cache } from "./Cache";
 import {
   autoFindVoice,
@@ -22,7 +22,6 @@ import type {
   BaseGenerateOptions,
   GenerateImageOptions,
   GenerateTextCompletionOptions,
-  Model,
   SpeechSpec,
   StoryServiceProvider,
 } from "./StoryServiceProvider";
@@ -293,7 +292,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
 
   async generateChat(
     messages: AIChatMessage[],
-    options: BaseGenerateOptions
+    options: GenerateTextCompletionOptions
   ): Promise<AIChatMessage> {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = JSON.stringify(messages);
@@ -307,10 +306,11 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
         return JSON.parse(cached.toString());
       }
     }
-    const response = await generateChatResponse(this.config.openai, messages, [
-      "openai/gpt-5-mini",
-      "openai/gpt-4.1-mini",
-    ] as NonEmpty<Model>);
+    const response = await generateChatResponse(
+      this.config.openai,
+      messages,
+      options.models
+    );
     const responseMessage: AIChatMessage = {
       role: "assistant",
       body: response,

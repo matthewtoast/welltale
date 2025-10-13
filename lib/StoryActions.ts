@@ -11,11 +11,11 @@ import { isValidUrl, toHttpMethod } from "./HTTPHelpers";
 import { parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { parseNumberOrNull } from "./MathHelpers";
-import { AIChatMessage } from "./OpenRouterUtils";
 import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import {
   DESCENDABLE_TAGS,
   HOST_ID,
+  INPUT_TAGS,
   normalizeModels,
   PLAYER_ID,
   publicAtts,
@@ -47,6 +47,10 @@ import { cleanSplit, isBlank, snorm } from "./TextHelpers";
 
 function tagOutKey(atts: Record<string, TSerial>, fallback: string = "_") {
   return (atts.key ?? fallback).toString();
+}
+
+function getDialogId(atts: Record<string, TSerial>) {
+  return atts.dialog ?? atts.id;
 }
 
 export const ACTION_HANDLERS: ActionHandler[] = [
@@ -567,117 +571,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    tags: ["llm:dialog"],
-    docs: {
-      desc: dedent`
-        Generates AI character responses in an ongoing conversation. This tag maintains conversation
-        history between the specified characters, automatically injecting past messages to the given NPC
-        to provide context. The AI responds as the specified character based on the system prompt and
-        conversation history.
-
-        The most recent output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
-
-        Note: It is up to the author to set up the correct loop structure to call this tag repeatedly.
-      `,
-      ex: [
-        {
-          code: dedent`
-            <while cond="true">
-              <input key="userInput" />
-              <llm:dialog
-                from="Detective"
-                key="response"
-              >
-                You are Detective Sarah Chen, a seasoned investigator with 20 years experience.
-                You're interviewing a witness about a robbery.
-                Ask questions to get more info about the robbery.
-                Be skeptical of the person's responses.
-              </llm:dialog>
-              <p from="Detective" voice="Sarah">{{response}}</p>
-            </while>
-          `,
-        },
-      ],
-      cats: ["ai"],
-    },
-    syntax: {
-      block: true,
-      atts: {
-        key: {
-          type: "string",
-          desc: "Variable name to store the generated response (default: 'dialog')",
-          req: false,
-          default: "dialog",
-        },
-        from: {
-          type: "string",
-          desc: "Character ID who is speaking (aliases: npc, ai, assistant, with)",
-          req: false,
-          default: "HOST",
-        },
-        user: {
-          type: "string",
-          desc: "Character ID of the conversation partner (alias: player)",
-          req: false,
-          default: "PLAYER",
-        },
-        message: {
-          type: "string",
-          desc: "The latest message in the conversation (alias: input)",
-          req: false,
-        },
-        models: {
-          type: "string",
-          desc: "Comma-separated list of model slugs to use",
-          req: false,
-        },
-        seed: {
-          type: "string",
-          desc: "Seed for deterministic generation (provider-specific usage)",
-          req: false,
-        },
-      },
-    },
-    exec: async (ctx) => {
-      const ops: OP[] = [];
-      const next = nextNode(ctx.node, ctx.source.root, false);
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const assistant =
-        atts.npc ??
-        atts.ai ??
-        atts.assistant ??
-        atts.from ??
-        atts.with ??
-        HOST_ID;
-      const user = atts.user ?? atts.player ?? PLAYER_ID;
-      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
-      // Checkpoints *should* be in sequential order from oldest to newest
-      const events = ctx.session.checkpoints.flatMap((cp) =>
-        cp.events.filter((ev) => {
-          return (
-            (ev.from === assistant && ev.to.includes(user)) ||
-            (ev.from === user && ev.to.includes(assistant))
-          );
-        })
-      );
-      const messages: AIChatMessage[] = [
-        { role: "system", body: prompt },
-        ...events.map((ev) => {
-          if (ev.from === assistant) {
-            return { role: "assistant" as const, body: ev.body };
-          }
-          return { role: "user" as const, body: ev.body };
-        }),
-      ];
-      const seed = atts.seed;
-      const response = await ctx.provider.generateChat(messages.slice(-20), {
-        seed,
-      });
-      setState(ctx.scope, tagOutKey(atts), snorm(response.body));
-      return { ops, next };
-    },
-  },
-  {
     tags: ["var"],
     docs: {
       desc: dedent`
@@ -691,7 +584,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             <var name="playerName" value="Alex" />
             <var name="health" value="100" type="number" />
             <var name="isAlive" value="true" type="boolean" />
-            
+             
             <!-- Using the inner content as value -->
             <var name="story">
               Once upon a time, in a land far away...
@@ -946,8 +839,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       // Auto-checkpoint on entering a section
       if (ctx.node.type === "sec") {
-        makeCheckpoint(ctx.session, ctx.options, ctx.events);
-        ctx.events.length = 0;
+        makeCheckpoint(ctx, []);
       }
       const next = nextNode(ctx.node, ctx.source.root, true);
       return {
@@ -964,9 +856,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
 
         This content is rendered into audio clips automatically by Welltale using text-to-speech, and then played on the story client to the player.
 
-        The \`from\` attribute can be used to indicate the person speaking. If none given, \`"HOST"\` is used.
+        The \`name\` attribute can be used to indicate the person speaking. If none given, \`"HOST"\` is used.
 
-        The \`voice\` attribute can assign a specific text-to-speech voice to the speech. If none is given, the default voice (the one used for \"HOST\") is used. See the \`<voice>\` tag on how to create voices.
+        The \`voice\` attribute can assign a specific text-to-speech voice to the speech. If none is given, the default voice (the one used for \"HOST\") is used. Voices are defined in data files (data.yml or data.json) in your story directory.
 
         Warning: The only tag you can place inside of a text content element is \`<when>\`. See the docs on \`<when>\` for adding expressive conditional logic to your text elements.
       `,
@@ -984,9 +876,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     syntax: {
       block: true,
       atts: {
-        from: {
+        name: {
           type: "string",
-          desc: "Speaker/character ID (aliases: speaker, label)",
+          desc: "Speaker/character name",
           req: false,
           default: "HOST",
         },
@@ -1056,9 +948,14 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         };
       }
       const event: StoryEvent = {
+        node: {
+          type: ctx.node.type,
+          addr: ctx.node.addr,
+          atts,
+        },
         body: snorm(text),
-        from: atts.from ?? atts.speaker ?? atts.label ?? atts.voice ?? HOST_ID,
-        to: atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID],
+        from: atts.from ?? atts.voice ?? HOST_ID,
+        to: atts.to ?? PLAYER_ID,
         obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
         tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
         time: Date.now(),
@@ -1087,7 +984,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         fadeDurationMs: parseNumberOrNull(atts.fadeDuration),
         background: castToBoolean(atts.background),
       });
-      recordEvent(ctx.events, event);
+      recordEvent(ctx, event);
       return {
         ops,
         next,
@@ -1123,8 +1020,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {},
     },
     exec: async (ctx) => {
-      makeCheckpoint(ctx.session, ctx.options, ctx.events);
-      ctx.events.length = 0;
+      makeCheckpoint(ctx, []);
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
@@ -1723,7 +1619,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           code: dedent`
             <read 
               src="https://example.com/ancient-scroll.html"
-              from="Scholar"
+              name="Scholar"
               voice="Elderly"
               volume="0.8"
             />
@@ -1816,7 +1712,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
       }
       const from = atts.from ?? atts.speaker ?? atts.label ?? HOST_ID;
-      const to = atts.to ? cleanSplit(atts.to, ",") : [PLAYER_ID];
+      const to = atts.to ?? PLAYER_ID;
       const obs = atts.obs ? cleanSplit(atts.obs, ",") : [];
       const tags = atts.tags ? cleanSplit(atts.tags, ",") : [];
       const volume = parseNumberOrNull(atts.volume);
@@ -1830,6 +1726,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           continue;
         }
         const event: StoryEvent = {
+          node: {
+            type: ctx.node.type,
+            addr: ctx.node.addr,
+            atts,
+          },
           body,
           from,
           to,
@@ -1859,7 +1760,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           fadeDurationMs: fadeDuration,
           background,
         });
-        recordEvent(ctx.events, event);
+        recordEvent(ctx, event);
       }
       if (ops.length === 0) {
         console.warn("inject generated no events");
@@ -2129,7 +2030,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    tags: ["input", "textarea"],
+    tags: INPUT_TAGS,
     docs: {
       desc: dedent`
         Pauses story execution to get input from the user.
@@ -2207,29 +2108,33 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const atts = await renderAtts(ctx.node.atts, ctx);
 
       if (!ctx.session.input) {
-        makeCheckpoint(ctx.session, ctx.options, ctx.events);
-        ctx.events.length = 0;
+        makeCheckpoint(ctx, []);
       }
 
       if (ctx.session.input && ctx.session.input.body !== null) {
-        // We return to the same node when input was collected; here we can grab any attributes
-        const { body, atts } = ctx.session.input;
+        // We return to the same node when input was collected
+        const { body } = ctx.session.input;
         const raw = snorm(body);
 
-        recordEvent(ctx.events, {
+        const from = atts.from ?? PLAYER_ID;
+        const to = atts.to ?? HOST_ID;
+
+        const iev = recordEvent(ctx, {
+          node: {
+            type: ctx.node.type,
+            addr: ctx.node.addr,
+            atts,
+          },
           body: raw,
-          from: atts.from ?? PLAYER_ID,
-          to: cleanSplit(atts.to, ","),
+          from,
+          to,
           obs: cleanSplit(atts.obs, ","),
           tags: cleanSplit(atts.tags, ","),
           time: Date.now(),
         });
+        iev.tags.push("input");
 
         const extracted: Record<string, TSerial> = {};
-
-        if (ctx.options.verbose) {
-          console.info("<input>", raw);
-        }
 
         const parsed = safeJsonParse(raw);
         if (parsed && typeof parsed === "object") {
@@ -2242,6 +2147,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.scope["input"] = raw;
         ctx.session.state["input"] = raw;
         const tkey = tagOutKey(atts);
+        ctx.scope[tkey] = raw;
+
+        if (ctx.options.verbose) {
+          console.info("<input>", raw, tkey, extracted);
+        }
 
         for (const key in extracted) {
           const subkey = `${tkey}.${key}`;
@@ -2387,122 +2297,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           desc: "Value type for casting: string, number, boolean",
           req: false,
           default: "string",
-        },
-      },
-    },
-    exec: async (ctx) => {
-      // This is a compile-time tag - should not be executed at runtime
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
-      };
-    },
-  },
-  {
-    tags: ["voice"],
-    docs: {
-      desc: dedent`
-        Defines voice specifications during compilation.
-
-        Voices can be referenced via their id using the \`voice\` attribute on output tags.
-
-        Note: \`<voice>\` tags are processed at compile time and cannot refer to story state.
-      `,
-      ex: [
-        {
-          code: dedent`
-            <voice 
-              id="guard" 
-              name="Prison Guard"
-              description="deep, gruff British voice of a harsh "
-            />
-
-            <!-- Usage in story elements -->
-            <p from="Guard" voice="narrator">The gates are locked.</p>
-          `,
-        },
-      ],
-      cats: ["compile_time"],
-    },
-    syntax: {
-      block: true,
-      atts: {
-        id: {
-          type: "string",
-          desc: "Unique voice identifier for referencing in story elements",
-          req: true,
-        },
-        name: {
-          type: "string",
-          desc: "Human-readable name for the voice (defaults to id)",
-          req: false,
-        },
-        description: {
-          type: "string",
-          desc: "Voice description for AI generation (aliases: prompt)",
-          req: false,
-        },
-        prompt: {
-          type: "string",
-          desc: "Alternative to description for voice generation",
-          req: false,
-        },
-        ref: {
-          type: "string",
-          desc: "Reference to another voice ID (defaults to id)",
-          req: false,
-        },
-        tags: {
-          type: "string",
-          desc: "Comma-separated tags for voice categorization",
-          req: false,
-        },
-      },
-    },
-    exec: async (ctx) => {
-      // This is a compile-time tag - should not be executed at runtime
-      return {
-        ops: [],
-        next: nextNode(ctx.node, ctx.source.root, false),
-      };
-    },
-  },
-  {
-    tags: ["pronunciation"],
-    docs: {
-      desc: dedent`
-        Defines custom pronunciations mappings that the story engine automatically applies during
-        text-to-speech generation to ensure proper pronunciation of names,
-        technical terms, or words in fictional languages.
-      `,
-      ex: [
-        {
-          code: dedent`
-            <!-- Character and place name pronunciations -->
-            <pronunciation word="Trost" pronunciation="Troast" />
-            <pronunciation word="Aelindra" pronunciation="AY-lin-drah" />
-            <pronunciation word="Kael'thas" pronunciation="KYLE-thass" />
-
-            <p>
-              The name Trost, Aelindra, and Kael'thas will be pronounced correctly per the above.
-            </p>
-          `,
-        },
-      ],
-      cats: ["compile_time"],
-    },
-    syntax: {
-      block: false,
-      atts: {
-        word: {
-          type: "string",
-          desc: "The word to define pronunciation for",
-          req: true,
-        },
-        pronunciation: {
-          type: "string",
-          desc: "Phonetic pronunciation",
-          req: true,
         },
       },
     },

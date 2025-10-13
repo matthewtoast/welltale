@@ -1,12 +1,6 @@
 <!-- This is an example interactive audio story written in Welltale Story Language (WSL). -->
 
-<!-- Using the <voice> tag, you can generate custom voices, referencable with the `id` attribute. -->
-<voice id="narrator">
-  British storybook narrator, classic deep voice, expressive
-</voice>
-
-<!-- For unusual words, you can provide a pronunciation mapping to the speech engine. -->
-<pronunciation word="Eldoria" pronunciation="el-DOH-reeah" />
+<!-- Voices and pronunciations are defined in data files (data.yml or data.json) in your story directory. -->
 
 <!-- The <intro> tag plays content only once: when the player first begins a story. -->
 <intro>

@@ -1,4 +1,5 @@
 import { isEmpty } from "lodash";
+import sift, { Query } from "sift";
 import { TSerial } from "../typings";
 import { buildDefaultFuncs } from "./EvalMethods";
 import { createRunner, evaluateScript } from "./QuickJSUtils";
@@ -17,12 +18,12 @@ import {
   OP,
   SeamType,
   StoryAdvanceResult,
-  StoryEvent,
   StoryNode,
   StoryOptions,
   StorySession,
   StorySource,
 } from "./StoryTypes";
+
 const OUTRO_RETURN_ADDR = "__outro:return__";
 
 let calls = 0;
@@ -34,7 +35,6 @@ export async function advanceStory(
   options: StoryOptions
 ): Promise<StoryAdvanceResult> {
   const out: OP[] = [];
-  const evs: StoryEvent[] = [];
 
   const rng = new PRNG(options.seed, session.cycle % 10_000);
   session.time = Date.now();
@@ -50,7 +50,18 @@ export async function advanceStory(
   const outro =
     findNodes(source.root, (node) => node.type === "outro")[0] ?? null;
 
-  const funcs = buildDefaultFuncs({}, rng);
+  const funcs = buildDefaultFuncs(
+    {
+      events: (query: Query<any>) => {
+        const sifter = sift(query);
+        const events = session.checkpoints.flatMap((cp) =>
+          cp.events.filter(sifter)
+        );
+        return events;
+      },
+    },
+    rng
+  );
   const storyRunner = await createRunner();
   const evaluator: EvaluatorFunc = async (expr, scope) => {
     return await evaluateScript(expr, scope, funcs, storyRunner);
@@ -110,10 +121,7 @@ export async function advanceStory(
     addr: string | null,
     info: Record<string, string>
   ) {
-    if (evs.length > 0) {
-      makeCheckpoint(session, options, evs);
-      evs.length = 0;
-    }
+    makeCheckpoint({ session, options }, []);
     session.cycle = rng.cycle;
     return { ops: out, session, seam, addr, info };
   }
@@ -164,7 +172,6 @@ export async function advanceStory(
       // We need to get a new scope on every node since it may have introduced new scope
       scope: createScope(session, source.meta),
       evaluator,
-      events: evs,
     };
 
     const handler = ACTION_HANDLERS.find(
@@ -357,7 +364,6 @@ export async function execNodes(
   origin: StoryNode
 ): Promise<void> {
   const prevAddress = session.address;
-  const events: StoryEvent[] = [];
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     const handler = ACTION_HANDLERS.find(
@@ -376,7 +382,6 @@ export async function execNodes(
       provider,
       scope: createScope(session, source.meta),
       evaluator,
-      events,
     };
     await handler.exec(ctx);
   }

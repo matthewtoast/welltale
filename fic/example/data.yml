@@ -10,6 +10,7 @@ description: This is an example Welltale story in a fantasy setting that shows h
 # Pronunciation mappings for the speech engine - for any less common words or fantastical terms
 pronunciations:
   Trost: Troast
+  Eldoria: el-DOH-reeah
 
 # Game data - you can define any custom data your story needs and reference it
 # in template patterns like {{player.gold}} or scripts like <code>shop.potion * 3</code>
@@ -49,6 +50,8 @@ macros:
 
 # Voices can be defined in data files or directly in story files using <voice> tags
 voices:
+  narrator:
+    prompt: British storybook narrator, classic deep voice, expressive
   merchant:
     prompt: Jovial merchant in a fantasy setting, slight Eastern European accent, persuasive
   rhymer:
