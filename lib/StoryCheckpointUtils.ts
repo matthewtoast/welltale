@@ -76,7 +76,7 @@ export function revertSession(
   session.stack = clone(cp.stack);
   session.outroed = cp.outroed ?? false;
   session.input = null;
-  session.flowTarget = null;
+  session.target = null;
   session.checkpoints.splice(idx + 1);
   return session;
 }

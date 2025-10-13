@@ -56,7 +56,7 @@ class StoryEngine: ObservableObject {
             checkpoints: [],
             meta: [:],
             cache: [:],
-            flowTarget: nil,
+            target: nil,
             genie: nil
         )
     }
@@ -119,7 +119,7 @@ class StoryEngine: ObservableObject {
             checkpoints: session.checkpoints,
             meta: session.meta,
             cache: session.cache,
-            flowTarget: session.flowTarget,
+            target: session.target,
             genie: session.genie
         )
     }

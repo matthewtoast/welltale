@@ -23,7 +23,7 @@ struct StorySession: Codable {
     let checkpoints: [StoryCheckpoint]
     let meta: [String: AnyCodable]
     let cache: [String: AnyCodable]
-    let flowTarget: String?
+    let target: String?
     let genie: [String: String]?
 }
 

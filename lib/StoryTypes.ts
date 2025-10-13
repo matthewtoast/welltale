@@ -93,7 +93,7 @@ export type StorySession = {
   checkpoints: StoryCheckpoint[];
   meta: Record<string, any>;
   cache: Record<string, any>;
-  flowTarget?: string | null;
+  target?: string | null;
   genie?: Record<string, Buffer | string>;
   ddv: DDVState;
 };
@@ -228,7 +228,7 @@ export function createDefaultSession(
     state,
     meta,
     cache: {},
-    flowTarget: null,
+    target: null,
     checkpoints: [],
     outroed: false,
     ddv: {

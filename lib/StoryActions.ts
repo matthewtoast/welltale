@@ -1162,7 +1162,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const count = countStackContainersBetween(ctx.node, w, ctx.source.root);
       const toPop = Math.min(count, ctx.session.stack.length);
       for (let i = 0; i < toPop; i++) ctx.session.stack.pop();
-      ctx.session.flowTarget = w.addr;
+      ctx.session.target = w.addr;
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },
@@ -1184,7 +1184,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const count = countStackContainersBetween(ctx.node, w, ctx.source.root);
       const toPop = Math.min(count, ctx.session.stack.length);
       for (let i = 0; i < toPop; i++) ctx.session.stack.pop();
-      ctx.session.flowTarget = after.node.addr;
+      ctx.session.target = after.node.addr;
       return { ops: [], next: nextNode(ctx.node, ctx.source.root, false) };
     },
   },

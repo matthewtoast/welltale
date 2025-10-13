@@ -194,9 +194,9 @@ export async function advanceStory(
     }
 
     if (result.next) {
-      if (session.flowTarget) {
-        session.address = session.flowTarget;
-        session.flowTarget = null;
+      if (session.target) {
+        session.address = session.target;
+        session.target = null;
         continue;
       }
       // Check if we're currently in a yielded block and the next node escapes it
