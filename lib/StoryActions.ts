@@ -11,19 +11,18 @@ import { isValidUrl, toHttpMethod } from "./HTTPHelpers";
 import { parseFieldGroupsNested } from "./InputHelpers";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import { parseNumberOrNull } from "./MathHelpers";
-import { collectMacros } from "./StoryMacro";
 import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import {
   DESCENDABLE_TAGS,
   HOST_ID,
   INPUT_TAGS,
   normalizeModels,
-  PLAYER_ID,
   publicAtts,
   setState,
   TEXT_CONTENT_TAGS,
   userVoicesAndPresetVoices,
 } from "./StoryConstants";
+import { collectMacros } from "./StoryMacro";
 
 import { extractInput } from "./StoryInput";
 import {
@@ -38,7 +37,7 @@ import {
   updateChildAddresses,
 } from "./StoryNodeHelpers";
 import { renderAtts, renderText } from "./StoryRenderMethods";
-import { processIncludeRuntime, applyRuntimeMacros } from "./StoryRuntimeUtils";
+import { applyRuntimeMacros, processIncludeRuntime } from "./StoryRuntimeUtils";
 import {
   ActionHandler,
   ImageAspectRatio,
@@ -959,7 +958,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         },
         body: snorm(text),
         from: atts.from ?? atts.voice ?? HOST_ID,
-        to: atts.to ?? PLAYER_ID,
+        to: atts.to ?? ctx.session.player.id,
         obs: atts.obs ? cleanSplit(atts.obs, ",") : [],
         tags: atts.tags ? cleanSplit(atts.tags, ",") : [],
         time: Date.now(),
@@ -1716,7 +1715,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
       const from = atts.from ?? atts.speaker ?? atts.label ?? HOST_ID;
-      const to = atts.to ?? PLAYER_ID;
+      const to = atts.to ?? ctx.session.player.id;
       const obs = atts.obs ? cleanSplit(atts.obs, ",") : [];
       const tags = atts.tags ? cleanSplit(atts.tags, ",") : [];
       const volume = parseNumberOrNull(atts.volume);
@@ -2120,7 +2119,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const { body } = ctx.session.input;
         const raw = snorm(body);
 
-        const from = atts.from ?? PLAYER_ID;
+        const from = atts.from ?? ctx.session.player.id;
         const to = atts.to ?? HOST_ID;
 
         const iev = recordEvent(ctx, {
@@ -2303,25 +2302,27 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       // Runtime macro processing - extract macro definition and apply it throughout the tree
       try {
         const { macros } = collectMacros([ctx.node], "macro");
-        
+
         if (macros.length > 0) {
           applyRuntimeMacros(ctx.session.root, macros);
         }
       } catch (error) {
         console.warn("Failed to process macro at runtime:", error);
       }
-      
+
       // Remove this macro node from the tree after processing
       const parent = parentNodeOf(ctx.node, ctx.session.root);
       let nextNodeResult = nextNode(ctx.node, ctx.session.root, false);
-      
+
       if (parent) {
-        const childIndex = parent.kids.findIndex(k => k.addr === ctx.node.addr);
+        const childIndex = parent.kids.findIndex(
+          (k) => k.addr === ctx.node.addr
+        );
         if (childIndex >= 0) {
           parent.kids.splice(childIndex, 1);
           // Update addresses for remaining children
           updateChildAddresses(parent);
-          
+
           // Recalculate next node after removal
           // If there's a child at the same index, use it; otherwise continue normally
           if (childIndex < parent.kids.length) {
@@ -2332,7 +2333,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           }
         }
       }
-      
+
       // Skip to next node after processing macro
       return {
         ops: [],
@@ -2384,26 +2385,29 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       // Runtime include processing - replace this node with included content
       const replacements = processIncludeRuntime(ctx.node, ctx.session.root);
-      
+
       if (replacements.length > 0) {
         // Find parent and replace this include node with the included content
         const parent = parentNodeOf(ctx.node, ctx.session.root);
         if (parent) {
-          const childIndex = parent.kids.findIndex(k => k.addr === ctx.node.addr);
+          const childIndex = parent.kids.findIndex(
+            (k) => k.addr === ctx.node.addr
+          );
           if (childIndex >= 0) {
             // Replace the include node with the replacement nodes
             parent.kids.splice(childIndex, 1, ...replacements);
             // Update addresses for the new nodes
             updateChildAddresses(parent);
             // Move to the first replacement node if any, otherwise next sibling
-            const next = replacements.length > 0 
-              ? { node: replacements[0] }
-              : nextNode(ctx.node, ctx.session.root, false);
+            const next =
+              replacements.length > 0
+                ? { node: replacements[0] }
+                : nextNode(ctx.node, ctx.session.root, false);
             return { ops: [], next };
           }
         }
       }
-      
+
       // If no replacements or parent not found, skip to next node
       return {
         ops: [],

@@ -4,6 +4,7 @@ import {
   SandboxFunction,
   SandboxOptions,
 } from "@sebastianwessel/quickjs";
+import { parseScript } from "meriyah";
 import { TSerial } from "../typings";
 import { ExprEvalFunc } from "./EvalCasting";
 import { NestedRecords } from "./StoryTypes";
@@ -23,6 +24,17 @@ export async function createRunner() {
 
 const stmtLike =
   /^(return|export|import|function|class|if|for|while|do|switch|try|catch|finally|var|let|const)\b/;
+
+function isExpression(source: string) {
+  if (!source.trim()) return false;
+  try {
+    const ast = parseScript(source, { module: true, next: true, webcompat: true });
+    if (ast.body.length !== 1) return false;
+    return ast.body[0].type === "ExpressionStatement";
+  } catch {
+    return false;
+  }
+}
 
 export type EvalOptions = {
   allowFs: boolean;
@@ -84,7 +96,8 @@ export const evaluateScript = async (
     /^\w+\s*=/.test(bodyRaw) ||
     /^\(.*\)\s*=>/.test(bodyRaw);
 
-  const body = isSingleLine && !looksLikeStmt ? `return (${bodyRaw})` : bodyRaw;
+  const shouldReturn = isExpression(bodyRaw) || (isSingleLine && !looksLikeStmt);
+  const body = shouldReturn ? `return (${bodyRaw})` : bodyRaw;
 
   const code = `${imports}\n;export default (async()=>{${prelude};${body}})()`;
 

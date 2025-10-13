@@ -56,7 +56,7 @@ export async function advanceStory(
     );
     return events;
   }
-  function fnDialog(query: Query<any>) {
+  function fnConvo(query: Query<any>) {
     const events = fnEvents(query);
     return events.map(({ from, body }) => {
       return `${from}: ${body}`;
@@ -66,7 +66,7 @@ export async function advanceStory(
   const funcs = buildDefaultFuncs(
     {
       events: fnEvents,
-      dialog: fnDialog,
+      dialog: fnConvo,
     },
     rng
   );
