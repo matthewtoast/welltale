@@ -49,15 +49,24 @@ export async function advanceStory(
   const outro =
     findNodes(session.root, (node) => node.type === "outro")[0] ?? null;
 
+  function fnEvents(query: Query<any>) {
+    const sifter = sift(query);
+    const events = session.checkpoints.flatMap((cp) =>
+      cp.events.filter(sifter)
+    );
+    return events;
+  }
+  function fnDialog(query: Query<any>) {
+    const events = fnEvents(query);
+    return events.map(({ from, body }) => {
+      return `${from}: ${body}`;
+    });
+  }
+
   const funcs = buildDefaultFuncs(
     {
-      events: (query: Query<any>) => {
-        const sifter = sift(query);
-        const events = session.checkpoints.flatMap((cp) =>
-          cp.events.filter(sifter)
-        );
-        return events;
-      },
+      events: fnEvents,
+      dialog: fnDialog,
     },
     rng
   );

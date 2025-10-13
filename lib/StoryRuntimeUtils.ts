@@ -1,6 +1,6 @@
-import { cloneNode, findNodes, BaseNode } from "./StoryNodeHelpers";
+import { cloneNode, findNodes, BaseNode, updateChildAddresses } from "./StoryNodeHelpers";
 import { StoryNode } from "./StoryTypes";
-import { applyMacros, MacroDefinition } from "./StoryMacro";
+import { MacroDefinition } from "./StoryMacro";
 import { isBlank } from "./TextHelpers";
 
 export function processIncludeRuntime(
@@ -26,8 +26,7 @@ export function processIncludeRuntime(
     (node) =>
       node.atts.id === targetId &&
       node.type !== "include" &&
-      !node.type.startsWith("#") &&
-      node.kids.length > 0
+      !node.type.startsWith("#")
   );
 
   if (moduleables.length === 0) {
@@ -65,52 +64,126 @@ function processIncludesInNode(
   }
 }
 
-export function applyMacroRuntimeToNode(
-  node: StoryNode,
+export function applyRuntimeMacros(
+  root: StoryNode,
   macros: MacroDefinition[]
 ): void {
   if (macros.length === 0) return;
+  let current = root.kids;
+  for (let i = 0; i < macros.length; i++) {
+    current = applyMacroList(current, macros[i]);
+    root.kids = current;
+  }
+  updateChildAddresses(root);
+}
 
-  // Convert StoryNode to BaseNode for macro processing
-  const baseNode = {
+function applyMacroList(nodes: StoryNode[], macro: MacroDefinition): StoryNode[] {
+  const out: StoryNode[] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    out.push(...transformNodeForMacro(nodes[i], macro));
+  }
+  return out;
+}
+
+function transformNodeForMacro(
+  node: StoryNode,
+  macro: MacroDefinition
+): StoryNode[] {
+  if (node.type !== "#text") {
+    node.kids = applyMacroList(node.kids, macro);
+  }
+  if (!matchesSelectors(node, macro.selectors)) {
+    return [node];
+  }
+  return executeOperations(node, macro.operations);
+}
+
+function matchesSelectors(
+  node: StoryNode,
+  selectors: MacroDefinition["selectors"]
+): boolean {
+  if (!selectors.length) return false;
+  for (let i = 0; i < selectors.length; i++) {
+    const selector = selectors[i];
+    if (matchesSelector(node, selector)) return true;
+  }
+  return false;
+}
+
+function matchesSelector(node: StoryNode, selector: MacroDefinition["selectors"][number]): boolean {
+  if (node.type === "#text") return false;
+  if (selector.tag && node.type !== selector.tag) return false;
+  for (let i = 0; i < selector.attrs.length; i++) {
+    const matcher = selector.attrs[i];
+    const value = node.atts[matcher.name];
+    if (matcher.action === "exists") {
+      if (value === undefined) return false;
+      continue;
+    }
+    if (matcher.action === "equals") {
+      if (value === undefined) return false;
+      if (matcher.ignoreCase) {
+        if (value.toLocaleLowerCase() !== matcher.value!.toLocaleLowerCase()) {
+          return false;
+        }
+      } else if (value !== matcher.value) {
+        return false;
+      }
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+function executeOperations(
+  node: StoryNode,
+  operations: MacroDefinition["operations"]
+): StoryNode[] {
+  let current = node;
+  for (let i = 0; i < operations.length; i++) {
+    const op = operations[i];
+    if (op.kind === "set") {
+      current.atts[op.attr] = op.value;
+      continue;
+    }
+    if (op.kind === "remove") {
+      delete current.atts[op.attr];
+      continue;
+    }
+    if (op.kind === "rename") {
+      current.type = op.tag;
+      continue;
+    }
+    if (op.kind === "append") {
+      current.kids.push(...instantiateNodes(op.nodes));
+      continue;
+    }
+    if (op.kind === "prepend") {
+      current.kids = [...instantiateNodes(op.nodes), ...current.kids];
+      continue;
+    }
+    if (op.kind === "replace") {
+      return instantiateNodes(op.nodes);
+    }
+  }
+  return [current];
+}
+
+function instantiateNodes(nodes: BaseNode[]): StoryNode[] {
+  const out: StoryNode[] = [];
+  for (let i = 0; i < nodes.length; i++) {
+    out.push(instantiateNode(nodes[i]));
+  }
+  return out;
+}
+
+function instantiateNode(node: BaseNode): StoryNode {
+  return {
+    addr: "",
     type: node.type,
     atts: { ...node.atts },
     text: node.text,
-    kids: convertStoryNodesToBaseNodes(node.kids)
+    kids: instantiateNodes(node.kids),
   };
-
-  // Apply macros to this single node wrapped in an array
-  const transformed = applyMacros([baseNode], macros);
-  
-  if (transformed.length !== 1) {
-    console.warn("Macro transformation changed node count, using first result");
-  }
-
-  if (transformed.length > 0) {
-    const result = transformed[0];
-    // Update the original node in place (preserving addr)
-    node.type = result.type;
-    node.atts = result.atts;
-    node.text = result.text;
-    node.kids = convertBaseNodesToStoryNodes(result.kids, node.addr);
-  }
-}
-
-function convertStoryNodesToBaseNodes(nodes: StoryNode[]): BaseNode[] {
-  return nodes.map(node => ({
-    type: node.type,
-    atts: { ...node.atts },
-    text: node.text,
-    kids: convertStoryNodesToBaseNodes(node.kids)
-  }));
-}
-
-function convertBaseNodesToStoryNodes(nodes: BaseNode[], parentAddr: string): StoryNode[] {
-  return nodes.map((node, index) => ({
-    addr: `${parentAddr}.${index}`,
-    type: node.type,
-    atts: { ...node.atts },
-    text: node.text,
-    kids: convertBaseNodesToStoryNodes(node.kids, `${parentAddr}.${index}`)
-  }));
 }

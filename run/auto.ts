@@ -172,7 +172,7 @@ async function runAutorun() {
     rng,
     provider,
     scope: {},
-    options: runnerOptions,
+    options: { models: runnerOptions.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },
   };

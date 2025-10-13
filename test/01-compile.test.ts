@@ -66,7 +66,7 @@ async function go() {
     rng,
     provider: p,
     scope: {},
-    options,
+    options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },
   };
@@ -143,7 +143,7 @@ async function go() {
     rng: rng2,
     provider: p,
     scope: {},
-    options,
+    options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },
   };

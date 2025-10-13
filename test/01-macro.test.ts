@@ -30,7 +30,7 @@ async function compileMacroStory(xml: string): Promise<StoryNode> {
     rng,
     provider,
     scope: {},
-    options,
+    options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },
   };
@@ -72,11 +72,11 @@ async function testRuntimeMacroProcessing() {
 
   const inputs: string[] = [];
   const { ops, seam } = await runTestStory(xmlContent, inputs);
-  
+
   // Check that the macro was processed correctly
   const eventOps = ops.filter((op) => op.type === "play-media");
   expect(eventOps.length, 1);
-  
+
   const event = eventOps[0].event;
   expect(event?.body.trim(), "Hello world");
   expect(event?.from, "HOST"); // This should come from the macro transformation
@@ -97,17 +97,59 @@ async function testRuntimeIncludeProcessing() {
 
   const inputs: string[] = [];
   const { ops, seam } = await runTestStory(xmlContent, inputs);
-  
+
   // Check that the include was processed correctly
   const eventOps = ops.filter((op) => op.type === "play-media");
   expect(eventOps.length, 4); // div content + before + included content + after
-  
+
   const textBodies = eventOps.map(op => op.event?.body.trim());
   expect(textBodies[0], "Welcome message"); // From the div
   expect(textBodies[1], "Before include");
   expect(textBodies[2], "Welcome message"); // This should come from the included content
   expect(textBodies[3], "After include");
   expect(typeof seam, "string");
+}
+
+async function testRuntimeMacroReplaceProcessing() {
+  const xmlContent = `
+<macro match="scene">
+  <replace>
+    <p>First</p>
+    <p>Second</p>
+  </replace>
+</macro>
+
+<scene></scene>
+`;
+
+  const inputs: string[] = [];
+  const { ops } = await runTestStory(xmlContent, inputs);
+  const eventOps = ops.filter((op) => op.type === "play-media");
+  expect(eventOps.length, 2);
+  expect(eventOps[0].event?.body.trim(), "First");
+  expect(eventOps[1].event?.body.trim(), "Second");
+}
+
+async function testRuntimeMacroAppendProcessing() {
+  const xmlContent = `
+<macro match="container">
+  <append>
+    <p>Echo</p>
+  </append>
+</macro>
+
+<container>
+  <p>Call</p>
+</container>
+`;
+
+  const inputs: string[] = [];
+  const { session } = await runTestStory(xmlContent, inputs);
+  const container = findNodes(session.root, node => node.type === "container")[0];
+  const paragraphs = container ? container.kids.filter(kid => kid.type === "p") : [];
+  expect(paragraphs.length, 2);
+  expect(textOf(paragraphs[0]), "Call");
+  expect(textOf(paragraphs[1]), "Echo");
 }
 
 async function testCompileTimeBehavior() {
@@ -142,6 +184,8 @@ async function run() {
   await testCompileTimeBehavior();
   await testRuntimeMacroProcessing();
   await testRuntimeIncludeProcessing();
+  await testRuntimeMacroReplaceProcessing();
+  await testRuntimeMacroAppendProcessing();
 }
 
 run()

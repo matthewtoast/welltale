@@ -85,7 +85,7 @@ export async function compileStoryJob(storyId: string) {
     rng,
     provider,
     scope: {},
-    options,
+    options: { models: options.models },
     evaluator,
     ddv: { cycles: {}, bags: {} },
   };

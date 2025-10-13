@@ -58,7 +58,7 @@ async function testTestStory() {
     rng,
     provider,
     scope: {},
-    options,
+    options: { models: options.models },
     evaluator: async (expr, scope) => {
       return await evaluateScript(expr, scope, funcs, runner);
     },

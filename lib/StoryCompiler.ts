@@ -5,8 +5,6 @@ import type { ParseSeverity } from "./StoryNodeHelpers";
 import {
   assignAddrs,
   BaseNode,
-  cloneNode,
-  findNodes,
   parseXmlFragment,
   walkTree,
 } from "./StoryNodeHelpers";
@@ -26,7 +24,6 @@ export { parseXmlFragment } from "./StoryNodeHelpers";
 const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body"];
 
 const COMPILE_TIME_TAGS: string[] = [];
-
 
 export function stripCompileTimeTags(root: StoryNode): void {
   walkTree(root, (node, parent, idx) => {
@@ -254,7 +251,7 @@ async function expandCreateNodes(
         console.info(`Generating <create> content in ${source}`);
       }
       const generated = await createWelltaleContent(prompt, context.provider, {
-        ...context.options,
+        models: context.options.models,
         useWebSearch: false,
       });
       const fragment = parseXmlFragment(generated, collect);
@@ -400,7 +397,6 @@ function collectText(node: BaseNode): string {
   return out;
 }
 
-
 function toVoiceSpec(source: unknown, key: string): VoiceSpec | null {
   if (!isRecord(source)) {
     return null;
@@ -430,7 +426,6 @@ function toPendingVoice(source: unknown, key: string): PendingDataVoice | null {
   const tags = toStringArray(source["tags"]);
   return { ref, prompt, name, tags };
 }
-
 
 function createNode(type: string, atts: Record<string, string>): BaseNode {
   return {

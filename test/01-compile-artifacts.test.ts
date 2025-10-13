@@ -55,7 +55,7 @@ voices:
     rng: new PRNG("artifact-test", 0),
     provider,
     scope: { playerName: "Rin" },
-    options,
+    options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },
   };

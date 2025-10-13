@@ -38,7 +38,7 @@ import {
   updateChildAddresses,
 } from "./StoryNodeHelpers";
 import { renderAtts, renderText } from "./StoryRenderMethods";
-import { processIncludeRuntime, applyMacroRuntimeToNode } from "./StoryRuntimeUtils";
+import { processIncludeRuntime, applyRuntimeMacros } from "./StoryRuntimeUtils";
 import {
   ActionHandler,
   ImageAspectRatio,
@@ -2270,7 +2270,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       desc: dedent`
         Macros allow you to create shorthand notation that expands into full story elements.
 
-        They're processed during compilation and applied to matching patterns throughout the story content.
+        They're processed at runtime and applied to matching patterns throughout the story content.
       `,
       ex: [
         {
@@ -2305,19 +2305,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const { macros } = collectMacros([ctx.node], "macro");
         
         if (macros.length > 0) {
-          const macro = macros[0];
-          // Apply this macro to all matching nodes in the entire story tree
-          // We need to traverse and apply the macro to matching nodes
-          const applyToTree = (node: StoryNode) => {
-            // Apply macro to current node if it matches
-            applyMacroRuntimeToNode(node, [macro]);
-            // Recursively apply to children
-            for (const child of node.kids) {
-              applyToTree(child);
-            }
-          };
-          
-          applyToTree(ctx.session.root);
+          applyRuntimeMacros(ctx.session.root, macros);
         }
       } catch (error) {
         console.warn("Failed to process macro at runtime:", error);
@@ -2386,14 +2374,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     syntax: {
       block: false,
       atts: {
-        module: {
-          type: "string",
-          desc: "Name of the module to include content from",
-          req: true,
-        },
         id: {
           type: "string",
-          desc: "ID of the element within the module to include",
+          desc: "ID of the element to include",
           req: true,
         },
       },

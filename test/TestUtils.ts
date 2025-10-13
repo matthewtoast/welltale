@@ -103,7 +103,7 @@ export async function runTestStory(
     rng,
     provider,
     scope: {},
-    options,
+    options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },
   };

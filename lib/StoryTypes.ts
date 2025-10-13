@@ -266,11 +266,15 @@ export type EvaluatorFunc = (
   scope: Record<string, TSerial>
 ) => Promise<TSerial>;
 
+export type CompilerOptions = {
+  models: NonEmpty<LLMSlug>;
+};
+
 export interface CompilerContext {
   rng: PRNG;
   provider: StoryServiceProvider;
   scope: { [key: string]: TSerial };
-  options: StoryOptions;
+  options: CompilerOptions;
   evaluator: EvaluatorFunc;
   ddv: DDVState;
 }
