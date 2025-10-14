@@ -4,14 +4,11 @@ import { instantiateREPL } from "../lib/StoryREPLUtils";
 
 import { last } from "lodash";
 import OpenAI from "openai";
-import { join } from "path";
-import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
 import {
   LocalStoryRunnerOptions,
-  saveSessionToDisk,
   terminalRenderOps,
 } from "../lib/StoryLocalRunnerUtils";
 import { advanceToNext } from "../lib/StoryRunnerCoreBlocking";
@@ -27,7 +24,6 @@ import {
   OP,
   StoryAdvanceResult,
 } from "./../lib/StoryTypes";
-import { railsTimestamp } from "./../lib/TextHelpers";
 
 const env = loadSstEnv();
 
@@ -67,11 +63,6 @@ async function runRepl() {
       type: "string",
       description: "Path to the dir containing the cartridge files",
       demandOption: true,
-    })
-    .option("sessionPath", {
-      type: "string",
-      description: "Path to the JSON file at which to save session data",
-      default: join(cwd(), "tmp", `welltale-${railsTimestamp()}.json`),
     })
     .option("openRouterApiKey", {
       type: "string",
@@ -148,6 +139,7 @@ async function runRepl() {
       );
 
   const rng = new PRNG("repl");
+
   const compilerContext: CompilerContext = {
     rng,
     provider,
@@ -157,15 +149,24 @@ async function runRepl() {
     ddv: { cycles: {}, bags: {} },
   };
 
-  const sources = await compileStory(compilerContext, cartridge, compileOptions);
+  const sources = await compileStory(
+    compilerContext,
+    cartridge,
+    compileOptions
+  );
+
   const session = createDefaultSession(gameId, sources);
-  const save = async () => await saveSessionToDisk(session, argv.sessionPath);
+
+  const save = async () => {};
+
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);
   }
+
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
     return await advanceToNext(input, session, runnerOptions, provider);
   }
+
   await instantiateREPL(advance, render, save);
 }
 

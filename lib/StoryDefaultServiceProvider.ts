@@ -48,7 +48,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${JSON.stringify(options.models)}:${parameterize(prompt)}`;
     if (this.options.verbose) {
-      console.info(`Generate Text ~> ${idemp}`);
+      console.info(`Generate Text ~> ${prompt}`);
     }
     const key = generatePredictableKey("text", idemp, "txt");
     if (useCache) {
@@ -82,7 +82,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${JSON.stringify(options.models)}:${prompt}:${JSON.stringify(schema)}:${options.useWebSearch}`;
     if (this.options.verbose) {
-      console.info(`Generate JSON ~> ${idemp}`);
+      console.info(`Generate JSON ~> ${prompt}`);
     }
     const key = generatePredictableKey("json", idemp, "json");
     if (useCache) {
@@ -123,7 +123,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${prompt}:${durationMs}`;
     if (this.options.verbose) {
-      console.info(`Generate Sound ~> ${idemp}`);
+      console.info(`Generate Sound ~> ${prompt}`);
     }
     const key = generatePredictableKey("sfx", idemp, "mp3");
     if (useCache) {
@@ -154,7 +154,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${prompt}:${durationMs}`;
     if (this.options.verbose) {
-      console.info(`Generate Music ~> ${idemp}`);
+      console.info(`Generate Music ~> ${prompt}`);
     }
     const key = generatePredictableKey("music", idemp, "mp3");
     if (useCache) {
@@ -190,7 +190,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     );
     const idemp = `${spec.speaker}:${spec.voice}:${JSON.stringify(spec.tags)}:${parameterize(bodyWithPronunciations)}:${voiceId}:${voices.length}`;
     if (this.options.verbose) {
-      console.info(`Generate Speech ~> ${idemp}`);
+      console.info(`Generate Speech ~> ${spec.body}`);
     }
     const key = generatePredictableKey("vox", idemp, "mp3");
     if (useCache) {
@@ -220,7 +220,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = prompt;
     if (this.options.verbose) {
-      console.info(`Generate Voice ~> ${idemp}`);
+      console.info(`Generate Voice ~> ${prompt}`);
     }
     const key = generatePredictableKey("voice", idemp, "txt");
     if (useCache) {
@@ -250,7 +250,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const useCache = !this.options.disableCache && !options.disableCache;
     const idemp = `${prompt}:${options.model}:${options.aspectRatio || ""}`;
     if (this.options.verbose) {
-      console.info(`Generate Image ~> ${idemp}`);
+      console.info(`Generate Image ~> ${prompt}`);
     }
     const key = generatePredictableKey("img", idemp, "png");
     if (useCache) {

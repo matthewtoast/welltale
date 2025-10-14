@@ -709,9 +709,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       );
       const peers = cleanSplit(atts.with, ",");
       const defaults =
-        peers.length > 0
-          ? peers
-          : ["player", ctx.session.player.id ?? ""];
+        peers.length > 0 ? peers : ["player", ctx.session.player.id ?? ""];
       const circle: string[] = [];
       const seen = new Set<string>();
       for (const name of [atts.as, ...defaults]) {

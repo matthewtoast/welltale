@@ -1,16 +1,12 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import chalk from "chalk";
-import { last } from "lodash";
 import OpenAI from "openai";
-import { join } from "path";
-import { cwd } from "process";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadSstEnv } from "../env/env-sst";
 import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
 import {
   CAROT,
-  loadSessionFromDisk,
   LocalStoryRunnerOptions,
   terminalRenderOps,
 } from "../lib/StoryLocalRunnerUtils";
@@ -29,7 +25,6 @@ import {
   SeamType,
   StoryAdvanceResult,
 } from "./../lib/StoryTypes";
-import { railsTimestamp } from "./../lib/TextHelpers";
 
 const env = loadSstEnv();
 
@@ -76,11 +71,6 @@ async function runAutorun() {
       description: "Path to the dir containing the cartridge files",
       demandOption: true,
     })
-    .option("sessionPath", {
-      type: "string",
-      description: "Path to the JSON file at which to save session data",
-      default: join(cwd(), "tmp", `welltale-${railsTimestamp()}.json`),
-    })
     .option("openRouterApiKey", {
       type: "string",
       description: "OpenRouter API key",
@@ -100,20 +90,6 @@ async function runAutorun() {
       type: "string",
       default: DEFAULT_CACHE_DIR,
     })
-    .option("sessionResume", {
-      type: "boolean",
-      default: false,
-      description: "Run story as if resuming",
-    })
-    .option("sessionTurn", {
-      type: "number",
-      default: 0,
-      description: "Which turn to assume the game starts from",
-    })
-    .option("sessionAddress", {
-      type: "string",
-      description: "Address at which to resume playback",
-    })
     .parserConfiguration({
       "camel-case-expansion": true,
       "strip-aliased": true,
@@ -121,12 +97,7 @@ async function runAutorun() {
     .help()
     .parse();
 
-  const gameId = last(argv.cartridgeDir.split("/"))!;
   const cartridge = await loadDirRecursive(argv.cartridgeDir);
-  const session = loadSessionFromDisk(argv.sessionPath, gameId);
-  session.resume = argv.sessionResume;
-  session.turn = argv.sessionTurn;
-  session.address = argv.sessionAddress ?? null;
 
   const runnerOptions: LocalStoryRunnerOptions = {
     seed: argv.seed,
@@ -168,6 +139,7 @@ async function runAutorun() {
       );
 
   const rng = new PRNG("auto");
+
   const compilerContext: CompilerContext = {
     rng,
     provider,
@@ -177,7 +149,13 @@ async function runAutorun() {
     ddv: { cycles: {}, bags: {} },
   };
 
-  const sources = await compileStory(compilerContext, cartridge, compileOptions);
+  const sources = await compileStory(
+    compilerContext,
+    cartridge,
+    compileOptions
+  );
+
+  const session = createDefaultSession("test", sources);
 
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);

@@ -81,13 +81,17 @@ async function go() {
     voices: {},
     pronunciations: {},
     scripts: {},
-    meta: {}
+    meta: {},
   };
+
   const session = createDefaultSession("dev", emptySource);
+
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);
   }
+
   async function save() {}
+
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
     assignInput(session, input);
     const result = await apiAdvanceStory(
@@ -103,6 +107,7 @@ async function go() {
     Object.assign(session, result.session);
     return result;
   }
+
   await instantiateREPL(advance, render, save);
 }
 
