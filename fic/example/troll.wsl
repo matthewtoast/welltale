@@ -19,9 +19,9 @@
       </narrator>
     </if>
 
-    <llm:dialog
+    <llm:line
       key="trollResponse"
-      from="troll">
+      as="troll">
       You are a bridge troll who demands payment to cross.
       Just being offered an item or gold for payment isn't enough - you need to be convinced of its value.
       <when cond="!offeredItem">
@@ -31,7 +31,7 @@
         The traveler offered {{offeredItem}}. Consider their argument about its value.
         If they make a good case about why {{offeredItem}} is valuable, let them pass.
       </when>
-    </llm:dialog>
+    </llm:line>
 
     <troll>{{trollResponse}}</troll>
 

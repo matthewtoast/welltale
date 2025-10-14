@@ -123,7 +123,7 @@
       <var name="knows_martin_wayman" value="true" type="boolean" />
     </if>
 
-    <llm:dialog from="Rook" key="output_from_rook">
+    <llm:line as="Rook" key="output_from_rook">
       You are a 48-year-old security consultant using the alias Rook.
       A week ago, a man named John Byne contacted you to do a job.
       There is a toy company called Playtronics that makes robotic toys. They are designing a new computer chip, and Byne wants you to exfiltrate its schematics.
@@ -141,7 +141,7 @@
       </when>
 
       It's {{formatDate(time, "YYYY/MM/DD HH:mm:ss")}} in {{location}}.
-    </llm:dialog>
+    </llm:line>
 
     <rook>
       {{output_from_rook}}

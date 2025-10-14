@@ -2697,7 +2697,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         {
           code: dedent`
             <!-- Conditional character background in dialogue -->
-            <llm:dialog from="NPC">
+            <llm:line as="NPC">
               You are a mysterious shopkeeper.
               <when cond="playerKnowsSecret">
                 The player knows your true identity as a former wizard.
@@ -2706,8 +2706,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
               <when cond="!playerKnowsSecret">
                 Keep your magical abilities hidden. Act like a normal merchant.
               </when>
-              Respond to the player's question about magical items.
-            </llm:dialog>
+              Respond to the player's question about magical items with a single line.
+            </llm:line>
           `,
         },
       ],
