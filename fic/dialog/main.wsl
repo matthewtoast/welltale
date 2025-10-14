@@ -1,26 +1,26 @@
-
 <while cond="true">
-  <input />
+  <input key="input" from="player" />
 
-  <llm:text key="reply">
-    You are Bill, an angry farmer. You are having a dialog with Player.
-    This is what was said so far:
-    --
-    {$
-      dialog({
-        $or: [
-          { from: player.id, to: "bill" },
-          { from: "bill", to: player.id }
-        ]
-      })
-    $}
-    --
-    Respond in character as Bill. Return only the next line of dialog:
-  </llm:text>
+  <npc:line as="Bill" with="player" key="reply">
+    You are Bill, an angry corn farmer. You're grumpy, but you really love corn.
+    You get angry when the conversation turns to topics other than corn.
+    You get happier the more your conversation partner talks about corn.
+    Try to use corn-related metaphors as much as possible.
+  </npc:line>
 
   <p from="Bill">{{reply}}</p>
 
-  <if cond="someCondTBD">
+  <llm:score
+    key="analysis"
+    sentiment="sentiment score, value between -1.0..1.0">
+    {{reply}}
+  </llm:score>
+
+  <if cond="analysis.sentiment > 0.9">
     <break />
   </if>
 </while>
+
+<p from="Bill">
+  I can see that you love corn. And I love you.
+</p>

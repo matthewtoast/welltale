@@ -78,7 +78,7 @@ Here’s a minimal example:
 </div>
 ```
 
-WSL supports many other expressions including loops, function-like blocks, scope, conditional text occlusion, a number of LLM-powered tags, and even macros. A sandboxed JavaScript/TypeScript environment is provided for scripting. For a list of all tags and structures, see the Welltale Story Language Reference.
+WSL supports many other expressions including loops, function-like blocks, scope, conditional text occlusion, a number of LLM-powered tags, and even macros. A sandboxed JavaScript environment is provided for scripting. For a list of all tags and structures, see the Welltale Story Language Reference.
 
 ## Vision
 

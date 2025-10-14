@@ -46,6 +46,7 @@ import {
   OP,
   StoryEvent,
   StoryNode,
+  StorySession,
 } from "./StoryTypes";
 import { cleanSplit, isBlank, snorm } from "./TextHelpers";
 
@@ -59,6 +60,61 @@ async function meetsCond(
 ): Promise<boolean> {
   const result = await ctx.evaluator(ifExpr, ctx.scope);
   return isTruthy(result);
+}
+
+function gatherDialogLines(
+  session: StorySession,
+  circle: string[],
+  limit: number
+) {
+  const want = circle
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+  const seen = new Set(want.map((name) => name.toLowerCase()));
+  const out: { from: string; body: string }[] = [];
+  if (seen.size === 0 || limit <= 0) {
+    return out;
+  }
+  for (let ci = session.checkpoints.length - 1; ci >= 0; ci -= 1) {
+    const cp = session.checkpoints[ci];
+    for (let ei = cp.events.length - 1; ei >= 0; ei -= 1) {
+      const ev = cp.events[ei];
+      const toList = cleanSplit(
+        Array.isArray(ev.to) ? ev.to.join(",") : ev.to,
+        ","
+      );
+      const hasMatch =
+        seen.has(ev.from.toLowerCase()) ||
+        toList.some((name) => seen.has(name.toLowerCase())) ||
+        ev.obs.some((name) => seen.has(name.toLowerCase()));
+      if (!hasMatch) {
+        continue;
+      }
+      out.push({ from: ev.from, body: ev.body });
+      if (out.length >= limit) {
+        return out.reverse();
+      }
+    }
+  }
+  return out.reverse();
+}
+
+function stripSpeakerPrefix(line: string, speaker: string) {
+  const trimmed = line.trim();
+  const name = speaker.trim();
+  if (trimmed.length === 0 || name.length === 0) {
+    return trimmed;
+  }
+  const lower = trimmed.toLowerCase();
+  const target = name.toLowerCase();
+  if (!lower.startsWith(target)) {
+    return trimmed;
+  }
+  const rest = trimmed.slice(name.length);
+  if (!/^\s*:\s*/.test(rest)) {
+    return trimmed;
+  }
+  return rest.replace(/^\s*:\s*/, "");
 }
 
 export const ACTION_HANDLERS: ActionHandler[] = [
@@ -579,6 +635,135 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    tags: ["llm:line"],
+    docs: {
+      desc: dedent`
+        Generates a single NPC response using recent conversation history. The tag gathers
+        relevant dialog between the NPC and listed participants, then prompts an LLM to
+        produce the next line without a speaker prefix.
+
+        You must tag your input and output tags (e.g. <input> and <p>) with the \`from\` attribute
+        and reference those in the <llm:line> tag's \`as\` and \`with\` for this tag to function.
+        The \`as\` attribute is the NPC who is replying, whereas the \`\` with is a comma-delimited
+        list of others with whom that NPC is talking.
+      `,
+      ex: [
+        {
+          code: dedent`
+            <input key="input" from="player" />
+            <llm:line as="Bill" with="player, Mark" key="reply">
+              You are Bill, an angry farmer. Keep answers short and prickly.
+            </llm:line>
+            <p from="Bill">{{reply}}</p>
+          `,
+        },
+      ],
+      cats: ["ai"],
+    },
+    syntax: {
+      block: true,
+      atts: {
+        as: {
+          type: "string",
+          desc: "Name of the speaker generating this line",
+          req: true,
+        },
+        with: {
+          type: "string",
+          desc: "Comma-separated list of other participants to include in history",
+          req: false,
+        },
+        key: {
+          type: "string",
+          desc: "Variable name to store the generated line (default: 'line')",
+          req: false,
+          default: "line",
+        },
+        limit: {
+          type: "number",
+          desc: "Maximum number of recent dialog lines to include (default: 12)",
+          req: false,
+        },
+        web: {
+          type: "boolean",
+          desc: "Enable web search during generation",
+          req: false,
+          default: "false",
+        },
+        models: {
+          type: "string",
+          desc: "Comma-separated list of model slugs to use",
+          req: false,
+        },
+        seed: {
+          type: "string",
+          desc: "Seed for deterministic generation (provider-specific usage)",
+          req: false,
+        },
+      },
+    },
+    exec: async (ctx) => {
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const body = snorm(
+        await renderText(await marshallText(ctx.node, ctx), ctx)
+      );
+      const peers = cleanSplit(atts.with, ",");
+      const defaults =
+        peers.length > 0
+          ? peers
+          : ["player", ctx.session.player.id ?? ""];
+      const circle: string[] = [];
+      const seen = new Set<string>();
+      for (const name of [atts.as, ...defaults]) {
+        if (typeof name !== "string") {
+          continue;
+        }
+        const trimmed = name.trim();
+        if (trimmed.length === 0) {
+          continue;
+        }
+        const key = trimmed.toLowerCase();
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        circle.push(trimmed);
+      }
+      const limit = parseNumberOrNull(atts.limit);
+      const cap = limit && limit > 0 ? Math.floor(limit) : 12;
+      const history = gatherDialogLines(ctx.session, circle, cap);
+      const transcript = history.map((entry) => `${entry.from}: ${entry.body}`);
+      const promptParts: string[] = [];
+      if (body.trim().length > 0) {
+        promptParts.push(body.trim());
+      }
+      promptParts.push("Conversation so far:");
+      promptParts.push(
+        transcript.length > 0 ? transcript.join("\n") : "No prior dialog."
+      );
+      promptParts.push(
+        `Respond as ${atts.as}. Return only one new line of dialog without a speaker prefix.`
+      );
+      const prompt = promptParts.join("\n\n");
+      const useWebSearch = isTruthy(atts.web);
+      const models = normalizeModels(ctx.options, atts.models);
+      const line = await ctx.provider.generateText(prompt, {
+        models,
+        useWebSearch,
+        seed: atts.seed,
+      });
+      const stripped = stripSpeakerPrefix(snorm(line), atts.as).trim();
+      const stateKey = tagOutKey(atts, "line");
+      if (stripped.length === 0) {
+        console.warn("<llm:line> generated empty output");
+        setState(ctx.scope, stateKey, null);
+      } else {
+        setState(ctx.scope, stateKey, stripped);
+      }
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
+    },
+  },
+  {
     tags: ["var"],
     docs: {
       desc: dedent`
@@ -653,7 +838,8 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["code", "script"],
     docs: {
       desc: dedent`
-        Executes JavaScript or TypeScript code with full access to state variables in the current scope.
+        Executes JavaScript with access to state variables in the current scope.
+
         State variables can be read and modified directly using \`get(key)\` and \`set(key, value)\`.
         
         Code runs in a sandboxed environment.
@@ -1036,7 +1222,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["if"],
     docs: {
       desc: dedent`
-        Conditional execution of story content. Evaluates a JavaScript or TypeScript expression and executes
+        Conditional execution of story content. Evaluates a JavaScript expression and executes
         child elements only if the condition is true.
         
         Note: \`<else>\` blocks are supported, but they must be _inside_ the \`<if>\` block.
