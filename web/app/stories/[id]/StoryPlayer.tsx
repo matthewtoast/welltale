@@ -219,7 +219,7 @@ export function StoryPlayer(props: StoryMeta) {
     assignInput(sessionRef.current, input);
 
     try {
-      const res = await fetch(`/api/stories/${props.id}/advance`, {
+      const res = await fetch(`/api/stories/advance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

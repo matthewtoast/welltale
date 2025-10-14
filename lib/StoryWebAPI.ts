@@ -163,14 +163,13 @@ export async function apiFinalizeUpload(
 
 export async function apiAdvanceStory(
   baseUrl: string,
-  id: string,
   session: StorySession,
   options: StoryOptions,
   token: string
 ): Promise<StoryAdvanceResult | null> {
   const payload = JSON.stringify({ session, options });
   const res = await apiSafeRequest(
-    `${baseUrl}/api/stories/${id}/advance`,
+    `${baseUrl}/api/stories/advance`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

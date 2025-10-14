@@ -96,7 +96,6 @@ async function go() {
     assignInput(session, input);
     const result = await apiAdvanceStory(
       devEnv.WELLTALE_API_BASE,
-      argv.storyId!,
       session,
       runnerOptions,
       sessionToken

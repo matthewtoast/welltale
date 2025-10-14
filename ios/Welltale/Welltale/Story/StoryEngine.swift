@@ -87,7 +87,6 @@ class StoryEngine: ObservableObject {
             pendingResponse = nil
             
             let response = try await storyService.advanceStory(
-                id: storyId,
                 session: currentSession,
                 options: defaultOptions
             )
@@ -191,7 +190,6 @@ class StoryEngine: ObservableObject {
         prefetchTask = Task {
             do {
                 let response = try await storyService.advanceStory(
-                    id: storyId,
                     session: currentSession,
                     options: defaultOptions
                 )

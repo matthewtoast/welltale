@@ -1,7 +1,11 @@
 import { PRNG } from "../lib/RandHelpers";
 import { compileStory } from "../lib/StoryCompiler";
 import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
-import { CompilerContext, DEFAULT_LLM_SLUGS, StoryNode } from "../lib/StoryTypes";
+import {
+  CompilerContext,
+  DEFAULT_LLM_SLUGS,
+  StoryNode,
+} from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 function hasType(node: StoryNode, type: string): boolean {
@@ -60,6 +64,7 @@ async function testDialogInlineCompile() {
   const sources = await compileStory(context, cartridge, {
     doCompileVoices: false,
   });
+  console.log(sources.root);
   expect(sources.root.type, "root");
   expect(hasType(sources.root, "while"), true);
   expect(hasType(sources.root, "input"), true);

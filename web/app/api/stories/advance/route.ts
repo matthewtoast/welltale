@@ -3,14 +3,14 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { loadAppEnv } from "../../../../../../env/env-app";
-import { DefaultStoryServiceProvider } from "../../../../../../lib/StoryDefaultServiceProvider";
-import { authenticateRequest } from "../../../../../lib/api/auth";
-import { safeJsonParseTyped } from "./../../../../../../lib/JSONHelpers";
-import { S3Cache } from "./../../../../../../lib/S3Cache";
-import { advanceStory } from "./../../../../../../lib/StoryEngine";
-import { createStoryRepo } from "./../../../../../../lib/StoryRepo";
-import { StoryOptions, StorySession } from "./../../../../../../lib/StoryTypes";
+import { loadAppEnv } from "../../../../../env/env-app";
+import { DefaultStoryServiceProvider } from "../../../../../lib/StoryDefaultServiceProvider";
+import { authenticateRequest } from "../../../../lib/api/auth";
+import { safeJsonParseTyped } from "../../../../../lib/JSONHelpers";
+import { S3Cache } from "../../../../../lib/S3Cache";
+import { advanceStory } from "../../../../../lib/StoryEngine";
+import { createStoryRepo } from "../../../../../lib/StoryRepo";
+import { StoryOptions, StorySession } from "../../../../../lib/StoryTypes";
 
 export const runtime = "nodejs";
 
@@ -45,13 +45,9 @@ type Body = {
   options: StoryOptions;
 };
 
-type StoryCtx = { params: Promise<{ id: string }> };
-export async function POST(req: Request, ctx: StoryCtx) {
+export async function POST(req: Request) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
-  const { id } = await ctx.params;
-  const source = await storyRepo.getCompiled(id);
-  if (!source) return NextResponse.json({ ok: false }, { status: 404 });
   const t = await req.text();
   const b = safeJsonParseTyped<Body>(t);
   if (!b) return NextResponse.json({ ok: false }, { status: 400 });
