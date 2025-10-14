@@ -16,9 +16,11 @@
     {{reply}}
   </llm:score>
 
-  <if cond="analysis.sentiment > 0.9">
+  <if cond="analysis.sentiment >= 0.9">
     <break />
   </if>
+
+  <p>Sentiment is {{analysis.sentiment}}</p>
 </while>
 
 <p from="Bill">
