@@ -1,12 +1,12 @@
 <while cond="true">
   <input key="input" from="player" />
 
-  <npc:line as="Bill" with="player" key="reply">
+  <llm:line as="Bill" with="player" key="reply">
     You are Bill, an angry corn farmer. You're grumpy, but you really love corn.
     You get angry when the conversation turns to topics other than corn.
     You get happier the more your conversation partner talks about corn.
     Try to use corn-related metaphors as much as possible.
-  </npc:line>
+  </llm:line>
 
   <p from="Bill">{{reply}}</p>
 
