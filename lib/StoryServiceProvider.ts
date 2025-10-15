@@ -2,7 +2,12 @@ import { mapValues } from "lodash";
 import { NonEmpty, TSerial } from "../typings";
 import type { FetchOptions } from "./HTTPHelpers";
 import { safeJsonParse } from "./JSONHelpers";
-import type { AIChatMessage } from "./OpenRouterUtils";
+import type {
+  AIChatMessage,
+  TOpenRouterModerationCategory,
+  TOpenRouterModerationResult,
+} from "./OpenRouterUtils";
+import { OpenRouterModerationCategories } from "./OpenRouterUtils";
 import type { ImageAspectRatio, ImageModelSlug, VoiceSpec } from "./StoryTypes";
 import { LLM_SLUGS } from "./StoryTypes";
 import { parameterize } from "./TextHelpers";
@@ -22,6 +27,11 @@ export type GenerateTextCompletionOptions = BaseGenerateOptions & {
 export type GenerateImageOptions = BaseGenerateOptions & {
   model: ImageModelSlug;
   aspectRatio?: ImageAspectRatio;
+};
+
+export type ModerateOptions = {
+  models: NonEmpty<Model>;
+  threshold: number;
 };
 
 export type SpeechSpec = {
@@ -76,6 +86,10 @@ export interface StoryServiceProvider {
     flagged: boolean;
     reasons: Record<string, number>;
   } | null>;
+  moderateInput(
+    input: string,
+    options: ModerateOptions
+  ): Promise<TOpenRouterModerationResult | null>;
 }
 
 export class MockStoryServiceProvider implements StoryServiceProvider {
@@ -156,5 +170,20 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     reasons: Record<string, number>;
   } | null> {
     return { flagged: false, reasons: {} };
+  }
+
+  async moderateInput(
+    _input: string,
+    _options: ModerateOptions
+  ): Promise<TOpenRouterModerationResult | null> {
+    const scores = {} as Record<TOpenRouterModerationCategory, number>;
+    (
+      Object.keys(
+        OpenRouterModerationCategories
+      ) as TOpenRouterModerationCategory[]
+    ).forEach((k) => {
+      scores[k] = 0;
+    });
+    return { flagged: false, scores };
   }
 }

@@ -441,6 +441,94 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
+    tags: ["llm:moderate"],
+    docs: {
+      desc: dedent`
+        Evaluates text against safety categories and returns scores plus a flagged status.
+        
+        Provide an input body and optionally adjust the moderation threshold. A flagged result becomes
+        true when any category score exceeds the threshold.
+      `,
+      ex: [
+        {
+          code: dedent`
+            <llm:moderate key="moderation" threshold="0.6">
+              {{input}}
+            </llm:moderate>
+            <p>
+              Moderation was flagged {{moderation.fagged}}
+              Spam score was {{moderation.scores.spam}}
+              Hate score was {{moderation.scores.hate}}
+              Harassment score was {{moderation.scores.harassment}}
+              Self harm score was {{moderation.scores.self_harm}}
+              Sexual score was {{moderation.scores.sexual}}
+              Sexual/minors score was {{moderation.scores.sexual_minors}}
+              Violence score was {{moderation.scores.violence}}
+              Graphic content score was {{moderation.scores.graphic_content}}
+              Criminal activity score was {{moderation.scores.criminal_activity}}
+              Extremism score was {{moderation.scores.extremism}}
+              Drugs score was {{moderation.scores.drugs}}
+              Impersonation score was {{moderation.scores.impersonation}}
+              Malicious input score was {{moderation.scores.malicious_input}}
+              System abuse score was {{moderation.scores.system_abuse}}
+              Evasion score was {{moderation.scores.evasion}}
+            </p>
+          `,
+        },
+      ],
+      cats: ["ai"],
+    },
+    syntax: {
+      block: true,
+      atts: {
+        key: {
+          type: "string",
+          desc: "Variable name to store moderation result (default: 'moderation')",
+          req: false,
+          default: "moderation",
+        },
+        threshold: {
+          type: "number",
+          desc: "Flag when any category score is above this value",
+          req: false,
+          default: "0.5",
+        },
+        models: {
+          type: "string",
+          desc: "Comma-separated list of model slugs to use",
+          req: false,
+        },
+      },
+    },
+    exec: async (ctx) => {
+      const atts = await renderAtts(ctx.node.atts, ctx);
+      const body = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const models = normalizeModels(ctx.options, atts.models);
+      const raw = atts.threshold;
+      let threshold = 0.5;
+      if (typeof raw === "number") {
+        threshold = raw;
+      } else if (typeof raw === "string") {
+        const parsed = parseNumberOrNull(raw);
+        if (parsed !== null) {
+          threshold = parsed;
+        }
+      }
+      const t = Math.min(Math.max(threshold, 0), 1);
+      const res = await ctx.provider.moderateInput(body, {
+        models,
+        threshold: t,
+      });
+      if (!res) {
+        console.warn("<llm:moderate> returned null");
+        setState(ctx.scope, tagOutKey(atts), null);
+        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
+      }
+      setState(ctx.scope, tagOutKey(atts), res as unknown as TSerial);
+      return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
+    },
+  },
+  {
     tags: ["llm:generate"],
     docs: {
       desc: dedent`

@@ -17,11 +17,13 @@ import {
   generateJson,
   generateJsonWithWeb,
   generateText,
+  moderateInput,
 } from "./OpenRouterUtils";
 import type {
   BaseGenerateOptions,
   GenerateImageOptions,
   GenerateTextCompletionOptions,
+  ModerateOptions,
   SpeechSpec,
   StoryServiceProvider,
 } from "./StoryServiceProvider";
@@ -354,6 +356,19 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
         console.warn("Failed to fetch moderations", err);
         return null;
       });
+  }
+
+  async moderateInput(input: string, options: ModerateOptions) {
+    const res = await moderateInput(
+      this.config.openai,
+      input,
+      options.models,
+      options.threshold
+    ).catch((err) => {
+      console.warn("Failed to run moderation", err);
+      return null;
+    });
+    return res;
   }
 }
 

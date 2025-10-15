@@ -64,7 +64,6 @@ async function testDialogInlineCompile() {
   const sources = await compileStory(context, cartridge, {
     doCompileVoices: false,
   });
-  console.log(sources.root);
   expect(sources.root.type, "root");
   expect(hasType(sources.root, "while"), true);
   expect(hasType(sources.root, "input"), true);
