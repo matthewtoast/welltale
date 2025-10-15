@@ -11,7 +11,8 @@
 <input
   key="tl"
   name.type="string"
-  name.description="The user will indicate a language they want to practice; extract the language name into this attribute" />
+  name.description="The user will indicate a language they want to practice; extract the language name into this attribute"
+  name.fallback="Japanese" />
 
 <p>
   What level are you?
@@ -20,7 +21,8 @@
 <input
   key="tl"
   level.type="string"
-  level.description="The user will indicate their level at speaking {{tl.name}}. Convert whatever their level is into a proper CEFL level string like A1, B2, etc." />
+  level.description="The user will indicate their level at speaking {{tl.name}}. Convert whatever their level is into a proper CEFL level string like A1, B2, etc."
+  level.fallback="A1" />
 
 <p>
   And what kind of content do you want to hear?
@@ -29,7 +31,8 @@
 <input
   key="topic"
   desc.type="string"
-  desc.description="The user will indicate what kind of topic they want to listen to. Take whatever they say and refine/simplify, but keep all important details" />
+  desc.description="The user will indicate what kind of topic they want to listen to. Take whatever they say and refine/simplify, but keep all important details"
+  desc.fallback="world history" />
 
 <p>
   Starting {{tl.level}} level content about {{topic.desc}} in {{tl.name}} ...
@@ -42,13 +45,16 @@
 <while cond="true">
   <llm:text key="chunk">
     Create a text script for an original audio program.
-    The listener wants the program to be: {{topic.desc}}
-    The content should be in {{tl.name}} suited for a someone at {{tl.level}} level.
+    The listener wants the program to be on: {{topic.desc}}
+    The content should be suited for a someone who understands {{tl.name}} at a {{tl.level}} level.
+    Only use grammar and vocab suitable for that skill level.
 
     Return about 200 words, or enough for a full minute of listening.
     Do not include any formatting - just the content.
-    Do not include any introductions or ceremony - just get straight into the content.
-    
+    Do not include any introductions or ceremony - straight into the content.
+    Do not add an intro or outro. Do not indicate the program is ending or beginning.
+    Just talk about the topic.
+
     <when cond="chunks.length > 0">
       This is the previous content of the program:
       ---
@@ -56,8 +62,9 @@
       ---
       Continue where the above leaves off.
       Avoid repeating anything already said.
-      Return only the text:
     </when>
+
+    Return only the text:
   </llm:text>
 
   <p voice="Albert">
