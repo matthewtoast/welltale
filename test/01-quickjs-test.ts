@@ -84,13 +84,16 @@ async function go() {
   );
   expect(d, true);
 
-  // const e = await evaluateScript(
-  //   `empty(xx) || !startsWith(lower(xx), "x")`,
-  //   {},
-  //   funcs,
-  //   runner
-  // );
-  // expect(e, true);
+  // Ensure trailing semicolon is ok
+  const e = await evaluateScript(
+    `xx.toLowerCase().startsWith("x");`,
+    {
+      xx: "xyz",
+    },
+    funcs,
+    runner
+  );
+  expect(e, true);
 }
 
 go();

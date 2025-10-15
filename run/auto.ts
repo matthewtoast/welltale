@@ -53,12 +53,12 @@ async function runAutorun() {
     })
     .option("doGenerateAudio", {
       type: "boolean",
-      description: "Generate other audio",
+      description: "Generate audio clips",
       default: false,
     })
     .option("doCompileVoices", {
       type: "boolean",
-      description: "Generate other audio",
+      description: "Compile voices",
       default: false,
     })
     .option("verbose", {
