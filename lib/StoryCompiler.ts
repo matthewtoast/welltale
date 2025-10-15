@@ -2,12 +2,7 @@ import { omit } from "lodash";
 import { TSerial } from "../typings";
 import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
 import type { ParseSeverity } from "./StoryNodeHelpers";
-import {
-  assignAddrs,
-  BaseNode,
-  parseXmlFragment,
-  walkTree,
-} from "./StoryNodeHelpers";
+import { assignAddrs, BaseNode, parseXmlFragment } from "./StoryNodeHelpers";
 import { renderText } from "./StoryRenderMethods";
 import {
   CompilerContext,
@@ -20,28 +15,6 @@ import {
 import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
 import { createWelltaleContent } from "./WelltaleKnowledgeContext";
 export { parseXmlFragment } from "./StoryNodeHelpers";
-
-const COMPILE_TIME_TAGS: string[] = [];
-
-export function stripCompileTimeTags(root: StoryNode): void {
-  walkTree(root, (node, parent, idx) => {
-    if (parent && COMPILE_TIME_TAGS.includes(node.type)) {
-      // Mark for removal by returning empty array
-      return [];
-    }
-    return null;
-  });
-
-  // Remove marked nodes
-  walkTree(root, (node, parent, idx) => {
-    if (node.kids) {
-      node.kids = node.kids.filter(
-        (child) => !COMPILE_TIME_TAGS.includes(child.type)
-      );
-    }
-    return null;
-  });
-}
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
   node: T,
@@ -219,9 +192,6 @@ export async function compileStory(
       "Skipping data voice prompts because voice compilation is disabled"
     );
   }
-
-  // Strip compile-time tags from the tree after processing them
-  stripCompileTimeTags(root);
 
   console.info("Compiled", omit(outputs, "root"));
 
