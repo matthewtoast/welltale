@@ -8,7 +8,7 @@ import { parseScript } from "meriyah";
 import { TSerial } from "../typings";
 import { ExprEvalFunc } from "./EvalCasting";
 import { NestedRecords } from "./StoryTypes";
-import { cleanSplit } from "./TextHelpers";
+import { cleanSplit, removeTrailing } from "./TextHelpers";
 
 const isIdent = (s: string) => /^[A-Za-z_$][\w$]*$/.test(s);
 
@@ -28,7 +28,11 @@ const stmtLike =
 function isExpression(source: string) {
   if (!source.trim()) return false;
   try {
-    const ast = parseScript(source, { module: true, next: true, webcompat: true });
+    const ast = parseScript(source, {
+      module: true,
+      next: true,
+      webcompat: true,
+    });
     if (ast.body.length !== 1) return false;
     return ast.body[0].type === "ExpressionStatement";
   } catch {
@@ -96,10 +100,22 @@ export const evaluateScript = async (
     /^\w+\s*=/.test(bodyRaw) ||
     /^\(.*\)\s*=>/.test(bodyRaw);
 
-  const shouldReturn = isExpression(bodyRaw) || (isSingleLine && !looksLikeStmt);
-  const body = shouldReturn ? `return (${bodyRaw})` : bodyRaw;
+  const shouldReturn =
+    isExpression(bodyRaw) || (isSingleLine && !looksLikeStmt);
+  const body = shouldReturn
+    ? `return (${removeTrailing(bodyRaw, ";")})`
+    : bodyRaw;
 
   const code = `${imports}\n;export default (async()=>{${prelude};${body}})()`;
+
+  function logError(error: any) {
+    if (typeof error === "string") {
+      console.error(error);
+    } else if (error && typeof error === "object") {
+      console.error(error.stack ?? error.message ?? error.name ?? error);
+    }
+    console.info(`=====\n${body}\n=====`);
+  }
 
   try {
     const res = await runner(async ({ evalCode }) => evalCode(code), {
@@ -109,13 +125,13 @@ export const evaluateScript = async (
     });
 
     if (!res.ok) {
-      console.error(res.error);
+      logError(res.error);
       return null;
     }
 
     return (res.data ?? null) as TSerial;
   } catch (error) {
-    console.error(error);
+    logError(error);
     return null;
   }
 };
