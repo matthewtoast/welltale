@@ -21,8 +21,6 @@ import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
 import { createWelltaleContent } from "./WelltaleKnowledgeContext";
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
-const NON_INCLUDABLE_TAGS = ["include", "root", "html", "body"];
-
 const COMPILE_TIME_TAGS: string[] = [];
 
 export function stripCompileTimeTags(root: StoryNode): void {

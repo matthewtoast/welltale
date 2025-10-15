@@ -14,6 +14,19 @@ export type AIChatMessage = {
   body: string;
 };
 
+export type TokenUsageDetails = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+};
+
+export type UsageInfo = {
+  model: string;
+  usage: TokenUsageDetails | null;
+};
+
+export type UsageSink = (info: UsageInfo) => void;
+
 const asInput = (p: string | AIChatMessage[]) =>
   typeof p === "string"
     ? [{ role: "user" as const, content: p }]
@@ -29,6 +42,31 @@ const readText = (r: {
   choices?: Array<{ message?: { content?: string } }>;
 }): string => (r.choices ?? []).map((c) => c?.message?.content ?? "").join("");
 
+const readUsage = (usage: {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+} | null | undefined): TokenUsageDetails | null => {
+  if (!usage) {
+    return null;
+  }
+  const prompt = Number(usage.prompt_tokens) || 0;
+  const completion = Number(usage.completion_tokens) || 0;
+  const total = Number(usage.total_tokens) || prompt + completion;
+  return {
+    promptTokens: Math.max(prompt, 0),
+    completionTokens: Math.max(completion, 0),
+    totalTokens: Math.max(total, 0),
+  };
+};
+
+const emitUsage = (sink: UsageSink | null, info: UsageInfo) => {
+  if (!sink) {
+    return;
+  }
+  sink(info);
+};
+
 const addOnline = (s: string, on: boolean) =>
   on ? (s.includes(":online") ? s : `${s}:online`) : s;
 const prepRoute = (models: NonEmpty<OpenAIChatModel>, online: boolean) => {
@@ -41,13 +79,18 @@ export async function generateText(
   openai: OpenAI,
   prompt: string,
   useWebSearch = false,
-  models: NonEmpty<OpenAIChatModel>
+  models: NonEmpty<OpenAIChatModel>,
+  sink: UsageSink | null
 ) {
   const { model, fallbacks } = prepRoute(models, useWebSearch);
   const r = await openai.chat.completions.create({
     model,
     messages: asInput(prompt),
     ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
+  });
+  emitUsage(sink, {
+    model,
+    usage: readUsage((r as any).usage),
   });
   return readText(r as any);
 }
@@ -83,7 +126,8 @@ export async function extractJson(
   openai: OpenAI,
   text: string,
   schema: string,
-  models: NonEmpty<OpenAIChatModel>
+  models: NonEmpty<OpenAIChatModel>,
+  sink: UsageSink | null
 ): Promise<Record<string, TSerial>> {
   return generateJson(
     openai,
@@ -94,7 +138,8 @@ export async function extractJson(
       </INPUT>
     `.trim(),
     schema,
-    models
+    models,
+    sink
   );
 }
 
@@ -102,13 +147,15 @@ export async function generateJsonWithWeb(
   openai: OpenAI,
   prompt: string,
   schema: string,
-  models: NonEmpty<OpenAIChatModel>
+  models: NonEmpty<OpenAIChatModel>,
+  sink: UsageSink | null
 ) {
   return extractJson(
     openai,
-    await generateText(openai, prompt, true, models),
+    await generateText(openai, prompt, true, models, sink),
     schema,
-    models
+    models,
+    sink
   );
 }
 
@@ -116,7 +163,8 @@ export async function generateJson(
   openai: OpenAI,
   prompt: string,
   schema: string,
-  models: NonEmpty<OpenAIChatModel>
+  models: NonEmpty<OpenAIChatModel>,
+  sink: UsageSink | null
 ): Promise<Record<string, TSerial>> {
   const { model, fallbacks } = prepRoute(models, false);
   const preface = "Return only a JSON object. Follow this schema:\n" + schema;
@@ -129,6 +177,10 @@ export async function generateJson(
     response_format: { type: "json_object" as const },
     ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
   });
+  emitUsage(sink, {
+    model,
+    usage: readUsage((r as any).usage),
+  });
   const txt = readText(r as any) || "{}";
   return JSON.parse(txt);
 }
@@ -136,13 +188,18 @@ export async function generateJson(
 export async function generateChatResponse(
   openai: OpenAI,
   messages: AIChatMessage[],
-  models: NonEmpty<OpenAIChatModel>
+  models: NonEmpty<OpenAIChatModel>,
+  sink: UsageSink | null
 ) {
   const { model, fallbacks } = prepRoute(models, true);
   const r = await openai.chat.completions.create({
     model,
     messages: asInput(messages),
     ...(fallbacks.length ? { extra_body: { models: fallbacks } } : {}),
+  });
+  emitUsage(sink, {
+    model,
+    usage: readUsage((r as any).usage),
   });
   return readText(r as any);
 }
@@ -186,7 +243,8 @@ export async function moderateInput(
   openai: OpenAI,
   input: string,
   models: NonEmpty<OpenAIChatModel>,
-  threshold: number
+  threshold: number,
+  sink: UsageSink | null
 ): Promise<TOpenRouterModerationResult | null> {
   const schema: Record<string, TSerial> = {};
   (
@@ -205,7 +263,8 @@ export async function moderateInput(
     openai,
     prompt.trim(),
     JSON.stringify(schema),
-    models
+    models,
+    sink
   ).catch((err) => {
     console.warn("Failed to score moderation", err);
     return null;

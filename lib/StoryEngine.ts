@@ -14,6 +14,7 @@ import {
   nextNode,
   wouldEscapeCurrentBlock,
 } from "./StoryNodeHelpers";
+import { createCostTracker } from "./MeteringUtils";
 import { StoryServiceProvider } from "./StoryServiceProvider";
 import {
   ActionContext,
@@ -37,6 +38,8 @@ export async function advanceStory(
   options: StoryOptions
 ): Promise<StoryAdvanceResult> {
   const out: OP[] = [];
+  const tracker = createCostTracker();
+  provider.attachCostTracker(tracker);
 
   const rng = new PRNG(options.seed, session.cycle % 10_000);
   session.time = Date.now();
@@ -132,9 +135,11 @@ export async function advanceStory(
     addr: string | null,
     info: Record<string, string>
   ) {
+    const cost = tracker.summary();
+    provider.attachCostTracker(null);
     makeCheckpoint({ session, options }, []);
     session.cycle = rng.cycle;
-    return { ops: out, session, seam, addr, info };
+    return { ops: out, session, seam, addr, info, cost };
   }
 
   const visits: Record<string, number> = {};

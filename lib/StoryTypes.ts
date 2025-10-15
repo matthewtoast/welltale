@@ -1,6 +1,7 @@
 import { NonEmpty, TSerial } from "../typings";
 import { PRNG } from "./RandHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
+import type { CostSummary } from "./MeteringUtils";
 
 export type StoryCartridge = Record<string, Buffer | string>;
 
@@ -203,6 +204,7 @@ export type StoryAdvanceResult = {
   addr: string | null;
   seam: SeamType;
   info: Record<string, string>;
+  cost: CostSummary;
 };
 
 export function createDefaultSession(

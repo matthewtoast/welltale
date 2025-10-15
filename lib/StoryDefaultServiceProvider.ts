@@ -10,7 +10,7 @@ import {
   generateVoiceFromPrompt,
 } from "./ElevenLabsUtils";
 import { fetch, FetchOptions } from "./HTTPHelpers";
-import type { AIChatMessage } from "./OpenRouterUtils";
+import type { AIChatMessage, UsageSink } from "./OpenRouterUtils";
 import {
   generateChatResponse,
   generateImage,
@@ -29,8 +29,15 @@ import type {
 } from "./StoryServiceProvider";
 import type { VoiceSpec } from "./StoryTypes";
 import { generatePredictableKey, parameterize } from "./TextHelpers";
+import {
+  CostKind,
+  CostTracker,
+  makeTokenCostEntry,
+} from "./MeteringUtils";
 
 export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
+  protected costTracker: CostTracker | null = null;
+
   constructor(
     public config: {
       openai: OpenAI;
@@ -42,6 +49,29 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       verbose?: boolean;
     }
   ) {}
+
+  attachCostTracker(tracker: CostTracker | null) {
+    this.costTracker = tracker;
+  }
+
+  protected usageSink(kind: CostKind): UsageSink | null {
+    if (!this.costTracker) {
+      return null;
+    }
+    const tracker = this.costTracker;
+    return (info) => {
+      if (!info.usage) {
+        return;
+      }
+      tracker.add(
+        makeTokenCostEntry(kind, info.model, {
+          promptTokens: info.usage.promptTokens,
+          completionTokens: info.usage.completionTokens,
+          totalTokens: info.usage.totalTokens,
+        })
+      );
+    };
+  }
 
   async generateText(
     prompt: string,
@@ -63,7 +93,8 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       this.config.openai,
       prompt,
       options.useWebSearch,
-      options.models
+      options.models,
+      this.usageSink("llm")
     );
     if (!result) {
       console.warn("Failed to generate completion");
@@ -98,13 +129,15 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
           this.config.openai,
           prompt,
           JSON.stringify(schema),
-          options.models
+          options.models,
+          this.usageSink("llm")
         )
       : await generateJson(
           this.config.openai,
           prompt,
           JSON.stringify(schema),
-          options.models
+          options.models,
+          this.usageSink("llm")
         );
     if (!result) {
       console.warn("Failed to generate completion");
@@ -311,7 +344,8 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     const response = await generateChatResponse(
       this.config.openai,
       messages,
-      options.models
+      options.models,
+      this.usageSink("llm")
     );
     const responseMessage: AIChatMessage = {
       role: "assistant",
@@ -363,7 +397,8 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       this.config.openai,
       input,
       options.models,
-      options.threshold
+      options.threshold,
+      this.usageSink("llm")
     ).catch((err) => {
       console.warn("Failed to run moderation", err);
       return null;

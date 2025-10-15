@@ -12,7 +12,7 @@ import {
 
 const ROOT_DIR = join(__dirname, "..");
 
-type RenderContextOptions = {
+export type RenderContextOptions = {
   readme: boolean;
   tagDocs: boolean;
   templateSyntax: boolean;
@@ -21,17 +21,19 @@ type RenderContextOptions = {
   syntaxTmLanguage: boolean;
 };
 
+export const DEFAULT_RENDER_CTX_OPTIONS: RenderContextOptions = {
+  readme: true,
+  tagDocs: true,
+  templateSyntax: true,
+  example: true,
+  languageConfig: false,
+  syntaxTmLanguage: false,
+};
+
 const SQUIGGLE_DELIM = "\n~~~~~\n";
 
 export async function renderContext(
-  opts: RenderContextOptions = {
-    readme: true,
-    tagDocs: true,
-    templateSyntax: true,
-    example: true,
-    languageConfig: false,
-    syntaxTmLanguage: false,
-  }
+  opts: RenderContextOptions = DEFAULT_RENDER_CTX_OPTIONS
 ) {
   const parts: string[] = [];
 
@@ -121,7 +123,8 @@ ${content}
 export async function createWelltaleContent(
   prompt: string,
   provider: StoryServiceProvider,
-  options: GenerateTextCompletionOptions
+  textCompletionOptions: GenerateTextCompletionOptions,
+  renderContextOptions: RenderContextOptions = DEFAULT_RENDER_CTX_OPTIONS
 ) {
   const result = await provider.generateChat(
     [
@@ -132,7 +135,7 @@ export async function createWelltaleContent(
           You've written successful audio games, audiobooks, short audio stories, audio articles, podcasts, and more, all using interactive audio as a medium.
           You always use Welltale Story Language (WSL) to write stories because it is your favorite framework. Your knowledge of Welltale is exhaustive.
           >>>>> WELLTALE KNOWLEDGE BEGIN >>>>>
-          ${await renderContext()}
+          ${await renderContext(renderContextOptions)}
           <<<<< WELLTALE KNOWLEDGE END <<<<<
           The user will give you an instruction, and you will write them a complete story in WSL following their guidelines.
           Remember, you write audio stories, thus output content will only be heard, not seen, so please write accordingly!
@@ -150,7 +153,7 @@ export async function createWelltaleContent(
         `,
       },
     ],
-    options
+    textCompletionOptions
   );
   return result.body;
 }

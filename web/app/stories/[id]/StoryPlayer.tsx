@@ -243,6 +243,7 @@ export function StoryPlayer(props: StoryMeta) {
         seam: SeamType.ERROR,
         info: { reason: "Network error" },
         addr: sessionRef.current.address,
+        cost: { total: 0, items: [] },
       };
     }
   }

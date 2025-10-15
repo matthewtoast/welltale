@@ -11,6 +11,7 @@ import { OpenRouterModerationCategories } from "./OpenRouterUtils";
 import type { ImageAspectRatio, ImageModelSlug, VoiceSpec } from "./StoryTypes";
 import { LLM_SLUGS } from "./StoryTypes";
 import { parameterize } from "./TextHelpers";
+import type { CostTracker } from "./MeteringUtils";
 
 export type Model = (typeof LLM_SLUGS)[number];
 
@@ -43,6 +44,7 @@ export type SpeechSpec = {
 };
 
 export interface StoryServiceProvider {
+  attachCostTracker(tracker: CostTracker | null): void;
   generateText(
     prompt: string,
     options: GenerateTextCompletionOptions
@@ -93,6 +95,8 @@ export interface StoryServiceProvider {
 }
 
 export class MockStoryServiceProvider implements StoryServiceProvider {
+  attachCostTracker(_tracker: CostTracker | null) {}
+
   async generateText(
     prompt: string,
     options: GenerateTextCompletionOptions
