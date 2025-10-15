@@ -72,6 +72,13 @@ export function removeLeading(t: string, c: string): string {
   return t;
 }
 
+export function removeTrailing(s: string, t: string) {
+  if (s[s.length - 1] === t) {
+    return removeTrailing(s.slice(0, -1), t);
+  }
+  return s;
+}
+
 export function cleanSplit(s: string | null | undefined, sep: string = "\n") {
   if (typeof s !== "string") {
     return [];

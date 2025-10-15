@@ -32,9 +32,9 @@ import {
   nearestAncestorOfType,
   nextNode,
   parentNodeOf,
+  parseXmlFragment,
   searchForNode,
   skipBlock,
-  parseXmlFragment,
   updateChildAddresses,
 } from "./StoryNodeHelpers";
 import { renderAtts, renderText } from "./StoryRenderMethods";
@@ -288,11 +288,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             
             <!-- Input with structured extraction -->
             <input
+              key="info"
               playerName.description="The player's name"
               playerClass.description="warrior, mage, or rogue"
               playerClass.type="string"
             />
-            <p>Welcome, {{playerName}} the {{playerClass}}!</p>
+            <p>Welcome, {{info.playerName}} the {{info.playerClass}}!</p>
           `,
         },
       ],
@@ -354,6 +355,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const { body } = ctx.session.input;
         const raw = snorm(body);
 
+        // TODO: if the input is "AUTO", then use LLM to auto-answer the input
+        // if (raw === "AUTO") {
+        //   raw = await ctx.provider.generateText(
+        //     dedent`
+        //     `,
+        //     {
+        //       seed: atts.seed,
+        //       models: normalizeModels(ctx.options, atts.models),
+        //       useWebSearch: false,
+        //     }
+        //   );
+        // }
+
         const from = atts.from ?? ctx.session.player.id;
         const to = atts.to ?? HOST_ID;
 
@@ -385,7 +399,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         ctx.scope["input"] = raw;
         ctx.session.state["input"] = raw;
         const tkey = tagOutKey(atts);
-        ctx.scope[tkey] = raw;
 
         if (ctx.options.verbose) {
           console.info("<input>", raw, tkey, extracted);
@@ -1356,7 +1369,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
-      const prompt = snorm(await renderText(await marshallText(ctx.node, ctx), ctx));
+      const prompt = snorm(
+        await renderText(await marshallText(ctx.node, ctx), ctx)
+      );
       const fallback = nextNode(ctx.node, ctx.session.root, false);
       const remove = () => {
         const parent = parentNodeOf(ctx.node, ctx.session.root);
@@ -1368,7 +1383,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           }
           return;
         }
-        const idx = ctx.session.root.kids.findIndex((k) => k.addr === ctx.node.addr);
+        const idx = ctx.session.root.kids.findIndex(
+          (k) => k.addr === ctx.node.addr
+        );
         if (idx >= 0) {
           ctx.session.root.kids.splice(idx, 1);
           updateChildAddresses(ctx.session.root);
@@ -1406,7 +1423,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           updateChildAddresses(parent);
         }
       } else {
-        const idx = ctx.session.root.kids.findIndex((k) => k.addr === ctx.node.addr);
+        const idx = ctx.session.root.kids.findIndex(
+          (k) => k.addr === ctx.node.addr
+        );
         if (idx >= 0) {
           ctx.session.root.kids.splice(idx, 1, ...replacements);
           updateChildAddresses(ctx.session.root);
@@ -1676,7 +1695,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       ex: [
         {
           code: dedent`
-            <input key="input" from="player" />
+            <input from="player" />
             <llm:line as="Bill" with="player, Mark" key="reply">
               You are Bill, an angry farmer. Keep answers short and prickly.
             </llm:line>
