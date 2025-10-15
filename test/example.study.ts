@@ -1,5 +1,4 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import dedent from "dedent";
 import OpenAI from "openai";
 import { join } from "path";
 import { loadSstEnv } from "../env/env-sst";
@@ -16,7 +15,6 @@ import {
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
 } from "../lib/StoryTypes";
-import { createWelltaleContent } from "../lib/WelltaleKnowledgeContext";
 import { runUntilComplete } from "./TestUtils";
 
 const ROOT_DIR = join(__dirname, "..");
@@ -25,6 +23,7 @@ const env = loadSstEnv();
 
 async function testTestStory() {
   const cartridge = await loadDirRecursive(join(ROOT_DIR, "fic/example"));
+
   const options: LocalStoryRunnerOptions = {
     seed: "example-story",
     verbose: false,
@@ -37,6 +36,7 @@ async function testTestStory() {
     doGenerateImage: false,
     doPlayMedia: false,
   };
+
   const provider = new DefaultStoryServiceProvider(
     {
       eleven: new ElevenLabsClient({ apiKey: env.ELEVENLABS_API_KEY }),
@@ -64,37 +64,56 @@ async function testTestStory() {
     },
     ddv: { cycles: {}, bags: {} },
   };
-  const content = await createWelltaleContent(
-    dedent`
-      This is a humorous story where the player takes on the role of a juror during voir dire.
-
-      The player's objective is to avoid getting selected for the jury.
-
-      The laywer doing the interviewing (an NPC), however, is desperate to get the player on the jury.
-
-      The judge (an NPC) occasionally interjects to keep things "on track." Once the judge's threshold for absurdity is breached, they reject the juror (the player) and the player wins.
-
-      The judge should take on the role of the "straight man" and host of sorts, introing the scene (in character), and giving the player cues as necessary. But 90% should be dialog between the player and lawyer.
-
-      As the story progresses the lawyer should resort to ever more absurd and humorous ways to deal with the juror's attempts to disqualify himself.
-    `,
-    provider,
-    { ...options, useWebSearch: false }
-  );
-  console.log(content);
-  return;
   const sources = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
   });
-  const session = createDefaultSession(options.seed, sources);
-  const result = await runUntilComplete({
-    options,
-    provider,
-    sources,
-    session,
-    inputs: [],
-  });
-  console.log(result.ops);
+  const inputSets: string[][] = [
+    [
+      "Let's go into the forest.",
+      "I blurt out that the answer is the moon."
+    ],
+    [
+      "I choose the forest path.",
+      "Is the answer one of the seasons like spring summer autumn or winter?",
+      "Buy the sword please.",
+      "I'm done shopping, time to leave.",
+      "Take my sword as payment; it's enchanted and worth more than your toll so let me cross."
+    ],
+    [
+      "I'll head toward the swamp.",
+      "orange",
+      "I'd like to buy a potion.",
+      "That's it, I'm leaving now.",
+      "Accept this potion as payment; it heals any wound so let me cross your bridge."
+    ],
+    [
+      "I'll go through the swamp instead.",
+      "river",
+      "castle",
+      "orange",
+      "I'm finished shopping, let me leave.",
+      "I don't really have anything valuable.",
+      "Fine take 20 gold coins; they're dwarven mint and worth your toll so please let me pass."
+    ],
+  ];
+  for (let i = 0; i < inputSets.length; i++) {
+    const session = createDefaultSession(`${options.seed}-${i}`, sources);
+    console.log(`\n--- Run ${i + 1} ---`);
+    const result = await runUntilComplete({
+      options,
+      provider,
+      sources,
+      session,
+      inputs: inputSets[i],
+    });
+    result.ops.forEach((op) => {
+      if (op.type === "play-media") {
+        if (op.event) {
+          console.log(op.event.from, op.event.body);
+        }
+      }
+    });
+  }
 }
 
 testTestStory().catch(console.error);
