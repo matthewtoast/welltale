@@ -449,10 +449,89 @@
 
   <!--
     With <include> you can pull in separately defined content by referencing its `id` attribute.
-    In this case, in the `troll.wsl` file, we defined <module id="troll"> which we include here.
+    In this case, we're referencing the content inside <module id="troll"> to be included here.
   -->
   <include id="troll" />
 </div>
+
+<!--
+  There's nothing special about the <module> tag - by default, it will be ignored, so we can use
+  it as a container for content that we can reference using <include>. You could keep this here
+  or put it into a different file.
+-->
+<module id="troll">
+  <var name="trollSatisfied" type="boolean" value="false" />
+  <var name="offeredItem" value="" />
+  <var name="attempts" type="number" value="0" />
+
+  <narrator>
+    You have {$ inventory.join(', ') $} and {{gold}} gold coins.
+    Can you convince the troll to let you pass?
+  </narrator>
+
+  <while cond="!trollSatisfied">
+    <input />
+
+    <var name="attempts" value="{$ attempts + 1 $}" />
+
+    <if cond="attempts > 5">
+      <narrator>
+        Perhaps it's not just what you offer, but how well you argue its value that matters to the troll.
+      </narrator>
+    </if>
+
+    <llm:line
+      key="trollResponse"
+      as="troll">
+      You are a bridge troll who demands payment to cross.
+      Just being offered an item or gold for payment isn't enough - you need to be convinced of its value.
+      <when cond="!offeredItem">
+        The traveler hasn't offered anything yet. Be impatient and demanding.
+      </when>
+      <when cond="offeredItem">
+        The traveler offered {{offeredItem}}. Consider their argument about its value.
+        If they make a good case about why {{offeredItem}} is valuable, let them pass.
+      </when>
+    </llm:line>
+
+    <troll>{{trollResponse}}</troll>
+
+    <llm:parse
+      key="analysis"
+      offered="what item the player offered (bread, sword, potion, gold, or null)"
+      convinced="whether the troll was convinced by the player's argument">
+      The player is trying to convince the troll to let them pass the bridge.
+      The troll will only let them cross if convinced by the player's persuasion.
+      The player said: {{input}}
+      The troll said: {{trollResponse}}
+      Now assess whether the troll was convinced by what was offered.
+    </llm:parse>
+
+    <script>
+      if (analysis.offered && !offeredItem) {
+        set("offeredItem", analysis.offered);
+      }
+      if (analysis.convinced) {
+        set("trollSatisfied", true);
+      }
+    </script>
+  </while>
+
+  <troll>
+    <when cond="offeredItem">
+      I'll take ye {{offeredItem}}, then.
+    </when>
+    <when cond="!offeredItem">
+      Ye've convinced me with yer words alone.
+    </when>
+  </troll>
+
+  <narrator>
+    The troll steps aside, grumbling but satisfied with the trade.
+  </narrator>
+
+  <jump to="win" />
+</module>
 
 <div id="dead">
   <narrator>

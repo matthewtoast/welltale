@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { marked } from "marked";
+import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { ActionHandlerCategory } from "../../../lib/StoryTypes";
 import styles from "./docs.module.css";
 
@@ -23,7 +23,7 @@ export interface HandlerEntry {
   description: string;
   categories: ActionHandlerCategory[];
   options: HandlerOption[];
-  example: HandlerExample | null;
+  examples: HandlerExample[];
 }
 
 interface DocsClientProps {
@@ -84,22 +84,23 @@ function filterHandlers(
   const term = search.trim().toLowerCase();
   return handlers.filter((handler) => {
     if (!handler.tags.length) return false;
-    if (category !== "all" && !handler.categories.includes(category)) return false;
+    if (category !== "all" && !handler.categories.includes(category))
+      return false;
     if (!term) return true;
-    const tagMatch = handler.tags.some((tag) => tag.toLowerCase().includes(term));
+    const tagMatch = handler.tags.some((tag) =>
+      tag.toLowerCase().includes(term)
+    );
     if (tagMatch) return true;
     return handler.description.toLowerCase().includes(term);
   });
 }
 
 export default function DocsClient({ handlers }: DocsClientProps) {
-  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("all");
+  const [selectedCategory, setSelectedCategory] =
+    useState<CategoryFilter>("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const categories = useMemo(
-    () => collectCategories(handlers),
-    [handlers]
-  );
+  const categories = useMemo(() => collectCategories(handlers), [handlers]);
 
   const filteredHandlers = useMemo(
     () => filterHandlers(handlers, selectedCategory, searchTerm),
@@ -154,20 +155,26 @@ export default function DocsClient({ handlers }: DocsClientProps) {
           <div key={handler.primaryTag} className={styles.tagCard}>
             <div className={styles.tagHeader}>
               <h3 className={styles.tagName}>&lt;{handler.primaryTag}&gt;</h3>
-              <div 
+              <div
                 className={styles.tagDescription}
-                dangerouslySetInnerHTML={{ __html: processMarkdown(handler.description) }}
+                dangerouslySetInnerHTML={{
+                  __html: processMarkdown(handler.description),
+                }}
               />
             </div>
 
             <div className={styles.tagDetails}>
-              {handler.example && (
+              {handler.examples.length > 0 && (
                 <div className={styles.example}>
-                  <h4>Example:</h4>
-                  {handler.example.block}
-                  {handler.example.note && (
-                    <p className={styles.exampleNote}>{handler.example.note}</p>
-                  )}
+                  <h4>Examples:</h4>
+                  {handler.examples.map((ex, i) => (
+                    <div key={i}>
+                      {ex.block}
+                      {ex.note && (
+                        <p className={styles.exampleNote}>{ex.note}</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -196,4 +203,3 @@ export default function DocsClient({ handlers }: DocsClientProps) {
     </section>
   );
 }
-

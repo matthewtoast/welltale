@@ -40,20 +40,18 @@ function buildHandlerEntries(): HandlerEntry[] {
     if (!handler.tags.length) return list;
     if (!handler.docs) return list;
 
-    const example = handler.docs.ex[0] ?? null;
-    const exampleBlock = example
-      ? {
-          block: (
-            <CodeBlock
-              code={example.code}
-              language="welltale"
-              className={styles.codeBlock}
-              theme="github-dark"
-            />
-          ),
-          note: example.note ?? null,
-        }
-      : null;
+    const examples =
+      handler.docs.ex?.map((example) => ({
+        block: (
+          <CodeBlock
+            code={example.code}
+            language="welltale"
+            className={styles.codeBlock}
+            theme="github-dark"
+          />
+        ),
+        note: example.note ?? null,
+      })) ?? [];
 
     const categories = handler.docs.cats ?? [];
 
@@ -71,7 +69,7 @@ function buildHandlerEntries(): HandlerEntry[] {
       description: handler.docs.desc,
       categories,
       options,
-      example: exampleBlock,
+      examples,
     });
 
     return list;
@@ -177,8 +175,8 @@ export default function DocsPage() {
             features. A Welltale story can comprise multiple files in any
             directory structure you prefer. The engine loads and combines all
             files together - data files (.yml/.yaml/.json) for configuration and
-            metadata, and story files (.wsl/.xml) for the actual content and
-            logic.
+            metadata, and story files (.wsl/.xml) for the actual story content
+            and logic.
           </p>
 
           {dataContent && (
@@ -186,8 +184,7 @@ export default function DocsPage() {
               <h3 className={styles.fileName}>data.yml</h3>
               <p className={styles.fileDescription}>
                 Story metadata and configuration. You can define story data,
-                custom voices, and macros in data files. Voices and macros can
-                also be defined directly in your story files - it's flexible.
+                custom voices, and macros in data files.
               </p>
               <CodeBlock
                 code={dataContent}

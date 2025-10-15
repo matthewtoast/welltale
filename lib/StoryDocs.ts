@@ -43,7 +43,7 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
     ],
   },
   {
-    syntax: "[[random|variations]]",
+    syntax: "[[dynamic|text|variations]]",
     desc: "Create dynamic text variations that change each time they're encountered. Use pipe symbols to separate options. Add ^ for cycling through options in order, or ~ for shuffled rotation.",
     examples: [
       {
