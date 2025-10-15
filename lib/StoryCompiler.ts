@@ -13,7 +13,6 @@ import {
   VoiceSpec,
 } from "./StoryTypes";
 import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
-import { createWelltaleContent } from "./WelltaleKnowledgeContext";
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
@@ -208,31 +207,6 @@ async function expandCreateNodes(
   const out: BaseNode[] = [];
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    if (node.type === "create") {
-      const raw = collectText(node);
-      const prompt = (await renderText(raw, context)).trim();
-      if (!prompt) {
-        console.warn(`Skipping <create> in ${source} with empty prompt`);
-        continue;
-      }
-      if (verbose) {
-        console.info(`Generating <create> content in ${source}`);
-      }
-      const generated = await createWelltaleContent(prompt, context.provider, {
-        models: context.options.models,
-        useWebSearch: false,
-      });
-      const fragment = parseXmlFragment(generated, collect);
-      const kids = await expandCreateNodes(
-        fragment.kids,
-        context,
-        collect,
-        verbose,
-        source
-      );
-      out.push(...kids);
-      continue;
-    }
     if (!node.kids.length) {
       out.push({
         type: node.type,
@@ -352,17 +326,6 @@ function collectDataArtifacts(entries: unknown[]): DataArtifacts {
     }
   }
   return { pronunciations, meta, readyVoices, pendingVoices };
-}
-
-function collectText(node: BaseNode): string {
-  if (node.type === "#text") {
-    return node.text;
-  }
-  let out = "";
-  for (let i = 0; i < node.kids.length; i++) {
-    out += collectText(node.kids[i]);
-  }
-  return out;
 }
 
 function toVoiceSpec(source: unknown, key: string): VoiceSpec | null {

@@ -1,11 +1,27 @@
 import { createHighlighter, hastToHtml } from "shiki";
 import type { LanguageRegistration } from "@shikijs/types";
+import type { Highlighter } from "shiki";
 import welltaleGrammar from "../.vscode/extensions/welltale/syntaxes/welltale.tmLanguage.json";
 
 type HighlightTheme = "github-light" | "github-dark";
 
-let highlighter: Awaited<ReturnType<typeof createHighlighter>> | null = null;
-let languageLoaded = false;
+type ShikiSharedState = {
+  highlighter: Highlighter | null;
+  promise: Promise<Highlighter> | null;
+  languageLoaded: boolean;
+};
+
+const globalStore = globalThis as typeof globalThis & {
+  __welltaleShiki?: ShikiSharedState;
+};
+
+const shikiState: ShikiSharedState =
+  globalStore.__welltaleShiki ??
+  (globalStore.__welltaleShiki = {
+    highlighter: null,
+    promise: null,
+    languageLoaded: false,
+  });
 
 type HastNode = {
   type: string;
@@ -23,19 +39,24 @@ function toLanguageRegistration(): LanguageRegistration {
 }
 
 async function loadHighlighter() {
-  if (highlighter) return highlighter;
-  highlighter = await createHighlighter({
-    themes: ["github-light", "github-dark"],
-    langs: ["xml", "javascript", "typescript", "yaml"],
-  });
-  return highlighter;
+  if (shikiState.highlighter) return shikiState.highlighter;
+  if (!shikiState.promise) {
+    shikiState.promise = createHighlighter({
+      themes: ["github-light", "github-dark"],
+      langs: ["xml", "javascript", "typescript", "yaml"],
+    }).then((instance) => {
+      shikiState.highlighter = instance;
+      return instance;
+    });
+  }
+  return shikiState.promise;
 }
 
 async function ensureLanguage(): Promise<boolean> {
-  if (languageLoaded) return true;
+  if (shikiState.languageLoaded) return true;
   const instance = await loadHighlighter();
   await instance.loadLanguage(toLanguageRegistration());
-  languageLoaded = true;
+  shikiState.languageLoaded = true;
   return true;
 }
 
@@ -44,7 +65,7 @@ export async function highlightCode(code: string, language: string, theme: Highl
     console.warn("Failed to load Welltale grammar", error);
     return false;
   });
-  const instance = highlighter;
+  const instance = shikiState.highlighter;
   if (!loaded || !instance) return null;
   return Promise.resolve()
     .then(async () => {
@@ -58,30 +79,58 @@ export async function highlightCode(code: string, language: string, theme: Highl
     });
 }
 
-function highlightTemplateVariables(node: HastNode) {
+function extractClassNames(value: unknown): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    const out: string[] = [];
+    for (const item of value) {
+      out.push(...extractClassNames(item));
+    }
+    return out;
+  }
+  if (typeof value === "string") {
+    return value.split(/\s+/).filter((item) => item.length > 0);
+  }
+  return [];
+}
+
+function isCommentElement(node: HastNode): boolean {
+  if (!node || node.type !== "element") return false;
+  const props = node.properties ?? {};
+  const classes = extractClassNames((props as Record<string, unknown>).className);
+  if (classes.includes("comment")) return true;
+  const dataType = (props as Record<string, unknown>)["data-token-type"];
+  if (typeof dataType === "string" && dataType.includes("comment")) return true;
+  return false;
+}
+
+function highlightTemplateVariables(node: HastNode, inComment: boolean = false): void {
   if (!node || !node.children || node.children.length === 0) return;
 
   node.children = node.children.flatMap((child) => {
-    if (child.type === "text" && typeof child.value === "string") {
+    const childComment = inComment || isCommentElement(child);
+    if (!childComment && child.type === "text" && typeof child.value === "string") {
       const segments = splitTemplateSegments(child.value);
       if (segments.length === 1) return [child];
-      return segments.map((segment) => {
-        if (segment.isTemplate) {
-          return createTemplateSpan(segment.value);
-        }
-        if (!segment.value) return null;
-        return { type: "text", value: segment.value } as HastNode;
-      }).filter(Boolean) as HastNode[];
+      return segments
+        .map((segment) => {
+          if (segment.isTemplate) return createTemplateSpan(segment.value);
+          if (!segment.value) return null;
+          return { type: "text", value: segment.value } as HastNode;
+        })
+        .filter(Boolean) as HastNode[];
     }
 
-    highlightTemplateVariables(child);
+    if (child.children && child.children.length > 0) {
+      highlightTemplateVariables(child, childComment);
+    }
     return [child];
   });
 }
 
 function splitTemplateSegments(value: string) {
   const matches: { value: string; isTemplate: boolean }[] = [];
-  const regex = /\{\{[\s\S]*?\}\}/g;
+  const regex = /\{\{[^}]*\S[^}]*\}\}/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null = null;
 

@@ -392,7 +392,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
       });
   }
 
-  async moderateInput(input: string, options: ModerateOptions) {
+  async moderate(input: string, options: ModerateOptions) {
     const res = await moderateInput(
       this.config.openai,
       input,

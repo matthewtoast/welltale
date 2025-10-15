@@ -170,7 +170,7 @@ function executeOperations(
   return [current];
 }
 
-function instantiateNodes(nodes: BaseNode[]): StoryNode[] {
+export function instantiateNodes(nodes: BaseNode[]): StoryNode[] {
   const out: StoryNode[] = [];
   for (let i = 0; i < nodes.length; i++) {
     out.push(instantiateNode(nodes[i]));

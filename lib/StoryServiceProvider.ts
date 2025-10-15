@@ -88,7 +88,7 @@ export interface StoryServiceProvider {
     flagged: boolean;
     reasons: Record<string, number>;
   } | null>;
-  moderateInput(
+  moderate(
     input: string,
     options: ModerateOptions
   ): Promise<TOpenRouterModerationResult | null>;
@@ -156,6 +156,13 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     messages: AIChatMessage[],
     options: BaseGenerateOptions
   ): Promise<AIChatMessage> {
+    const last = messages[messages.length - 1];
+    const wantsCreate =
+      typeof last?.body === "string" &&
+      last.body.includes("Return only the WSL content");
+    if (wantsCreate) {
+      return { role: "assistant", body: "<p>Mock generated story</p>" };
+    }
     return { role: "assistant", body: "Mock chat response" };
   }
 
@@ -176,7 +183,7 @@ export class MockStoryServiceProvider implements StoryServiceProvider {
     return { flagged: false, reasons: {} };
   }
 
-  async moderateInput(
+  async moderate(
     _input: string,
     _options: ModerateOptions
   ): Promise<TOpenRouterModerationResult | null> {
