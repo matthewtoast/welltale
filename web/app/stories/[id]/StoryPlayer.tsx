@@ -2,14 +2,12 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { runWithSkip, triggerSkip } from "../../../../lib/SkipHelpers";
-import { assignInput } from "../../../../lib/StoryConstants";
-import { runWithPrefetch } from "../../../../lib/StoryRunnerCorePrefetch";
+import { StoryCoordinatorWeb } from "../../../../lib/StoryCoordinatorWeb";
 import {
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   OP,
   SeamType,
-  StoryAdvanceResult,
   StoryMeta,
   StoryOptions,
   StorySession,
@@ -26,13 +24,12 @@ export function StoryPlayer(props: StoryMeta) {
   const [error, setError] = useState<string | null>(null);
   const [isSkippable, setIsSkippable] = useState(false);
   const [hasMoreOps, setHasMoreOps] = useState(false);
-  const skipAbortRef = useRef<AbortController | null>(null);
   const emptySource = {
     root: { addr: "", type: "root", atts: {}, kids: [], text: "" },
     voices: {},
     pronunciations: {},
     scripts: {},
-    meta: {}
+    meta: {},
   };
   const sessionRef = useRef<StorySession>(
     createDefaultSession(`web-${props.id}`, emptySource)
@@ -48,6 +45,18 @@ export function StoryPlayer(props: StoryMeta) {
     inputRetryMax: 3,
     models: DEFAULT_LLM_SLUGS,
   });
+
+  const coordinatorRef = useRef<StoryCoordinatorWeb | null>(null);
+  if (!coordinatorRef.current) {
+    coordinatorRef.current = new StoryCoordinatorWeb(
+      sessionRef.current,
+      optionsRef.current,
+      {
+        apiToken: "",
+        apiBaseUrl: "",
+      }
+    );
+  }
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const backgroundAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -215,39 +224,6 @@ export function StoryPlayer(props: StoryMeta) {
     setHasMoreOps(false);
   }
 
-  async function advance(input: string | null): Promise<StoryAdvanceResult> {
-    assignInput(sessionRef.current, input);
-
-    try {
-      const res = await fetch(`/api/stories/advance`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session: sessionRef.current,
-          options: optionsRef.current,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Advance failed");
-      }
-
-      const result = (await res.json()) as StoryAdvanceResult;
-      sessionRef.current = result.session;
-      return result;
-    } catch (err) {
-      console.error("Advance error:", err);
-      return {
-        ops: [],
-        session: sessionRef.current,
-        seam: SeamType.ERROR,
-        info: { reason: "Network error" },
-        addr: sessionRef.current.address,
-        cost: { total: 0, items: [] },
-      };
-    }
-  }
-
   async function handlePlay() {
     const previousPhase = phase;
     if (previousPhase === "running") return;
@@ -275,7 +251,14 @@ export function StoryPlayer(props: StoryMeta) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    const result = await runWithPrefetch(userInput, advance, showOps);
+    const coordinator = coordinatorRef.current;
+    if (!coordinator) return;
+    const result = await coordinator.run(userInput, showOps);
+    if (!result) {
+      setPhase("error");
+      setError("Network error");
+      return;
+    }
 
     if (result.seam === SeamType.INPUT) {
       setPhase("waiting");

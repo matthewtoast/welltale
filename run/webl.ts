@@ -1,7 +1,7 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadDevEnv } from "../env/env-dev";
-import { assignInput } from "../lib/StoryConstants";
+import { StoryCoordinatorWeb } from "../lib/StoryCoordinatorWeb";
 import {
   LocalStoryRunnerOptions,
   terminalRenderOps,
@@ -12,8 +12,9 @@ import {
   DEFAULT_LLM_SLUGS,
   OP,
   StoryAdvanceResult,
+  StoryOptions,
 } from "../lib/StoryTypes";
-import { apiAdvanceStory, apiFetchDevSessions } from "../lib/StoryWebAPI";
+import { apiFetchDevSessions } from "../lib/StoryWebAPI";
 import { cleanSplit } from "../lib/TextHelpers";
 
 const devEnv = loadDevEnv();
@@ -63,7 +64,7 @@ async function go() {
 
   const { token: sessionToken } = devSessions[0];
 
-  const runnerOptions: LocalStoryRunnerOptions = {
+  const storyOptions: StoryOptions = {
     seed: argv.seed,
     verbose: argv.verbose,
     ream: 100,
@@ -73,6 +74,10 @@ async function go() {
     doGenerateImage: false,
     models: DEFAULT_LLM_SLUGS,
     doGenerateAudio: argv.doGenerateAudio,
+  };
+
+  const runnerOptions: LocalStoryRunnerOptions = {
+    ...storyOptions,
     doPlayMedia: argv.doPlayMedia,
   };
 
@@ -86,6 +91,11 @@ async function go() {
 
   const session = createDefaultSession("dev", emptySource);
 
+  const coordinator = new StoryCoordinatorWeb(session, storyOptions, {
+    apiToken: sessionToken,
+    apiBaseUrl: devEnv.WELLTALE_API_BASE,
+  });
+
   async function render(ops: OP[]): Promise<void> {
     await terminalRenderOps(ops, runnerOptions);
   }
@@ -93,17 +103,10 @@ async function go() {
   async function save() {}
 
   async function advance(input: string | null): Promise<StoryAdvanceResult> {
-    assignInput(session, input);
-    const result = await apiAdvanceStory(
-      devEnv.WELLTALE_API_BASE,
-      session,
-      runnerOptions,
-      sessionToken
-    );
+    const result = await coordinator.advance(input);
     if (!result) {
       throw new Error("null result from API");
     }
-    Object.assign(session, result.session);
     return result;
   }
 
