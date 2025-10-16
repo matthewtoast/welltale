@@ -102,15 +102,14 @@ async function go() {
 
   async function save() {}
 
-  async function advance(input: string | null): Promise<StoryAdvanceResult> {
-    const result = await coordinator.advance(input);
-    if (!result) {
-      throw new Error("null result from API");
-    }
-    return result;
+  async function run(
+    input: string | null,
+    render: (ops: OP[]) => Promise<void>
+  ): Promise<StoryAdvanceResult | null> {
+    return await coordinator.run(input, render);
   }
 
-  await instantiateREPL(advance, render, save);
+  await instantiateREPL(run, render, save);
 }
 
 go();

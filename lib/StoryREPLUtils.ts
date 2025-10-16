@@ -2,11 +2,13 @@ import chalk from "chalk";
 import readline from "readline";
 import { isSkipActive, triggerSkip } from "./SkipHelpers";
 import { CAROT } from "./StoryLocalRunnerUtils";
-import { runWithPrefetch } from "./StoryRunnerCorePrefetch";
 import { OP, SeamType, StoryAdvanceResult } from "./StoryTypes";
 
 export async function instantiateREPL(
-  advance: (input: string | null) => Promise<StoryAdvanceResult>,
+  run: (
+    input: string | null,
+    render: (ops: OP[]) => Promise<void>
+  ) => Promise<StoryAdvanceResult | null>,
   render: (ops: OP[]) => Promise<void>,
   save: () => Promise<void>
 ) {
@@ -28,7 +30,10 @@ export async function instantiateREPL(
     triggerSkip();
   });
 
-  let resp = await runWithPrefetch(null, advance, render);
+  let resp = await run(null, render);
+  if (!resp) {
+    throw new Error("Got null response from run()");
+  }
   await save();
 
   if (resp.seam !== SeamType.INPUT) {
@@ -46,7 +51,10 @@ export async function instantiateREPL(
     awaitingInput = false;
     const fixed = raw.trim();
     try {
-      resp = await runWithPrefetch(fixed, advance, render);
+      resp = await run(fixed, render);
+      if (!resp) {
+        throw new Error("Got null response from run()");
+      }
       await save();
     } catch (err) {
       console.error(chalk.red(err));
