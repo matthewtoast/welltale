@@ -1,0 +1,19 @@
+<p>
+  Welcome!
+</p>
+
+<while cond="true">
+  <p>Say something.</p>
+
+  <input />
+
+  <p>You said "{{input}}".</p>
+
+  <if cond='input.toLowerCase() === "exit"'>
+    <break />
+  </if>
+</while>
+
+<p>
+  The end.
+</p>

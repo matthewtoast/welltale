@@ -105,9 +105,10 @@ go();
 async function setupFixtures(err: () => void) {
   const argv = await yargs(hideBin(process.argv))
     .option("syncStories", {
-      type: "boolean",
-      description: "Sync stories with the server",
-      default: false,
+      type: "array",
+      description:
+        "Sync stories with the server. If empty array, sync all stories. If null/undefined, don't sync.",
+      default: undefined,
     })
     .parserConfiguration({
       "camel-case-expansion": true,
@@ -146,14 +147,20 @@ async function setupFixtures(err: () => void) {
   const webPayload = JSON.stringify({ token: sessionToken }, null, 2);
   await writeFile(webConfigPath, webPayload + "\n", "utf8");
 
-  if (argv.syncStories) {
+  if (argv.syncStories !== undefined) {
     console.info("[dev] Syncing stories");
     const ficDir = join(root, "fic");
     const cartridgeDirs = await listDirs(ficDir);
-    for (const storyId of cartridgeDirs) {
-      if (storyId !== "test") {
-        continue;
-      }
+
+    const syncStoriesStrings = argv.syncStories.map(String);
+    const storiesToSync =
+      syncStoriesStrings.length === 0
+        ? cartridgeDirs.filter((storyId) => storyId !== "test")
+        : syncStoriesStrings.filter((storyId) =>
+            cartridgeDirs.includes(storyId)
+          );
+
+    for (const storyId of storiesToSync) {
       const storyDirPath = join(ficDir, storyId);
       console.info(`[dev] sync:start ${storyId}`);
       await syncStory(
