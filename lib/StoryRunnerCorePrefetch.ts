@@ -9,7 +9,7 @@ export type StoryStream = {
 };
 
 export function createStoryStream(
-  advance: (input: string | null) => Promise<StoryAdvanceResult>
+  advance: (input: string | null) => Promise<StoryAdvanceResult | null>
 ): StoryStream {
   const inputs: Array<string | null> = [];
   const ready: StoryAdvanceResult[] = [];
@@ -43,6 +43,11 @@ export function createStoryStream(
       const nextInput = inputs.length > 0 ? (inputs.shift() ?? null) : null;
       try {
         const result = await advance(nextInput);
+        if (!result) {
+          throw new Error(
+            `Got null result from advance(${JSON.stringify(nextInput)})`
+          );
+        }
         emit(result);
         if (result.seam === SeamType.MEDIA || result.seam === SeamType.GRANT) {
           blocked = false;
@@ -95,7 +100,7 @@ export function createStoryStream(
 
 export async function runWithPrefetch(
   input: string | null,
-  advance: (input: string | null) => Promise<StoryAdvanceResult>,
+  advance: (input: string | null) => Promise<StoryAdvanceResult | null>,
   render: (ops: OP[]) => Promise<void>
 ): Promise<StoryAdvanceResult> {
   const stream = createStoryStream(advance);

@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { Logomark } from "./components/Logomark"
-import { Wordmark } from "./components/Wordmark"
+import Link from "next/link";
+import { Logomark } from "./components/Logomark";
+import { Wordmark } from "./components/Wordmark";
 
 const styles = {
   page: {
@@ -88,7 +88,7 @@ const styles = {
     maxWidth: "560px",
     color: "#B3B3B3",
   },
-}
+};
 
 export default function Page() {
   return (
@@ -104,21 +104,22 @@ export default function Page() {
             <Link href="/docs" style={styles.secondaryButton}>
               Docs
             </Link>
-            <Link href="/login" style={styles.primaryButton}>
-              Log in or sign up
-            </Link>
           </nav>
         </header>
         <section style={styles.hero}>
           <div style={styles.logomark}>
             <Logomark />
           </div>
-          <h1 style={styles.heading}>Interactive audio stories in every genre</h1>
+          <h1 style={styles.heading}>
+            Interactive audio stories in every genre
+          </h1>
           <p style={styles.blurb}>
-            Craft immersive tales that respond to every choice. Blend human creativity with adaptive soundscapes, living characters, and branching worlds that keep listeners engaged.
+            Craft immersive tales that respond to every choice. Blend human
+            creativity with adaptive soundscapes, living characters, and
+            branching worlds that keep listeners engaged.
           </p>
         </section>
       </div>
     </main>
-  )
+  );
 }

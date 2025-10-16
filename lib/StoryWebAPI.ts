@@ -1,4 +1,4 @@
-import { StoryAdvanceResult, StoryOptions, StorySession } from "./StoryTypes";
+import { apiSafeRequest } from "./WebAPI";
 
 export type StorySpec = {
   title: string;
@@ -159,39 +159,4 @@ export async function apiFinalizeUpload(
   if (!res) return false;
   if (!res.ok) return false;
   return true;
-}
-
-export async function apiAdvanceStory(
-  baseUrl: string,
-  session: StorySession,
-  options: StoryOptions,
-  token: string
-): Promise<StoryAdvanceResult | null> {
-  const payload = JSON.stringify({ session, options });
-  const res = await apiSafeRequest(
-    `${baseUrl}/api/stories/advance`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: payload,
-    },
-    token
-  );
-  if (!res) return null;
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => null);
-  if (!data) return null;
-  return data as StoryAdvanceResult;
-}
-
-async function apiSafeRequest(
-  url: string,
-  init: RequestInit,
-  token: string | null
-): Promise<Response | null> {
-  const headers = { ...(init.headers || {}) } as Record<string, string>;
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(url, { ...init, headers }).catch(() => null as any);
-  if (!res) return null;
-  return res;
 }
