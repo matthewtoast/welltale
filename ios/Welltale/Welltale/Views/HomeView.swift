@@ -16,6 +16,32 @@ struct HomeView: View {
                         .textInputAutocapitalization(.never)
                         .disableAutocorrection(true)
                 }
+                Section("Config") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Base URL")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(configText(AppConfig.apiBaseURL?.absoluteString))
+                            .font(.footnote)
+                            .textSelection(.enabled)
+                        Text("Raw: \(configText(AppConfig.rawAPIBase))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Token")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(configText(AppConfig.devSessionToken))
+                            .font(.footnote)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                        Text("Raw: \(configText(AppConfig.rawDevSessionToken))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 Section("Tools") {
                     NavigationLink(destination: SpeechTestView()) {
                         Label("Speech Test", systemImage: "waveform")
@@ -61,7 +87,7 @@ struct HomeView: View {
 
 private func makeStoryService(auth: AuthState) -> StoryService {
     let client = APIClient(
-        baseURL: AppConfig.apiBaseURL,
+        baseURL: AppConfig.apiBaseURL ?? URL(string: "http://localhost:3000")!,
         tokenProvider: { auth.token }
     )
     return StoryService(client: client)
@@ -72,6 +98,10 @@ private func trimmedQuery(_ value: String) -> String {
 }
 
 extension HomeView {
+    private func configText(_ value: String?) -> String {
+        value ?? "(missing)"
+    }
+
     private func scheduleSearch() {
         searchTask?.cancel()
         let query = search

@@ -1,3 +1,5 @@
+import Foundation
+
 struct StoryMetaDTO: Codable, Identifiable, Hashable {
     enum Publish: String, Codable {
         case draft
@@ -88,6 +90,32 @@ struct StoryMetaDTO: Codable, Identifiable, Hashable {
         try container.encode(compile, forKey: .compile)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
+    }
+}
+
+extension StoryMetaDTO {
+    static func == (lhs: StoryMetaDTO, rhs: StoryMetaDTO) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.title == rhs.title &&
+        lhs.author == rhs.author &&
+        lhs.description == rhs.description &&
+        lhs.tags == rhs.tags &&
+        lhs.publish == rhs.publish &&
+        lhs.compile == rhs.compile &&
+        lhs.createdAt == rhs.createdAt &&
+        lhs.updatedAt == rhs.updatedAt
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(title)
+        hasher.combine(author)
+        hasher.combine(description)
+        hasher.combine(tags)
+        hasher.combine(publish)
+        hasher.combine(compile)
+        hasher.combine(createdAt)
+        hasher.combine(updatedAt)
     }
 }
 

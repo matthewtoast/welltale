@@ -1,5 +1,6 @@
 import AVFoundation
-import SwiftUI
+import AVFAudio
+import Combine
 import Foundation
 import Speech
 
@@ -25,6 +26,7 @@ struct SpeechCaptureConfig {
     let segmentDurationMs: Int
     let segmentCharacterLimit: Int
     let autoStopAfterMs: Int
+
     static let `default` = SpeechCaptureConfig(
         lineGapMs: 3000,
         maxDurationMs: 600000,
@@ -46,13 +48,17 @@ final class SpeechCaptureEmitter: EventEmitter<SpeechCaptureEvent> {}
 final class SpeechCaptureController: ObservableObject {
     @Published private(set) var lines: [SpeechCaptureLine] = []
     @Published private(set) var isRecording = false
+
     let emitter = SpeechCaptureEmitter()
+
     var accumulatedText: String {
         lines.map { $0.text }.joined(separator: "\n")
     }
+
     var stopReason: SpeechCaptureStopReason? {
         lastStopReason
     }
+
     var stopWord: String? {
         lastStopWord
     }
@@ -72,25 +78,22 @@ final class SpeechCaptureController: ObservableObject {
     private var autoStopTask: Task<Void, Never>?
     private var segmentTimerTask: Task<Void, Never>?
     private var segmentBaselineLength = 0
+
     private lazy var handler: SpeechRecognizer.SpeechRecognitionCallback = { [weak self] transcripts, isFinal, _ in
         Task { @MainActor in
             self?.handle(transcripts: transcripts, isFinal: isFinal)
         }
     }
 
-    init(locale: LangLocale, config: SpeechCaptureConfig, recognizer: SpeechRecognizer = SpeechRecognizer()) {
+    init(locale: LangLocale, config: SpeechCaptureConfig, recognizer: SpeechRecognizer? = nil) {
         self.locale = locale
         self.config = config
-        self.recognizer = recognizer
+        self.recognizer = recognizer ?? SpeechRecognizer()
         emitter.on(.stopRequest) { [weak self] in
             Task { @MainActor [weak self] in
                 self?.stop(reason: .external)
             }
         }
-    }
-
-    deinit {
-        cancelTasks()
     }
 
     func start() async {
@@ -183,19 +186,40 @@ final class SpeechCaptureController: ObservableObject {
             }
         }
         let audioGranted = await withCheckedContinuation { continuation in
-            audioSession.requestRecordPermission { granted in
-                continuation.resume(returning: granted)
+            if #available(iOS 17, *) {
+                AVAudioApplication.requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            } else {
+                audioSession.requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
             }
         }
         return speechGranted && audioGranted
     }
 
     private func configureSession() throws {
-        let options: AVAudioSession.CategoryOptions = [.allowBluetooth, .allowBluetoothA2DP, .allowAirPlay, .mixWithOthers, .defaultToSpeaker]
+        let options: AVAudioSession.CategoryOptions = [
+            .allowBluetoothA2DP,
+            .allowAirPlay,
+            .duckOthers,
+            .mixWithOthers,
+            .defaultToSpeaker,
+        ]
         if #available(iOS 11.0, *) {
-            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, policy: .longFormAudio, options: options)
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .voiceChat,
+                policy: .longFormAudio,
+                options: options
+            )
         } else {
-            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: options)
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .voiceChat,
+                options: options
+            )
         }
         try audioSession.setActive(true)
     }
@@ -214,10 +238,7 @@ final class SpeechCaptureController: ObservableObject {
     }
 
     private func handle(transcripts: [String], isFinal: Bool) {
-        guard isRecording else {
-            return
-        }
-        guard let best = transcripts.first else {
+        guard isRecording, let best = transcripts.first else {
             return
         }
         let now = Date()
@@ -229,7 +250,9 @@ final class SpeechCaptureController: ObservableObject {
         emitTranscript()
         if exceededSegmentLimit(now: now) {
             restartSegment()
-            return
+        }
+        if isFinal {
+            stop(reason: .autoStop)
         }
     }
 
@@ -251,7 +274,8 @@ final class SpeechCaptureController: ObservableObject {
         if currentLineId == nil || !lines.contains(where: { $0.id == currentLineId }) {
             startNewLine(at: date)
         }
-        guard let id = currentLineId, let index = lines.firstIndex(where: { $0.id == id }) else {
+        guard let id = currentLineId,
+              let index = lines.firstIndex(where: { $0.id == id }) else {
             return
         }
         var line = lines[index]
@@ -278,6 +302,30 @@ final class SpeechCaptureController: ObservableObject {
         }
     }
 
+    private func schedule(
+        task: inout Task<Void, Never>?,
+        delayMs: Int,
+        action: @escaping (SpeechCaptureController) -> Void
+    ) {
+        task?.cancel()
+        guard delayMs > 0 else {
+            task = nil
+            return
+        }
+        task = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
+            guard !Task.isCancelled else {
+                return
+            }
+            await MainActor.run {
+                guard let self, self.isRecording else {
+                    return
+                }
+                action(self)
+            }
+        }
+    }
+
     private func cancelTasks() {
         maxDurationTask?.cancel()
         autoStopTask?.cancel()
@@ -288,38 +336,8 @@ final class SpeechCaptureController: ObservableObject {
     }
 
     private func totalCharacterCount() -> Int {
-        lines.reduce(0) { result, line in
-            result + line.text.count
-        }
-    }
-
-    private func recordFailure() {
-        lastStopReason = .error
-        emitter.emit(.stopped)
-    }
-
-    private func cleanupAfterFailure() {
-        recognizer.stopStream()
-        try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
-    }
-
-    private func schedule(task: inout Task<Void, Never>?, delayMs: Int, action: @escaping (SpeechCaptureController) -> Void) {
-        task?.cancel()
-        guard delayMs > 0 else {
-            task = nil
-            return
-        }
-        task = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
-            if Task.isCancelled {
-                return
-            }
-            await MainActor.run {
-                guard let self, self.isRecording else {
-                    return
-                }
-                action(self)
-            }
+        lines.reduce(into: 0) { result, line in
+            result += line.text.count
         }
     }
 
@@ -339,12 +357,22 @@ final class SpeechCaptureController: ObservableObject {
         return false
     }
 
+    private func recordFailure() {
+        lastStopReason = .error
+        emitter.emit(.stopped)
+    }
+
+    private func cleanupAfterFailure() {
+        recognizer.stopStream()
+        try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
     private func emitTranscript() {
         emitter.emit(.transcriptUpdated)
     }
 }
 
-class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
+final class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
     private var bus = 0
     private var size: UInt32 = 1024
     private var engine = AVAudioEngine()
@@ -352,13 +380,20 @@ class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
     private var tasks: [UUID: SFSpeechRecognitionTask] = [:]
     private var streaming = false
 
-    typealias SpeechRecognitionCallback = (_ transcripts: [String], _ isFinal: Bool, _ locale: LangLocale) -> Void
+    typealias SpeechRecognitionCallback = (
+        _ transcripts: [String],
+        _ isFinal: Bool,
+        _ locale: LangLocale
+    ) -> Void
 
-    static func requestAuthorization(completion: @escaping (SFSpeechRecognizerAuthorizationStatus) -> Void) {
+    static func requestAuthorization(
+        completion: @escaping (SFSpeechRecognizerAuthorizationStatus) -> Void
+    ) {
         SFSpeechRecognizer.requestAuthorization { status in
             completion(status)
         }
     }
+
 
     func stopStream() {
         engine.stop()
@@ -393,12 +428,18 @@ class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
         }
     }
 
-    func attach(_ ll: LangLocale, callback: @escaping SpeechRecognitionCallback) throws {
+    func attach(
+        _ ll: LangLocale,
+        callback: @escaping SpeechRecognitionCallback
+    ) throws {
         let id = UUID()
         try attachInternal(id: id, ll: ll, stopEngine: true, callback: callback)
     }
 
-    func startContinuous(_ ll: LangLocale, callback: @escaping SpeechRecognitionCallback) throws -> UUID {
+    func startContinuous(
+        _ ll: LangLocale,
+        callback: @escaping SpeechRecognitionCallback
+    ) throws -> UUID {
         let id = UUID()
         try attachInternal(id: id, ll: ll, stopEngine: false, callback: callback)
         return id
@@ -408,11 +449,16 @@ class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
         finish(id: id, stopEngine: false)
     }
 
-    private func attachInternal(id: UUID, ll: LangLocale, stopEngine: Bool, callback: @escaping SpeechRecognitionCallback) throws {
+    private func attachInternal(
+        id: UUID,
+        ll: LangLocale,
+        stopEngine: Bool,
+        callback: @escaping SpeechRecognitionCallback
+    ) throws {
         let identifier = langLocaleToString(ll)
         let locale = Locale(identifier: identifier)
         guard let recognizer = SFSpeechRecognizer(locale: locale) else {
-            return
+            throw NSError(domain: "SpeechRecognizer", code: -1, userInfo: nil)
         }
         recognizer.defaultTaskHint = .dictation
         let request = SFSpeechAudioBufferRecognitionRequest()
@@ -422,7 +468,7 @@ class SpeechRecognizer: NSObject, SFSpeechRecognizerDelegate {
             if self.requests[id] == nil {
                 return
             }
-            if let result = result {
+            if let result {
                 let bestString = result.bestTranscription.formattedString
                 let alternatives = result.transcriptions.map { $0.formattedString }
                 callback(Array(Set([bestString] + alternatives)), result.isFinal, ll)
@@ -461,16 +507,18 @@ final class AudioPlayer {
     func pausePlayback() {
         let ids = Array(players.keys)
         for id in ids {
-            if let player = players[id] {
-                player.pause()
-            }
+            players[id]?.pause()
             complete(id: id, result: .success(()))
         }
     }
 
     func playAudioFromURL(_ urlString: String, volume: Float) async throws {
         guard let url = URL(string: urlString) else {
-            throw NSError(domain: "AudioPlayer", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to load audio URL"])
+            throw NSError(
+                domain: "AudioPlayer",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to load audio URL"]
+            )
         }
 
         let id = UUID()
@@ -481,43 +529,10 @@ final class AudioPlayer {
         observe(player: player, id: id)
         player.play()
 
-        return try await withCheckedThrowingContinuation { continuation in
-            completions[id] = continuation.resume
-        }
-    }
-
-    func playAudioFromResource(_ name: String, _ ext: String, volume: Float) async throws {
-        guard let url = Bundle.main.url(
-            forResource: name,
-            withExtension: ext
-        ) else {
-            print("Failed to load audio resource")
-            return
-        }
-
-        let id = UUID()
-        let player = AVPlayer(url: url)
-        player.volume = volume
-        configurePlayer(player)
-        players[id] = player
-        observe(player: player, id: id)
-        player.play()
-
-        return try await withCheckedThrowingContinuation { continuation in
-            completions[id] = continuation.resume
-        }
-    }
-
-    func play(_ uri: String, volume: Float = 1.0) async {
-        var parts = uri.split(separator: ".").map(String.init)
-        guard let format = parts.popLast() else {
-            return
-        }
-        print("[play]", uri)
-        if isWebUrl(uri) {
-            try? await playAudioFromURL(uri, volume: volume)
-        } else {
-            try? await playAudioFromResource(parts.joined(separator: "."), format, volume: volume)
+        try await withCheckedThrowingContinuation { continuation in
+            completions[id] = { result in
+                continuation.resume(with: result)
+            }
         }
     }
 
@@ -529,19 +544,35 @@ final class AudioPlayer {
     private func observe(player: AVPlayer, id: UUID) {
         var tokens: [NSObjectProtocol] = []
         if let item = player.currentItem {
-            let endToken = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
+            let endToken = NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: item,
+                queue: .main
+            ) { [weak self] _ in
                 self?.complete(id: id, result: .success(()))
             }
             tokens.append(endToken)
 
-            let failToken = NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: item, queue: .main) { [weak self] notification in
+            let failToken = NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemFailedToPlayToEndTime,
+                object: item,
+                queue: .main
+            ) { [weak self] notification in
                 let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
-                let fallback = NSError(domain: "AudioPlayer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Playback failed"])
+                let fallback = NSError(
+                    domain: "AudioPlayer",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "Playback failed"]
+                )
                 self?.complete(id: id, result: .failure(error ?? fallback))
             }
             tokens.append(failToken)
 
-            let stallToken = NotificationCenter.default.addObserver(forName: .AVPlayerItemPlaybackStalled, object: item, queue: .main) { _ in
+            let stallToken = NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemPlaybackStalled,
+                object: item,
+                queue: .main
+            ) { _ in
                 player.play()
             }
             tokens.append(stallToken)
@@ -566,152 +597,31 @@ final class AudioPlayer {
     }
 }
 
-@MainActor
-final class AudioController: ObservableObject {
-    private let player = AudioPlayer()
-    private let audioSession = AVAudioSession.sharedInstance()
-    private var recognizer: SpeechRecognizer? = nil
-    public var emitter = AudioControllerEmitter()
-    private var stopped = false
-    private var finished = false
-    public var listening = false
-    public var playing: Bool {
-        !stopped && !finished
-    }
-
-    private func getRecognizer() -> SpeechRecognizer {
-        if recognizer == nil {
-            recognizer = SpeechRecognizer()
-        }
-        return recognizer!
-    }
-
-    func prepare(mode: ChallengeMode) async throws {
-        let options: AVAudioSession.CategoryOptions = [.allowBluetooth, .allowBluetoothA2DP, .allowAirPlay, .mixWithOthers, .defaultToSpeaker]
-        if #available(iOS 11.0, *) {
-            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, policy: .longFormAudio, options: options)
-        } else {
-            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: options)
-        }
-        try audioSession.setActive(true)
-        stopped = false
-        finished = false
-        listening = false
-        try getRecognizer().startStream()
-    }
-
-    func interrupt() {
-        listening = false
-        recognizer?.detach()
-        player.pausePlayback()
-    }
-
-    func teardown(mode: ChallengeMode) {
-        recognizer?.stopStream()
-        recognizer = nil
-        listening = false
-        stopped = false
-        finished = false
-        player.pausePlayback()
-        do {
-            try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
-        } catch {
-            print("Audio session deactivation failed", error)
-        }
-    }
-
-    func stop(mode: ChallengeMode) {
-        if stopped {
-            return
-        }
-        stopped = true
-        listening = false
-        recognizer?.detach()
-    }
-
-    func emit(_ event: GameSignal) {
-        emitter.emit(event)
-    }
-
-    typealias SpeechRecognizedHook = (LangLocale, [String]) -> Void
-    typealias SpeechBeforeAttachHook = (LangLocale) -> Void
-
-    func start(
-        ll: LangLocale,
-        onSpeechRecognized: @escaping SpeechRecognizedHook,
-        onBeforeAttach: @escaping SpeechBeforeAttachHook
-     ) async -> (Float, String) {
-        let started: Int = unixNow()
-        if stopped {
-            return (0, "stopped")
-        }
-
-        print("[start]", started)
-
-        return await withCheckedContinuation { continuation in
-            finished = false
-            @Sendable func finish(_ score: Float, _ result: String) {
-                print("[finish]", finished, score, result)
-                if finished {
-                    return
-                }
-                finished = true
-                listening = false
-                interrupt()
-                continuation.resume(returning: (score, result))
-            }
-
-            onBeforeAttach(ll)
-            listening = true
-
-            do {
-                try getRecognizer().attach(ll) { transcripts, isFinal, locale in
-                    print("[recog]", locale, isFinal, self.stopped)
-                    if self.stopped {
-                        self.recognizer?.detach()
-                        return
-                    }
-                    onSpeechRecognized(locale, transcripts)
-                }
-            } catch {
-                print("[error]", error)
-                listening = false
-                continuation.resume(returning: (0, "error"))
-            }
-        }
-    }
-}
-
-class AudioControllerEmitter: EventEmitter<GameSignal> {}
-
 class EventEmitter<Event: Hashable> {
     private var listeners: [Event: [(once: Bool, callback: () -> Void)]] = [:]
-    
+
     func on(_ event: Event, _ callback: @escaping () -> Void) {
-        if listeners[event] == nil {
-            listeners[event] = []
-        }
-        listeners[event]?.append((once: false, callback: callback))
+        listeners[event, default: []].append((once: false, callback: callback))
     }
-    
+
     func once(_ event: Event, _ callback: @escaping () -> Void) {
-        if listeners[event] == nil {
-            listeners[event] = []
-        }
-        listeners[event]?.append((once: true, callback: callback))
+        listeners[event, default: []].append((once: true, callback: callback))
     }
-    
+
     func emit(_ event: Event) {
-        listeners[event]?.forEach { _, callback in
-            callback()
+        guard let callbacks = listeners[event] else {
+            return
         }
-        listeners[event] = listeners[event]?.filter { !$0.once }
+        for entry in callbacks {
+            entry.callback()
+        }
+        listeners[event] = callbacks.filter { !$0.once }
     }
-    
+
     func removeAllListeners(_ event: Event) {
         listeners[event] = []
     }
-    
+
     func removeAllListeners() {
         listeners = [:]
     }

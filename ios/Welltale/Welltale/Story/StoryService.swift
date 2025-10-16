@@ -7,6 +7,14 @@ struct StoryService {
         self.client = client
     }
 
+    init(configuration: StoryConfiguration) {
+        let client = APIClient(
+            baseURL: configuration.baseURL,
+            tokenProvider: { configuration.token }
+        )
+        self.init(client: client)
+    }
+
     func search(query: String?) async throws -> [StoryMetaDTO] {
         var queryItems: [URLQueryItem] = []
         if let query, !query.isEmpty {

@@ -1,3 +1,5 @@
+import Foundation
+
 func stringToLangLocale(_ input: String) -> LangLocale {
     let normalized = input.lowercased().replacingOccurrences(of: "-", with: "_")
     let parts = normalized.split(separator: "_")
@@ -125,6 +127,14 @@ let KNOWN_LOCALES: [LangLocale: LangLocaleSpec] = [
     .af_za: LangLocaleSpec(id: .af_za, lang: "af", loc: "ZA", name: "Afrikaans", flag: "🇿🇦"),
     .ro_ro: LangLocaleSpec(id: .ro_ro, lang: "ro", loc: "RO", name: "Romanian", flag: "🇷🇴")
 ]
+
+struct LangLocaleSpec {
+    let id: LangLocale
+    let lang: String
+    let loc: String
+    let name: String
+    let flag: String
+}
 
 func getLangName(_ ll: LangLocale) -> String {
     return KNOWN_LOCALES[ll]!.name
