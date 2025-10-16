@@ -96,20 +96,16 @@ async function go() {
     apiBaseUrl: devEnv.WELLTALE_API_BASE,
   });
 
-  async function render(ops: OP[]): Promise<void> {
-    await terminalRenderOps(ops, runnerOptions);
-  }
-
   async function save() {}
 
-  async function run(
-    input: string | null,
-    render: (ops: OP[]) => Promise<void>
-  ): Promise<StoryAdvanceResult | null> {
-    return await coordinator.run(input, render);
+  async function run(input: string | null): Promise<StoryAdvanceResult | null> {
+    const result = await coordinator.run(input, async (ops: OP[]) => {
+      await terminalRenderOps(ops, runnerOptions);
+    });
+    return result;
   }
 
-  await instantiateREPL(run, render, save);
+  await instantiateREPL(run, save);
 }
 
 go();

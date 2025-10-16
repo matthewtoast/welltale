@@ -158,15 +158,13 @@ async function runRepl() {
 
   const save = async () => {};
 
-  async function render(ops: OP[]): Promise<void> {
-    await terminalRenderOps(ops, runnerOptions);
+  async function run(input: string | null): Promise<StoryAdvanceResult> {
+    const result = await advanceToNext(input, session, runnerOptions, provider);
+    await terminalRenderOps(result.ops, runnerOptions);
+    return result;
   }
 
-  async function advance(input: string | null): Promise<StoryAdvanceResult> {
-    return await advanceToNext(input, session, runnerOptions, provider);
-  }
-
-  await instantiateREPL(advance, render, save);
+  await instantiateREPL(run, save);
 }
 
 runRepl();

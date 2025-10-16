@@ -5,11 +5,7 @@ import { CAROT } from "./StoryLocalRunnerUtils";
 import { OP, SeamType, StoryAdvanceResult } from "./StoryTypes";
 
 export async function instantiateREPL(
-  run: (
-    input: string | null,
-    render: (ops: OP[]) => Promise<void>
-  ) => Promise<StoryAdvanceResult | null>,
-  render: (ops: OP[]) => Promise<void>,
+  run: (input: string | null) => Promise<StoryAdvanceResult | null>,
   save: () => Promise<void>
 ) {
   const rl = readline.createInterface({
@@ -30,7 +26,7 @@ export async function instantiateREPL(
     triggerSkip();
   });
 
-  let resp = await run(null, render);
+  let resp = await run(null);
   if (!resp) {
     throw new Error("Got null response from run()");
   }
@@ -51,7 +47,7 @@ export async function instantiateREPL(
     awaitingInput = false;
     const fixed = raw.trim();
     try {
-      resp = await run(fixed, render);
+      resp = await run(fixed);
       if (!resp) {
         throw new Error("Got null response from run()");
       }
