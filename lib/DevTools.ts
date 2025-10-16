@@ -1,7 +1,7 @@
-import { readdir, readFile } from "fs/promises";
-import { join } from "path";
-import { safeYamlParse } from "../lib/JSONHelpers";
+import { readdir } from "fs/promises";
 import { zipDir } from "../lib/ZipUtils";
+import { loadDirRecursive } from "./FileUtils";
+import { collectDataArtifacts, collectDataDocs } from "./StoryConstants";
 import {
   apiFinalizeUpload,
   apiRequestUpload,
@@ -66,12 +66,10 @@ export async function listDirs(pathname: string): Promise<string[]> {
 }
 
 async function loadStorySpec(dir: string): Promise<StorySpec | null> {
-  const dataPath = join(dir, "data.yml");
-  const raw = await readFile(dataPath).catch(() => null);
-  if (!raw) return null;
-  const parsed = safeYamlParse(raw.toString());
-  if (!parsed) return null;
-  return coerceStorySpec(parsed);
+  const cartridge = await loadDirRecursive(dir);
+  const dataDocs = collectDataDocs(cartridge);
+  const { meta } = collectDataArtifacts(dataDocs);
+  return coerceStorySpec(meta);
 }
 
 function coerceStorySpec(value: any): StorySpec | null {

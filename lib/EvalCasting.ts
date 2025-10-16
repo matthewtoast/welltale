@@ -1,4 +1,5 @@
 import { TScalar, TSerial } from "../typings";
+import { cleanSplit } from "./TextHelpers";
 
 export type ExprEvalFunc = (...args: TScalar[]) => TSerial;
 
@@ -132,4 +133,48 @@ export function ensureArray(a: any): any[] {
     return [];
   }
   return [a];
+}
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+export function toStringValue(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return null;
+}
+
+export function toNonEmptyString(value: unknown): string | null {
+  const str = toStringValue(value);
+  if (str === null) {
+    return null;
+  }
+  const trimmed = str.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed;
+}
+
+export function toStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    const out: string[] = [];
+    for (let i = 0; i < value.length; i++) {
+      const entry = toNonEmptyString(value[i]);
+      if (entry) {
+        out.push(entry);
+      }
+    }
+    return out;
+  }
+  const str = toNonEmptyString(value);
+  if (!str) {
+    return [];
+  }
+  return cleanSplit(str, ",");
 }

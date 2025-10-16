@@ -1,18 +1,20 @@
 import { omit } from "lodash";
 import { TSerial } from "../typings";
-import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
+import { safeJsonParse } from "./JSONHelpers";
+import { collectDataArtifacts, collectDataDocs } from "./StoryConstants";
 import type { ParseSeverity } from "./StoryNodeHelpers";
 import { assignAddrs, BaseNode, parseXmlFragment } from "./StoryNodeHelpers";
 import { renderText } from "./StoryRenderMethods";
 import {
   CompilerContext,
   NestedRecords,
+  PendingDataVoice,
   StoryCartridge,
   StoryNode,
   StorySource,
   VoiceSpec,
 } from "./StoryTypes";
-import { cleanSplit, isBlank, isPresent, snorm } from "./TextHelpers";
+import { isBlank, snorm } from "./TextHelpers";
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
@@ -119,17 +121,7 @@ export async function compileStory(
       }
     : undefined;
 
-  const jsons: unknown[] = Object.keys(cartridge)
-    .filter((k) => k.endsWith(".json"))
-    .map((key) => safeJsonParse(cartridge[key].toString()))
-    .filter(isPresent) as unknown[];
-
-  const yamls: unknown[] = Object.keys(cartridge)
-    .filter((k) => k.endsWith(".yml") || k.endsWith(".yaml"))
-    .map((key) => safeYamlParse(cartridge[key].toString()))
-    .filter(isPresent) as unknown[];
-
-  const dataDocs: unknown[] = [...jsons, ...yamls];
+  const dataDocs = collectDataDocs(cartridge);
   const dataArtifacts = collectDataArtifacts(dataDocs);
 
   const root = await buildStoryRoot(
@@ -233,20 +225,6 @@ async function expandCreateNodes(
   return out;
 }
 
-type PendingDataVoice = {
-  ref: string;
-  prompt: string;
-  name: string | null;
-  tags: string[];
-};
-
-type DataArtifacts = {
-  pronunciations: Record<string, string>;
-  meta: Record<string, TSerial>;
-  readyVoices: Record<string, VoiceSpec>;
-  pendingVoices: PendingDataVoice[];
-};
-
 async function compilePendingDataVoices(
   pending: PendingDataVoice[],
   voices: Record<string, VoiceSpec>,
@@ -271,142 +249,4 @@ async function compilePendingDataVoices(
       tags: voice.tags,
     };
   }
-}
-
-function collectDataArtifacts(entries: unknown[]): DataArtifacts {
-  const pronunciations: Record<string, string> = {};
-  const meta: Record<string, TSerial> = {};
-  const readyVoices: Record<string, VoiceSpec> = {};
-  const pendingVoices: PendingDataVoice[] = [];
-  for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i];
-    if (!isRecord(entry)) {
-      continue;
-    }
-    const voiceSource = entry["voices"];
-    if (isRecord(voiceSource)) {
-      const voiceKeys = Object.keys(voiceSource);
-      for (let j = 0; j < voiceKeys.length; j++) {
-        const key = voiceKeys[j];
-        const value = voiceSource[key];
-        const spec = toVoiceSpec(value, key);
-        if (spec) {
-          readyVoices[key] = spec;
-          continue;
-        }
-        const pending = toPendingVoice(value, key);
-        if (pending) {
-          pendingVoices.push(pending);
-          continue;
-        }
-        console.warn(`Ignoring voice ${key} with invalid data`);
-      }
-    }
-    const pronunciationsSource = entry["pronunciations"];
-    if (isRecord(pronunciationsSource)) {
-      const pronKeys = Object.keys(pronunciationsSource);
-      for (let j = 0; j < pronKeys.length; j++) {
-        const key = pronKeys[j];
-        const value = toStringValue(pronunciationsSource[key]);
-        if (value !== null) {
-          pronunciations[key] = value;
-        }
-      }
-    }
-    const keys = Object.keys(entry);
-    for (let j = 0; j < keys.length; j++) {
-      const key = keys[j];
-      if (key === "pronunciations" || key === "voices") {
-        continue;
-      }
-      const value = entry[key];
-      if (value !== undefined) {
-        meta[key] = value as TSerial;
-      }
-    }
-  }
-  return { pronunciations, meta, readyVoices, pendingVoices };
-}
-
-function toVoiceSpec(source: unknown, key: string): VoiceSpec | null {
-  if (!isRecord(source)) {
-    return null;
-  }
-  const id = toNonEmptyString(source["id"]);
-  if (!id) {
-    return null;
-  }
-  const ref = toNonEmptyString(source["ref"]) ?? key;
-  const name = toNonEmptyString(source["name"]) ?? id;
-  const tags = toStringArray(source["tags"]);
-  return { id, ref, name, tags };
-}
-
-function toPendingVoice(source: unknown, key: string): PendingDataVoice | null {
-  if (!isRecord(source)) {
-    return null;
-  }
-  const prompt =
-    toNonEmptyString(source["prompt"]) ??
-    toNonEmptyString(source["description"]);
-  if (!prompt) {
-    return null;
-  }
-  const ref = toNonEmptyString(source["ref"]) ?? key;
-  const name = toNonEmptyString(source["name"]);
-  const tags = toStringArray(source["tags"]);
-  return { ref, prompt, name, tags };
-}
-
-function createNode(type: string, atts: Record<string, string>): BaseNode {
-  return {
-    type,
-    atts,
-    kids: [],
-    text: "",
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function toStringValue(value: unknown): string | null {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return null;
-}
-
-function toNonEmptyString(value: unknown): string | null {
-  const str = toStringValue(value);
-  if (str === null) {
-    return null;
-  }
-  const trimmed = str.trim();
-  if (!trimmed) {
-    return null;
-  }
-  return trimmed;
-}
-
-function toStringArray(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    const out: string[] = [];
-    for (let i = 0; i < value.length; i++) {
-      const entry = toNonEmptyString(value[i]);
-      if (entry) {
-        out.push(entry);
-      }
-    }
-    return out;
-  }
-  const str = toNonEmptyString(value);
-  if (!str) {
-    return [];
-  }
-  return cleanSplit(str, ",");
 }

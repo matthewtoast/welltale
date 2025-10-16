@@ -1,7 +1,7 @@
 import { NonEmpty, TSerial } from "../typings";
+import type { CostSummary } from "./MeteringUtils";
 import { PRNG } from "./RandHelpers";
 import { StoryServiceProvider } from "./StoryServiceProvider";
-import type { CostSummary } from "./MeteringUtils";
 
 export type StoryCartridge = Record<string, Buffer | string>;
 
@@ -335,3 +335,10 @@ export interface ActionHandlerSyntax {
     }
   >;
 }
+
+export type PendingDataVoice = {
+  ref: string;
+  prompt: string;
+  name: string | null;
+  tags: string[];
+};

@@ -2,13 +2,22 @@ import { set, uniq } from "lodash";
 import { NonEmpty, TSerial } from "../typings";
 import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
 import {
+  isRecord,
+  toNonEmptyString,
+  toStringArray,
+  toStringValue,
+} from "./EvalCasting";
+import { safeJsonParse, safeYamlParse } from "./JSONHelpers";
+import {
   DEFAULT_LLM_SLUGS,
   LLM_SLUGS,
   LLM_SLUGS_TAGGED,
+  PendingDataVoice,
+  StoryCartridge,
   StorySession,
   VoiceSpec,
 } from "./StoryTypes";
-import { cleanSplit } from "./TextHelpers";
+import { cleanSplit, isPresent } from "./TextHelpers";
 
 export const HOST_ID = "HOST";
 export const PLAYER_ID = "USER";
@@ -121,4 +130,114 @@ export function setState(
   value: TSerial
 ): void {
   set(state, key, value);
+}
+
+export function collectDataDocs(cartridge: StoryCartridge) {
+  const jsons: unknown[] = Object.keys(cartridge)
+    .filter((k) => k.endsWith(".json"))
+    .map((key) => safeJsonParse(cartridge[key].toString()))
+    .filter(isPresent) as unknown[];
+
+  const yamls: unknown[] = Object.keys(cartridge)
+    .filter((k) => k.endsWith(".yml") || k.endsWith(".yaml"))
+    .map((key) => safeYamlParse(cartridge[key].toString()))
+    .filter(isPresent) as unknown[];
+
+  const dataDocs: unknown[] = [...jsons, ...yamls];
+  return dataDocs;
+}
+
+type DataArtifacts = {
+  pronunciations: Record<string, string>;
+  meta: Record<string, TSerial>;
+  readyVoices: Record<string, VoiceSpec>;
+  pendingVoices: PendingDataVoice[];
+};
+
+export function collectDataArtifacts(entries: unknown[]): DataArtifacts {
+  const pronunciations: Record<string, string> = {};
+  const meta: Record<string, TSerial> = {};
+  const readyVoices: Record<string, VoiceSpec> = {};
+  const pendingVoices: PendingDataVoice[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const voiceSource = entry["voices"];
+    if (isRecord(voiceSource)) {
+      const voiceKeys = Object.keys(voiceSource);
+      for (let j = 0; j < voiceKeys.length; j++) {
+        const key = voiceKeys[j];
+        const value = voiceSource[key];
+        const spec = toVoiceSpec(value, key);
+        if (spec) {
+          readyVoices[key] = spec;
+          continue;
+        }
+        const pending = toPendingVoice(value, key);
+        if (pending) {
+          pendingVoices.push(pending);
+          continue;
+        }
+        console.warn(`Ignoring voice ${key} with invalid data`);
+      }
+    }
+    const pronunciationsSource = entry["pronunciations"];
+    if (isRecord(pronunciationsSource)) {
+      const pronKeys = Object.keys(pronunciationsSource);
+      for (let j = 0; j < pronKeys.length; j++) {
+        const key = pronKeys[j];
+        const value = toStringValue(pronunciationsSource[key]);
+        if (value !== null) {
+          pronunciations[key] = value;
+        }
+      }
+    }
+    const keys = Object.keys(entry);
+    for (let j = 0; j < keys.length; j++) {
+      const key = keys[j];
+      if (key === "pronunciations" || key === "voices") {
+        continue;
+      }
+      const value = entry[key];
+      if (value !== undefined) {
+        meta[key] = value as TSerial;
+      }
+    }
+  }
+  return { pronunciations, meta, readyVoices, pendingVoices };
+}
+
+export function toVoiceSpec(source: unknown, key: string): VoiceSpec | null {
+  if (!isRecord(source)) {
+    return null;
+  }
+  const id = toNonEmptyString(source["id"]);
+  if (!id) {
+    return null;
+  }
+  const ref = toNonEmptyString(source["ref"]) ?? key;
+  const name = toNonEmptyString(source["name"]) ?? id;
+  const tags = toStringArray(source["tags"]);
+  return { id, ref, name, tags };
+}
+
+export function toPendingVoice(
+  source: unknown,
+  key: string
+): PendingDataVoice | null {
+  if (!isRecord(source)) {
+    return null;
+  }
+  const prompt =
+    toNonEmptyString(source["prompt"]) ??
+    toNonEmptyString(source["description"]);
+  if (!prompt) {
+    return null;
+  }
+  const ref = toNonEmptyString(source["ref"]) ?? key;
+  const name = toNonEmptyString(source["name"]);
+  const tags = toStringArray(source["tags"]);
+  return { ref, prompt, name, tags };
 }
