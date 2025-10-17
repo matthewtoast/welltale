@@ -37,7 +37,8 @@ struct SpeechTestView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         ForEach(capture.lines) { line in
-                            Text(line.text.isEmpty ? "Listening..." : line.text)
+                            let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                            Text(text.isEmpty ? "Listening..." : text)
                                 .foregroundColor(Color.wellText)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.vertical, 8)

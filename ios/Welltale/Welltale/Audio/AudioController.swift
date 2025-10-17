@@ -78,6 +78,7 @@ final class SpeechCaptureController: ObservableObject {
     private var autoStopTask: Task<Void, Never>?
     private var segmentTimerTask: Task<Void, Never>?
     private var segmentBaselineLength = 0
+    private var transcriptBuffer = ""
 
     private lazy var handler: SpeechRecognizer.SpeechRecognitionCallback = { [weak self] transcripts, isFinal, _ in
         Task { @MainActor in
@@ -174,6 +175,9 @@ final class SpeechCaptureController: ObservableObject {
             lines = []
             lastStopReason = nil
             lastStopWord = nil
+            transcriptBuffer = ""
+        } else {
+            transcriptBuffer = accumulatedText
         }
         recognitionId = nil
         sessionStart = nil
@@ -211,20 +215,11 @@ final class SpeechCaptureController: ObservableObject {
             .mixWithOthers,
             .defaultToSpeaker,
         ]
-        if #available(iOS 11.0, *) {
-            try audioSession.setCategory(
-                .playAndRecord,
-                mode: .voiceChat,
-                policy: .longFormAudio,
-                options: options
-            )
-        } else {
-            try audioSession.setCategory(
-                .playAndRecord,
-                mode: .voiceChat,
-                options: options
-            )
-        }
+        try audioSession.setCategory(
+            .playAndRecord,
+            mode: .voiceChat,
+            options: options
+        )
         try audioSession.setActive(true)
     }
 
@@ -249,8 +244,8 @@ final class SpeechCaptureController: ObservableObject {
         if shouldStartNewLine(at: now) {
             startNewLine(at: now)
         }
+        applyTranscriptDiff(best, at: now)
         lastResultDate = now
-        updateCurrentLine(with: best, at: now)
         emitTranscript()
         if exceededSegmentLimit(now: now) {
             restartSegment()
@@ -274,7 +269,53 @@ final class SpeechCaptureController: ObservableObject {
         currentLineId = line.id
     }
 
-    private func updateCurrentLine(with text: String, at date: Date) {
+    private func applyTranscriptDiff(_ text: String, at date: Date) {
+        let previous = transcriptBuffer
+        if text == previous {
+            return
+        }
+        let prefix = previous.commonPrefix(with: text)
+        let removed = previous.count - prefix.count
+        if removed > 0 {
+            removeCharactersFromLines(removed, at: date)
+        }
+        let appended = String(text.dropFirst(prefix.count))
+        if !appended.isEmpty {
+            appendToCurrentLine(appended, at: date)
+        }
+        transcriptBuffer = text
+    }
+
+    private func removeCharactersFromLines(_ count: Int, at date: Date) {
+        var remaining = count
+        while remaining > 0 && !lines.isEmpty {
+            let lastIndex = lines.count - 1
+            var line = lines[lastIndex]
+            if line.text.isEmpty {
+                if lines.count > 1 {
+                    lines.removeLast()
+                } else {
+                    break
+                }
+                continue
+            }
+            let toRemove = min(remaining, line.text.count)
+            let endIndex = line.text.index(line.text.endIndex, offsetBy: -toRemove)
+            line.text = String(line.text[..<endIndex])
+            line.updatedAt = date
+            lines[lastIndex] = line
+            remaining -= toRemove
+            if line.text.isEmpty && lines.count > 1 {
+                lines.removeLast()
+            }
+        }
+        if lines.isEmpty {
+            startNewLine(at: date)
+        }
+        currentLineId = lines.last?.id
+    }
+
+    private func appendToCurrentLine(_ text: String, at date: Date) {
         if currentLineId == nil || !lines.contains(where: { $0.id == currentLineId }) {
             startNewLine(at: date)
         }
@@ -283,7 +324,7 @@ final class SpeechCaptureController: ObservableObject {
             return
         }
         var line = lines[index]
-        line.text = text
+        line.text += text
         line.updatedAt = date
         lines[index] = line
     }
