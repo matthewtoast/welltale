@@ -62,6 +62,7 @@ voices:
 
   const source = await compileStory(context, cartridge, {
     doCompileVoices: true,
+    doGenerateThumbnails: true,
   });
 
   // With runtime processing, original nodes should remain untransformed in compiled tree

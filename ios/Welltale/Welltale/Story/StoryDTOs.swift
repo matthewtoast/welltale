@@ -125,4 +125,51 @@ struct StorySearchResponse: Codable {
 
 struct StoryDetailResponse: Codable {
     let meta: StoryMetaDTO
+    let source: StorySourceDTO?
+}
+
+struct StorySourceDTO: Codable {
+    let root: StoryNode
+    let scripts: [String: AnyCodable]
+    let voices: [String: StoryVoice]
+    let pronunciations: [String: String]
+    let meta: [String: AnyCodable]
+
+    init(
+        root: StoryNode,
+        scripts: [String: AnyCodable],
+        voices: [String: StoryVoice],
+        pronunciations: [String: String],
+        meta: [String: AnyCodable]
+    ) {
+        self.root = root
+        self.scripts = scripts
+        self.voices = voices
+        self.pronunciations = pronunciations
+        self.meta = meta
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let root = try container.decodeIfPresent(StoryNode.self, forKey: .root) ?? StoryNode(addr: "", type: "root", atts: [:], kids: [], text: "")
+        let scripts = try container.decodeIfPresent([String: AnyCodable].self, forKey: .scripts) ?? [:]
+        let voices = try container.decodeIfPresent([String: StoryVoice].self, forKey: .voices) ?? [:]
+        let pronunciations = try container.decodeIfPresent([String: String].self, forKey: .pronunciations) ?? [:]
+        let meta = try container.decodeIfPresent([String: AnyCodable].self, forKey: .meta) ?? [:]
+        self.init(
+            root: root,
+            scripts: scripts,
+            voices: voices,
+            pronunciations: pronunciations,
+            meta: meta
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case root
+        case scripts
+        case voices
+        case pronunciations
+        case meta
+    }
 }

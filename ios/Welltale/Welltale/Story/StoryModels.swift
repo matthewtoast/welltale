@@ -24,7 +24,7 @@ struct StorySession: Codable {
     var meta: [String: AnyCodable]
     var cache: [String: AnyCodable]
     var target: String?
-    var genie: [String: String]?
+    var genie: [String: AnyCodable]?
     var ddv: StoryDDV?
     var player: StoryPlayer?
     var voices: [String: StoryVoice]
@@ -48,7 +48,7 @@ struct StorySession: Codable {
         meta: [String: AnyCodable],
         cache: [String: AnyCodable],
         target: String?,
-        genie: [String: String]?,
+        genie: [String: AnyCodable]?,
         ddv: StoryDDV?,
         player: StoryPlayer?,
         voices: [String: StoryVoice],
@@ -97,7 +97,7 @@ struct StorySession: Codable {
         meta = try container.decodeIfPresent([String: AnyCodable].self, forKey: .meta) ?? [:]
         cache = try container.decodeIfPresent([String: AnyCodable].self, forKey: .cache) ?? [:]
         target = try container.decodeIfPresent(String.self, forKey: .target)
-        genie = try container.decodeIfPresent([String: String].self, forKey: .genie)
+        genie = try container.decodeIfPresent([String: AnyCodable].self, forKey: .genie)
         ddv = try container.decodeIfPresent(StoryDDV.self, forKey: .ddv)
         player = try container.decodeIfPresent(StoryPlayer.self, forKey: .player)
         voices = try container.decodeIfPresent([String: StoryVoice].self, forKey: .voices) ?? [:]
@@ -238,12 +238,12 @@ struct StoryCheckpoint: Codable {
 struct StoryEvent: Codable {
     var time: Int
     var from: String
-    var to: [String]
+    var to: String
     var obs: [String]
     var body: String
     var tags: [String]
 
-    init(time: Int, from: String, to: [String], obs: [String], body: String, tags: [String]) {
+    init(time: Int, from: String, to: String, obs: [String], body: String, tags: [String]) {
         self.time = time
         self.from = from
         self.to = to
@@ -256,7 +256,7 @@ struct StoryEvent: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         time = try container.decodeIfPresent(Int.self, forKey: .time) ?? 0
         from = try container.decodeIfPresent(String.self, forKey: .from) ?? ""
-        to = try container.decodeIfPresent([String].self, forKey: .to) ?? []
+        to = try container.decodeIfPresent(String.self, forKey: .to) ?? ""
         obs = try container.decodeIfPresent([String].self, forKey: .obs) ?? []
         body = try container.decodeIfPresent(String.self, forKey: .body) ?? ""
         tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []

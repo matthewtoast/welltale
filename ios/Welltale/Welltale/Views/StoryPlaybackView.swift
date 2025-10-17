@@ -6,71 +6,81 @@ struct StoryPlaybackView: View {
     @StateObject private var viewModel = StoryPlaybackViewModel()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if viewModel.isLoading {
-                ProgressView("Loading")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            } else if let story = viewModel.story {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(story.title)
-                            .font(.title)
-                            .fontWeight(.semibold)
-                        Text(story.author)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ForEach(Array(viewModel.events.enumerated()), id: \.offset) { item in
-                                let event = item.element
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(event.from)
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                    Text(event.body)
-                                        .font(.body)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 8)
-                                .background(Color(.secondarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            }
+        ZStack {
+            Color.wellBackground.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 16) {
+                if viewModel.isLoading {
+                    ProgressView("Loading")
+                        .tint(Color.wellText)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                } else if let story = viewModel.story {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(story.title)
+                                .font(.title)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color.wellText)
+                            Text(story.author)
+                                .font(.subheadline)
+                                .foregroundColor(Color.wellMuted)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 12) {
+                                ForEach(Array(viewModel.events.enumerated()), id: \.offset) { item in
+                                    let event = item.element
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(event.from)
+                                            .font(.caption)
+                                            .foregroundColor(Color.wellMuted)
+                                        Text(event.body)
+                                            .font(.body)
+                                            .foregroundColor(Color.wellText)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 8)
+                                    .background(Color.wellSurface)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        statusSection
+                        if viewModel.isWaitingForInput {
+                            inputSection
+                        }
+                        if viewModel.seam == .finish {
+                            Text("Story complete")
+                                .font(.headline)
+                                .foregroundColor(.green)
+                        }
+                        if viewModel.seam == .error {
+                            Text(viewModel.error ?? "An error occurred")
+                                .font(.footnote)
+                                .foregroundColor(.red)
+                        }
                     }
-                    statusSection
-                    if viewModel.isWaitingForInput {
-                        inputSection
-                    }
-                    if viewModel.seam == .finish {
-                        Text("Story complete")
+                } else if let error = viewModel.error {
+                    VStack(spacing: 12) {
+                        Text("Failed to load story")
                             .font(.headline)
-                            .foregroundColor(.green)
+                            .foregroundColor(Color.wellText)
+                        Text(error)
+                            .font(.body)
+                            .foregroundColor(Color.wellMuted)
                     }
-                    if viewModel.seam == .error {
-                        Text(viewModel.error ?? "An error occurred")
-                            .font(.footnote)
-                            .foregroundColor(.red)
-                    }
-                }
-            } else if let error = viewModel.error {
-                VStack(spacing: 12) {
-                    Text("Failed to load story")
-                        .font(.headline)
-                    Text(error)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                Text("No story loaded")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Text("No story loaded")
+                        .foregroundColor(Color.wellText)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
+            .padding()
         }
-        .padding()
+        .tint(Color.wellText)
         .task {
+            await viewModel.preparePermissions()
             await viewModel.loadStory(id: storyId)
         }
     }
@@ -78,11 +88,21 @@ struct StoryPlaybackView: View {
     private var statusSection: some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(viewModel.isPlayingForeground ? Color.green : Color.gray)
+                .fill(viewModel.isPlayingForeground ? Color.green : Color.wellMuted)
                 .frame(width: 12, height: 12)
             Text(statusText)
                 .font(.footnote)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.wellMuted)
+            Spacer()
+            Button {
+                viewModel.togglePlayback()
+            } label: {
+                Image(systemName: viewModel.playbackIcon)
+                    .font(.footnote)
+                    .foregroundColor(Color.wellText)
+            }
+            .disabled(!viewModel.canTogglePlayback)
+            .accessibilityLabel(viewModel.playbackLabel)
         }
     }
 
@@ -92,36 +112,43 @@ struct StoryPlaybackView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Transcript")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.wellMuted)
                     Text(viewModel.transcript)
                         .font(.body)
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(Color.wellPanel)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .foregroundColor(Color.wellText)
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text("Respond")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.wellMuted)
                 TextField("Type your response", text: $viewModel.inputDraft)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(10)
+                    .background(Color.wellPanel)
+                    .cornerRadius(8)
+                    .foregroundColor(Color.wellText)
+                    .colorScheme(.dark)
                 HStack {
                     Button("Use Transcript") {
                         viewModel.useTranscript()
                     }
                     .disabled(viewModel.transcript.isEmpty)
+                    .foregroundColor(Color.wellText)
                     Spacer()
                     Button("Submit") {
                         viewModel.submitInput()
                     }
                     .disabled(!viewModel.canSubmit)
+                    .foregroundColor(Color.wellText)
                 }
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.wellSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -134,6 +161,9 @@ struct StoryPlaybackView: View {
         }
         if viewModel.isWaitingForInput {
             return "Listening"
+        }
+        if viewModel.isPaused {
+            return "Paused"
         }
         return viewModel.isPlayingForeground ? "Playing" : "Idle"
     }
@@ -152,14 +182,19 @@ final class StoryPlaybackViewModel: ObservableObject {
     @Published var inputDraft = ""
     @Published var transcript = ""
     @Published var isSpeechActive = false
+    @Published var isPaused = false
+    @Published var hasPlaybackControls = false
 
     private var runner: StoryRunner?
     private let speechController = SpeechCaptureController(locale: .en_us, config: .default)
     private var speechListenersConfigured = false
+    private var started = false
 
     deinit {
+        let currentRunner = runner
+        runner = nil
         Task {
-            await runner?.stop()
+            await currentRunner?.stop()
         }
     }
 
@@ -169,6 +204,9 @@ final class StoryPlaybackViewModel: ObservableObject {
         }
         isLoading = true
         error = nil
+        hasPlaybackControls = false
+        started = false
+        isPaused = false
         do {
             guard let configuration = StoryConfiguration.load() else {
                 error = "Missing WelltaleAPIBase or DevSessionToken"
@@ -176,18 +214,17 @@ final class StoryPlaybackViewModel: ObservableObject {
                 return
             }
             let service = StoryService(configuration: configuration)
-            let meta = try await service.fetchStory(id: id)
-            story = meta
+            let detail = try await service.fetchStory(id: id)
+            story = detail.meta
             let options = makeOptions(storyId: id)
-            let session = StorySessionFactory.make(id: id)
+            let session = StorySessionFactory.make(id: id, source: detail.source)
             let coordinator = StoryCoordinator(session: session, options: options, service: service)
             let handlers = makeHandlers()
             let runner = StoryRunner(coordinator: coordinator, handlers: handlers)
             self.runner = runner
+            hasPlaybackControls = true
+            isPaused = true
             configureSpeechCallbacks()
-            Task {
-                await runner.start()
-            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -207,7 +244,7 @@ final class StoryPlaybackViewModel: ObservableObject {
         let event = StoryEvent(
             time: Int(Date().timeIntervalSince1970 * 1000),
             from: "YOU",
-            to: [],
+            to: "",
             obs: [],
             body: payload,
             tags: []
@@ -215,8 +252,62 @@ final class StoryPlaybackViewModel: ObservableObject {
         events.append(event)
         currentEvent = event
         isWaitingForInput = false
+        guard let currentRunner = runner else {
+            return
+        }
         Task {
-            await runner?.submit(payload)
+            await currentRunner.submit(payload)
+        }
+    }
+
+    func preparePermissions() async {
+        await speechController.preparePermissions()
+    }
+
+    func play() {
+        if isWaitingForInput || seam == .finish || seam == .error {
+            return
+        }
+        if !started {
+            started = true
+            isPaused = false
+            guard let currentRunner = runner else {
+                return
+            }
+            Task {
+                await currentRunner.start()
+            }
+            return
+        }
+        if isPaused {
+            isPaused = false
+            guard let currentRunner = runner else {
+                return
+            }
+            Task {
+                await currentRunner.resume()
+            }
+        }
+    }
+
+    func pause() {
+        if !started || isPaused {
+            return
+        }
+        isPaused = true
+        guard let currentRunner = runner else {
+            return
+        }
+        Task {
+            await currentRunner.pause()
+        }
+    }
+
+    func togglePlayback() {
+        if isPaused {
+            play()
+        } else {
+            pause()
         }
     }
 
@@ -265,6 +356,7 @@ final class StoryPlaybackViewModel: ObservableObject {
         isWaitingForInput = snapshot.isWaitingForInput
         isPlayingForeground = snapshot.isPlayingForeground
         seam = snapshot.seam
+        isPaused = snapshot.isPaused
     }
 
     private func makeOptions(storyId: String) -> StoryOptions {
@@ -310,6 +402,18 @@ final class StoryPlaybackViewModel: ObservableObject {
                 self?.isSpeechActive = false
             }
         }
+    }
+
+    var canTogglePlayback: Bool {
+        hasPlaybackControls && seam != .finish && seam != .error && !isWaitingForInput
+    }
+
+    var playbackIcon: String {
+        isPaused ? "play.fill" : "pause.fill"
+    }
+
+    var playbackLabel: String {
+        isPaused ? "Play" : "Pause"
     }
 }
 

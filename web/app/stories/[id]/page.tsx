@@ -1,38 +1,38 @@
 import { headers } from "next/headers";
-import { StoryMeta } from "../../../../lib/StoryTypes";
+import { StoryMeta, StorySource } from "../../../../lib/StoryTypes";
 import { StoryPlayer } from "./StoryPlayer";
 
 type StoryPageProps = {
   params: Promise<{ id: string }>;
 };
 
-type MetaRes = {
+type StoryRes = {
   meta: StoryMeta | null;
+  source: StorySource | null;
 };
 
-async function fetchStoryMeta(id: string): Promise<StoryMeta | null> {
+async function fetchStoryData(id: string): Promise<{ meta: StoryMeta | null; source: StorySource | null }> {
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
-  if (!host) return null;
+  if (!host) return { meta: null, source: null };
   const proto = hdrs.get("x-forwarded-proto") ?? "http";
   const url = `${proto}://${host}/api/stories/${id}`;
   const res = await fetch(url, {
     headers: { cookie: hdrs.get("cookie") ?? "" },
     cache: "no-store",
   }).catch(() => null);
-  if (!res) return null;
-  if (!res.ok) return null;
-  const data = (await res.json().catch(() => null)) as MetaRes | null;
-  if (!data) return null;
-  if (!data.meta) return null;
-  return data.meta;
+  if (!res) return { meta: null, source: null };
+  if (!res.ok) return { meta: null, source: null };
+  const data = (await res.json().catch(() => null)) as StoryRes | null;
+  if (!data) return { meta: null, source: null };
+  return { meta: data.meta, source: data.source };
 }
 
 export default async function StoryPage({ params }: StoryPageProps) {
   const { id } = await params;
-  const meta = await fetchStoryMeta(id);
-  if (meta) {
-    return <StoryPlayer {...meta} />;
+  const { meta, source } = await fetchStoryData(id);
+  if (meta && source) {
+    return <StoryPlayer meta={meta} source={source} />;
   }
   return <></>;
 }

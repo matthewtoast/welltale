@@ -7,29 +7,29 @@ struct StoryItemView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(story.title)
                 .font(.headline)
-                .foregroundColor(.primary)
+                .foregroundColor(Color.wellText)
                 .lineLimit(2)
             
             Text(story.author)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.wellText)
             
             if !story.description.isEmpty {
                 Text(story.description)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.wellText)
                     .lineLimit(3)
             }
             
             if !story.tags.isEmpty {
                 Text(story.tags.joined(separator: ", "))
                     .font(.caption2)
-                    .foregroundColor(.blue)
+                    .foregroundColor(Color.wellText)
             }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(UIColor.secondarySystemBackground))
+        .background(Color.wellSurface)
         .cornerRadius(10)
     }
 }

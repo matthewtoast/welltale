@@ -11,10 +11,11 @@ import {
   StoryMeta,
   StoryOptions,
   StorySession,
+  StorySource,
 } from "../../../../lib/StoryTypes";
 import { StoryPlayerUI } from "./StoryPlayerUI";
 
-export function StoryPlayer(props: StoryMeta) {
+export function StoryPlayer(props: { meta: StoryMeta; source: StorySource }) {
   const [currentText, setCurrentText] = useState("");
   const [currentSpeaker, setCurrentSpeaker] = useState("");
   const [phase, setPhase] = useState<
@@ -24,19 +25,12 @@ export function StoryPlayer(props: StoryMeta) {
   const [error, setError] = useState<string | null>(null);
   const [isSkippable, setIsSkippable] = useState(false);
   const [hasMoreOps, setHasMoreOps] = useState(false);
-  const emptySource = {
-    root: { addr: "", type: "root", atts: {}, kids: [], text: "" },
-    voices: {},
-    pronunciations: {},
-    scripts: {},
-    meta: {},
-  };
   const sessionRef = useRef<StorySession>(
-    createDefaultSession(`web-${props.id}`, emptySource)
+    createDefaultSession(`web-${props.meta.id}`, props.source)
   );
   const optionsRef = useRef<StoryOptions>({
     verbose: true,
-    seed: `web-${props.id}`,
+    seed: `web-${props.meta.id}`,
     loop: 0,
     ream: 100,
     doGenerateAudio: true,
@@ -340,7 +334,7 @@ export function StoryPlayer(props: StoryMeta) {
 
   return (
     <StoryPlayerUI
-      {...props}
+      {...props.meta}
       currentText={currentText}
       currentSpeaker={currentSpeaker}
       phase={phase}

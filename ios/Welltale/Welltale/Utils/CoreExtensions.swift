@@ -63,3 +63,11 @@ extension Array where Element: Equatable {
         self = self.filter { $0 != element }
     }
 }
+
+extension Color {
+    static let wellBackground = Color(red: 11.0 / 255.0, green: 10.0 / 255.0, blue: 19.0 / 255.0)
+    static let wellSurface = Color(red: 17.0 / 255.0, green: 15.0 / 255.0, blue: 29.0 / 255.0)
+    static let wellPanel = Color(red: 15.0 / 255.0, green: 20.0 / 255.0, blue: 30.0 / 255.0)
+    static let wellText = Color(red: 250.0 / 255.0, green: 246.0 / 255.0, blue: 239.0 / 255.0)
+    static let wellMuted = Color(red: 119.0 / 255.0, green: 119.0 / 255.0, blue: 119.0 / 255.0)
+}

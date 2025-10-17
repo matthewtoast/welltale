@@ -6,6 +6,7 @@ struct StoryRunnerSnapshot {
     var isWaitingForInput: Bool
     var isPlayingForeground: Bool
     var seam: SeamType
+    var isPaused: Bool
 }
 
 struct StoryRunnerHandlers {
@@ -30,6 +31,7 @@ actor StoryRunner {
     private var stopped = false
     private var finished = false
     private var errored = false
+    private var paused = false
 
     init(coordinator: StoryCoordinator, handlers: StoryRunnerHandlers) {
         self.coordinator = coordinator
@@ -40,24 +42,53 @@ actor StoryRunner {
         if task != nil || stopped {
             return
         }
+        paused = false
         task = Task {
             await audio.prepare()
             await runCycle(input: nil)
         }
     }
 
-    func submit(_ input: String) {
+    func submit(_ input: String, event: StoryEvent? = nil) async {
         if !waiting {
             return
         }
         waiting = false
+        paused = false
+        if let event {
+            events.append(event)
+            currentEvent = event
+            if seam == .input {
+                seam = .grant
+            }
+        }
+        await emitSnapshot()
         task = Task {
             await runCycle(input: input)
         }
     }
 
+    func pause() async {
+        if paused {
+            return
+        }
+        paused = true
+        await audio.pauseAll()
+        await emitSnapshot()
+    }
+
+    func resume() async {
+        if !paused {
+            return
+        }
+        paused = false
+        await audio.resumeAll()
+        await emitSnapshot()
+    }
+
     func stop() async {
         stopped = true
+        paused = false
         task?.cancel()
         task = nil
         await audio.stop()
@@ -71,9 +102,12 @@ actor StoryRunner {
             await self.enqueue(ops)
         }
         guard let result else {
-            await handlers.didError("Network error")
+            let message = await coordinator.consumeLastError() ?? "Network error"
+            await handlers.didError(message)
             return
         }
+        events = result.response.session.checkpoints.flatMap { $0.events }
+        currentEvent = events.last
         seam = result.response.seam
         if seam == .input {
             waiting = true
@@ -173,7 +207,8 @@ actor StoryRunner {
             currentEvent: currentEvent,
             isWaitingForInput: waiting,
             isPlayingForeground: playingForeground,
-            seam: seam
+            seam: seam,
+            isPaused: paused
         )
         await handlers.update(snapshot)
     }

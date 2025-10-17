@@ -61,6 +61,11 @@ async function runAutorun() {
       description: "Compile voices",
       default: false,
     })
+    .option("doGenerateThumbnails", {
+      type: "boolean",
+      description: "Generate thumbnails during compile",
+      default: true,
+    })
     .option("verbose", {
       type: "boolean",
       description: "Verbose logging on (true/false)",
@@ -113,7 +118,8 @@ async function runAutorun() {
   };
 
   const compileOptions: CompileOptions = {
-    doCompileVoices: false,
+    doCompileVoices: argv.doCompileVoices,
+    doGenerateThumbnails: argv.doGenerateThumbnails,
   };
 
   console.info(`Auto-running game...`, {

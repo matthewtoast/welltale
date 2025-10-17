@@ -1,10 +1,15 @@
 import {
   DynamoDBClient,
+  DeleteItemCommand,
   GetItemCommand,
   PutItemCommand,
   ScanCommand,
 } from "@aws-sdk/client-dynamodb";
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { Readable } from "stream";
 import { s3ObjectExists, uploadBufferToS3 } from "./AWSUtils";
@@ -25,6 +30,7 @@ export type StoryRepo = {
   listMetas(): Promise<StoryMeta[]>;
   putCompiled(id: string, data: StorySource): Promise<void>;
   getCompiled(id: string): Promise<StorySource | null>;
+  deleteStory(id: string): Promise<void>;
 };
 
 export function createStoryRepo(input: {
@@ -85,6 +91,28 @@ export function createStoryRepo(input: {
     const buf = await toBuffer(res.Body as Readable);
     return JSON.parse(buf.toString());
   }
-
-  return { getMeta, putMeta, listMetas, putCompiled, getCompiled };
+  async function deleteStory(id: string): Promise<void> {
+    await Promise.all([
+      ddb.send(
+        new DeleteItemCommand({
+          TableName: tableName,
+          Key: marshall({ id }),
+        })
+      ),
+      s3.send(
+        new DeleteObjectCommand({ Bucket: bucketName, Key: uploadKey(id) })
+      ),
+      s3.send(
+        new DeleteObjectCommand({ Bucket: bucketName, Key: compiledKey(id) })
+      ),
+    ]);
+  }
+  return {
+    getMeta,
+    putMeta,
+    listMetas,
+    putCompiled,
+    getCompiled,
+    deleteStory,
+  };
 }

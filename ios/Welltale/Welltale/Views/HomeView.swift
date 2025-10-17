@@ -10,69 +10,88 @@ struct HomeView: View {
     
     var body: some View {
         NavigationView {
-            List {
-                Section {
-                    TextField("Search stories", text: $search)
-                        .textInputAutocapitalization(.never)
-                        .disableAutocorrection(true)
-                }
-                Section("Config") {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Base URL")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(configText(AppConfig.apiBaseURL?.absoluteString))
-                            .font(.footnote)
-                            .textSelection(.enabled)
-                        Text("Raw: \(configText(AppConfig.rawAPIBase))")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+            ZStack {
+                Color.wellBackground.ignoresSafeArea()
+                List {
+                    Section {
+                        TextField("Search stories", text: $search)
+                            .padding(10)
+                            .background(Color.wellPanel)
+                            .cornerRadius(12)
+                            .textInputAutocapitalization(.never)
+                            .disableAutocorrection(true)
+                            .foregroundColor(Color.wellText)
+                            .colorScheme(.dark)
                     }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Token")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(configText(AppConfig.devSessionToken))
-                            .font(.footnote)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .textSelection(.enabled)
-                        Text("Raw: \(configText(AppConfig.rawDevSessionToken))")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                Section("Tools") {
-                    NavigationLink(destination: SpeechTestView()) {
-                        Label("Speech Test", systemImage: "waveform")
-                    }
-                }
-                Section {
-                    if isLoading && stories.isEmpty {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
+                    .listRowBackground(Color.wellSurface)
+                    Section(header: Text("Config").foregroundColor(Color.wellText)) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Base URL")
+                                .font(.caption)
+                                .foregroundColor(Color.wellMuted)
+                            Text(configText(AppConfig.apiBaseURL?.absoluteString))
+                                .font(.footnote)
+                                .foregroundColor(Color.wellText)
+                                .textSelection(.enabled)
+                            Text("Raw: \(configText(AppConfig.rawAPIBase))")
+                                .font(.caption2)
+                                .foregroundColor(Color.wellMuted)
                         }
-                    } else if let message = errorMessage {
-                        Text(message)
-                            .foregroundStyle(.secondary)
-                    } else if stories.isEmpty {
-                        Text("No stories found")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(stories) { story in
-                            NavigationLink(destination: StoryPlaybackView(storyId: story.id)) {
-                                StoryItemView(story: story)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Token")
+                                .font(.caption)
+                                .foregroundColor(Color.wellMuted)
+                            Text(configText(AppConfig.devSessionToken))
+                                .font(.footnote)
+                                .foregroundColor(Color.wellText)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .textSelection(.enabled)
+                            Text("Raw: \(configText(AppConfig.rawDevSessionToken))")
+                                .font(.caption2)
+                                .foregroundColor(Color.wellMuted)
+                        }
+                    }
+                    .listRowBackground(Color.wellSurface)
+                    Section(header: Text("Tools").foregroundColor(Color.wellText)) {
+                        NavigationLink(destination: SpeechTestView()) {
+                            Label("Speech Test", systemImage: "waveform")
+                                .foregroundColor(Color.wellText)
+                        }
+                    }
+                    .listRowBackground(Color.wellSurface)
+                    Section {
+                        if isLoading && stories.isEmpty {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .tint(Color.wellText)
+                                Spacer()
                             }
-                            .buttonStyle(PlainButtonStyle())
+                        } else if let message = errorMessage {
+                            Text(message)
+                                .foregroundColor(Color.wellMuted)
+                        } else if stories.isEmpty {
+                            Text("No stories found")
+                                .foregroundColor(Color.wellMuted)
+                        } else {
+                            ForEach(stories) { story in
+                                NavigationLink(destination: StoryPlaybackView(storyId: story.id)) {
+                                    StoryItemView(story: story)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
                         }
                     }
+                    .listRowBackground(Color.wellSurface)
                 }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.insetGrouped)
             .navigationTitle("Stories")
         }
+        .background(Color.wellBackground)
+        .tint(Color.wellText)
         .onChange(of: search) { _ in
             scheduleSearch()
         }

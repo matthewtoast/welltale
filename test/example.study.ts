@@ -66,6 +66,7 @@ async function testTestStory() {
   };
   const sources = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
+    doGenerateThumbnails: true,
   });
   const inputSets: string[][] = [
     [

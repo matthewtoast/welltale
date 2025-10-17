@@ -31,3 +31,13 @@ export async function GET(req: Request) {
   });
   return NextResponse.json({ items }, { status: 200 });
 }
+
+export async function DELETE(req: Request) {
+  const user = await authenticateRequest(req);
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const metas = await storyRepo.listMetas();
+  if (metas.length === 0)
+    return NextResponse.json({ ok: true, deleted: 0 }, { status: 200 });
+  for (const meta of metas) await storyRepo.deleteStory(meta.id);
+  return NextResponse.json({ ok: true, deleted: metas.length }, { status: 200 });
+}

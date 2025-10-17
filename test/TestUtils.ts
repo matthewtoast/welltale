@@ -109,6 +109,7 @@ export async function runTestStory(
   };
   const sources = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
+    doGenerateThumbnails: true,
   });
   const session = createDefaultSession("test", sources);
   if (testOptions) {

@@ -150,6 +150,10 @@ final class SpeechCaptureController: ObservableObject {
         }
     }
 
+    func preparePermissions() async {
+        _ = await ensurePermissions()
+    }
+
     func restartSegment() {
         guard isRecording else {
             return
@@ -504,7 +508,21 @@ final class AudioPlayer {
     private var completions: [UUID: (Result<Void, Error>) -> Void] = [:]
     private var observers: [UUID: [NSObjectProtocol]] = [:]
 
-    func pausePlayback() {
+    func pauseAll() {
+        let ids = Array(players.keys)
+        for id in ids {
+            players[id]?.pause()
+        }
+    }
+
+    func resumeAll() {
+        let ids = Array(players.keys)
+        for id in ids {
+            players[id]?.play()
+        }
+    }
+
+    func stopAll() {
         let ids = Array(players.keys)
         for id in ids {
             players[id]?.pause()

@@ -34,8 +34,11 @@ export async function GET(req: Request, ctx: StoryCtx) {
   const params = await ctx.params;
   const id = params?.id;
   if (!id) return NextResponse.json({ ok: false }, { status: 400 });
-  const meta = await storyRepo.getMeta(id);
-  return NextResponse.json({ meta }, { status: 200 });
+  const [meta, source] = await Promise.all([
+    storyRepo.getMeta(id),
+    storyRepo.getCompiled(id),
+  ]);
+  return NextResponse.json({ meta, source }, { status: 200 });
 }
 
 export async function POST(req: Request, ctx: StoryCtx) {
@@ -80,4 +83,16 @@ export async function POST(req: Request, ctx: StoryCtx) {
   };
   const saved = await storyRepo.putMeta(next);
   return NextResponse.json({ id, meta: saved }, { status: 200 });
+}
+
+export async function DELETE(req: Request, ctx: StoryCtx) {
+  const user = await authenticateRequest(req);
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const params = await ctx.params;
+  const id = params?.id?.trim();
+  if (!id) return NextResponse.json({ ok: false }, { status: 400 });
+  const meta = await storyRepo.getMeta(id);
+  if (!meta) return NextResponse.json({ ok: false }, { status: 404 });
+  await storyRepo.deleteStory(id);
+  return NextResponse.json({ ok: true }, { status: 200 });
 }

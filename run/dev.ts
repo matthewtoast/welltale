@@ -6,7 +6,7 @@ import { hideBin } from "yargs/helpers";
 import { loadDevEnv } from "../env/env-dev";
 import { loadSstEnv } from "../env/env-sst";
 import { listDirs, safeConfigValue, syncStory } from "../lib/DevTools";
-import { apiFetchDevSessions } from "../lib/StoryWebAPI";
+import { apiDeleteAllStories, apiFetchDevSessions } from "../lib/StoryWebAPI";
 import { cleanSplit } from "../lib/TextHelpers";
 
 const sstEnv = loadSstEnv();
@@ -110,6 +110,11 @@ async function setupFixtures(err: () => void) {
         "Sync stories with the server. If empty array, sync all stories. If null/undefined, don't sync.",
       default: undefined,
     })
+    .option("clearStories", {
+      type: "boolean",
+      description: "Delete all stories from the server before syncing",
+      default: false,
+    })
     .parserConfiguration({
       "camel-case-expansion": true,
       "strip-aliased": true,
@@ -146,6 +151,19 @@ async function setupFixtures(err: () => void) {
   const webConfigPath = join(webDir, ".dev-session.json");
   const webPayload = JSON.stringify({ token: sessionToken }, null, 2);
   await writeFile(webConfigPath, webPayload + "\n", "utf8");
+
+  if (argv.clearStories) {
+    console.info("[dev] Clearing stories");
+    const cleared = await apiDeleteAllStories(
+      devEnv.WELLTALE_API_BASE,
+      sessionToken
+    );
+    if (cleared === null) {
+      console.warn("[dev] Failed to clear stories");
+    } else {
+      console.info(`[dev] Cleared ${cleared} stories`);
+    }
+  }
 
   if (argv.syncStories !== undefined) {
     console.info("[dev] Syncing stories");

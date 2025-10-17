@@ -4,13 +4,13 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { loadAppEnv } from "../../../../../env/env-app";
-import { DefaultStoryServiceProvider } from "../../../../../lib/StoryDefaultServiceProvider";
-import { authenticateRequest } from "../../../../lib/api/auth";
 import { safeJsonParseTyped } from "../../../../../lib/JSONHelpers";
 import { S3Cache } from "../../../../../lib/S3Cache";
+import { DefaultStoryServiceProvider } from "../../../../../lib/StoryDefaultServiceProvider";
 import { advanceStory } from "../../../../../lib/StoryEngine";
 import { createStoryRepo } from "../../../../../lib/StoryRepo";
 import { StoryOptions, StorySession } from "../../../../../lib/StoryTypes";
+import { authenticateRequest } from "../../../../lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -56,5 +56,16 @@ export async function POST(req: Request) {
     b.session,
     b.options
   );
+  console.info({
+    seam,
+    ops,
+    info,
+    addr,
+    session: {
+      id: session.id,
+      address: session.address,
+      state: session.state,
+    },
+  });
   return NextResponse.json({ ops, session, seam, info, addr }, { status: 200 });
 }

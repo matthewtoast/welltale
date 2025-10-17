@@ -37,6 +37,7 @@ async function compileMacroStory(xml: string): Promise<StoryNode> {
 
   const result = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
+    doGenerateThumbnails: true,
   });
 
   return result.root;

@@ -160,3 +160,40 @@ export async function apiFinalizeUpload(
   if (!res.ok) return false;
   return true;
 }
+
+export async function apiDeleteAllStories(
+  baseUrl: string,
+  token: string
+): Promise<number | null> {
+  const res = await apiSafeRequest(
+    `${baseUrl}/api/stories`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res) return null;
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  if (!data) return null;
+  const deleted = Number(data.deleted);
+  if (!Number.isFinite(deleted)) return null;
+  return deleted;
+}
+
+export async function apiDeleteStory(
+  baseUrl: string,
+  id: string,
+  token: string
+): Promise<boolean> {
+  const res = await apiSafeRequest(
+    `${baseUrl}/api/stories/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res) return false;
+  if (!res.ok) return false;
+  return true;
+}

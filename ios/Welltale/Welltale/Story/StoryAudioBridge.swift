@@ -13,8 +13,16 @@ struct StoryAudioBridge {
         StoryAudioStore.playBackground(url: url, volume: volume)
     }
 
+    func pauseAll() async {
+        await StoryAudioStore.pauseAll()
+    }
+
+    func resumeAll() async {
+        await StoryAudioStore.resumeAll()
+    }
+
     func stop() async {
-        await StoryAudioStore.teardown()
+        await StoryAudioStore.stopAll()
     }
 }
 
@@ -43,8 +51,16 @@ private enum StoryAudioStore {
         }
     }
 
-    static func teardown() {
-        player.pausePlayback()
+    static func pauseAll() {
+        player.pauseAll()
+    }
+
+    static func resumeAll() {
+        player.resumeAll()
+    }
+
+    static func stopAll() {
+        player.stopAll()
         try? session.setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

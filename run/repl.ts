@@ -58,6 +58,11 @@ async function runRepl() {
       description: "Compile voices",
       default: false,
     })
+    .option("doGenerateThumbnails", {
+      type: "boolean",
+      description: "Generate thumbnails during compile",
+      default: true,
+    })
     .option("cartridgeDir", {
       type: "string",
       description: "Path to the dir containing the cartridge files",
@@ -105,6 +110,7 @@ async function runRepl() {
 
   const compileOptions: CompileOptions = {
     doCompileVoices: argv.doCompileVoices,
+    doGenerateThumbnails: argv.doGenerateThumbnails,
   };
 
   const runnerOptions: LocalStoryRunnerOptions = {

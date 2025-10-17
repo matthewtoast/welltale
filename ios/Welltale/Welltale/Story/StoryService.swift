@@ -32,18 +32,16 @@ struct StoryService {
         try await search(query: nil)
     }
     
-    func fetchStory(id: String) async throws -> StoryMetaDTO {
-        let response: StoryDetailResponse = try await client.request(
+    func fetchStory(id: String) async throws -> StoryDetailResponse {
+        try await client.request(
             method: "GET",
             path: "api/stories/\(id)"
         )
-        return response.meta
     }
     
     func advanceStory(session: StorySession, options: StoryOptions) async throws -> StoryAdvanceResponse {
         let request = StoryAdvanceRequest(session: session, options: options)
         let encoder = JSONEncoder()
-        encoder.keyEncodingStrategy = .convertToSnakeCase
         let body = try encoder.encode(request)
         
         let response: StoryAdvanceResponse = try await client.request(

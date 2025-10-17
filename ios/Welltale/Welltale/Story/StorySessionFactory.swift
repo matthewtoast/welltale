@@ -1,6 +1,6 @@
 struct StorySessionFactory {
-    static func make(id: String) -> StorySession {
-        StorySession(
+    static func make(id: String, source: StorySourceDTO?) -> StorySession {
+        var session = StorySession(
             id: id,
             time: 0,
             turn: 0,
@@ -24,5 +24,12 @@ struct StorySessionFactory {
             pronunciations: [:],
             root: nil
         )
+        let root = source?.root ?? StoryNode(addr: "", type: "root", atts: [:], kids: [], text: "")
+        session.root = root
+        session.voices = source?.voices ?? [:]
+        session.scripts = source?.scripts ?? [:]
+        session.pronunciations = source?.pronunciations ?? [:]
+        session.meta = source?.meta ?? [:]
+        return session
     }
 }

@@ -4,6 +4,7 @@ actor StoryCoordinator {
     private var session: StorySession
     private let options: StoryOptions
     private let service: StoryService
+    private var lastError: String?
 
     init(session: StorySession, options: StoryOptions, service: StoryService) {
         self.session = session
@@ -57,11 +58,34 @@ actor StoryCoordinator {
             let payload = StoryInput(from: "user", body: text, atts: [:])
             session.input = payload
         }
-        guard let response = try? await service.advanceStory(session: session, options: options) else {
+        do {
+            let response = try await service.advanceStory(session: session, options: options)
+            lastError = nil
+            session = response.session
+            return response
+        } catch {
+            lastError = describe(error: error)
+            print("[welltale] advance error", error)
             return nil
         }
-        session = response.session
-        return response
+    }
+
+    func consumeLastError() -> String? {
+        let message = lastError
+        lastError = nil
+        return message
+    }
+
+    private func describe(error: Error) -> String {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .invalidURL: return "Invalid URL"
+            case .invalidResponse: return "Invalid response"
+            case .status(let code): return "HTTP status \(code)"
+            case .decode: return "Decode error"
+            }
+        }
+        return error.localizedDescription
     }
 }
 

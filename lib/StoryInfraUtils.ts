@@ -4,6 +4,7 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { OpenAI } from "openai";
 import { Readable } from "stream";
 import { loadAppEnv } from "../env/env-app";
+import { NonEmpty } from "../typings";
 import { toBuffer, unzip } from "./BufferUtils";
 import { buildDefaultFuncs } from "./EvalMethods";
 import { createRunner, evaluateScript } from "./QuickJSUtils";
@@ -14,10 +15,9 @@ import { DefaultStoryServiceProvider } from "./StoryDefaultServiceProvider";
 import { createStoryRepo, uploadKey } from "./StoryRepo";
 import {
   CompilerContext,
-  DEFAULT_LLM_SLUGS,
   EvaluatorFunc,
+  LLM_SLUGS,
   StoryCartridge,
-  StoryOptions,
 } from "./StoryTypes";
 
 const env = loadAppEnv();
@@ -30,7 +30,18 @@ const storyRepo = createStoryRepo({
   bucketName: env.STORIES_BUCKET,
 });
 
-export async function compileStoryJob(storyId: string) {
+export type CompileStoryJobOptions = {
+  diableCache: boolean;
+  verbose: boolean;
+  seed: string;
+  models: NonEmpty<(typeof LLM_SLUGS)[number]>;
+  doCompileVoices: boolean;
+  doGenerateThumbnails: boolean;
+};
+export async function compileStoryJob(
+  storyId: string,
+  options: CompileStoryJobOptions
+) {
   console.info(`[compile] Start ${storyId}`);
   const key = uploadKey(storyId);
 
@@ -57,24 +68,12 @@ export async function compileStoryJob(storyId: string) {
       cache: new S3Cache(sharedS3, env.CACHE_BUCKET),
     },
     {
-      disableCache: false,
-      verbose: true,
+      disableCache: options.diableCache,
+      verbose: options.verbose,
     }
   );
 
-  const options: StoryOptions = {
-    seed: "compile",
-    verbose: true,
-    ream: 100,
-    loop: 0,
-    maxCheckpoints: 20,
-    inputRetryMax: 3,
-    doGenerateAudio: false,
-    doGenerateImage: false,
-    models: DEFAULT_LLM_SLUGS,
-  };
-
-  const rng = new PRNG("compile");
+  const rng = new PRNG(options.seed);
   const scriptRunner = await createRunner();
   const funcs = buildDefaultFuncs({}, rng);
   const evaluator: EvaluatorFunc = async (expr, scope) => {
@@ -91,7 +90,8 @@ export async function compileStoryJob(storyId: string) {
   };
 
   const compiled = await compileStory(compilerContext, cartridge, {
-    doCompileVoices: true,
+    doCompileVoices: options.doCompileVoices,
+    doGenerateThumbnails: options.doGenerateThumbnails,
   });
   console.info(`[compile] Done ${storyId}`);
 

@@ -1,11 +1,7 @@
 import dedent from "dedent";
 import OpenAI from "openai";
-import type {
-  ImageGenerateParamsNonStreaming,
-  ImagesResponse,
-} from "openai/resources/images";
 import { NonEmpty, TSerial } from "../typings";
-import { ImageAspectRatio, ImageModelSlug, LLM_SLUGS } from "./StoryTypes";
+import { LLM_SLUGS } from "./StoryTypes";
 
 type OpenAIChatModel = (typeof LLM_SLUGS)[number];
 
@@ -42,11 +38,16 @@ const readText = (r: {
   choices?: Array<{ message?: { content?: string } }>;
 }): string => (r.choices ?? []).map((c) => c?.message?.content ?? "").join("");
 
-const readUsage = (usage: {
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
-} | null | undefined): TokenUsageDetails | null => {
+const readUsage = (
+  usage:
+    | {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+      }
+    | null
+    | undefined
+): TokenUsageDetails | null => {
   if (!usage) {
     return null;
   }
@@ -95,32 +96,23 @@ export async function generateText(
   return readText(r as any);
 }
 
-export async function generateImage(
+export const generateImage = async (
   openai: OpenAI,
   prompt: string,
-  model: ImageModelSlug,
-  _aspectRatio?: ImageAspectRatio
-) {
-  const payload: ImageGenerateParamsNonStreaming = {
-    model,
-    prompt,
-    response_format: "b64_json",
-  };
-  const res = await openai.images.generate(payload);
-  const data = (res as ImagesResponse).data ?? [];
-  const images = data.map((item) => {
-    const base =
-      typeof item.b64_json === "string" && item.b64_json.length > 0
-        ? `data:image/png;base64,${item.b64_json}`
-        : (item.url ?? "");
-    return {
-      image_url: {
-        url: base,
-      },
-    };
-  });
-  return { images };
-}
+  aspectRatio?: string
+) => {
+  const res = (await openai.chat.completions.create({
+    model: "openai/gpt-5-image-mini",
+    messages: [{ role: "user", content: prompt }],
+    modalities: ["image" as any, "text"],
+    ...(aspectRatio ? { image_config: { aspect_ratio: aspectRatio } } : {}),
+  })) as any;
+  const img = res.choices?.[0]?.message?.images?.[0]?.image_url?.url as
+    | string
+    | undefined;
+  if (!img) throw new Error("No image returned");
+  return img; // data URL (e.g., "data:image/png;base64,...")
+};
 
 export async function extractJson(
   openai: OpenAI,

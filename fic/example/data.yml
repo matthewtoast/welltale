@@ -5,12 +5,12 @@
 title: Example Quest
 author: Matthew Trost
 tags: [example, fantasy]
-description: This is an example Welltale story in a fantasy setting that shows how to use all Welltale Story Language features
+description: This example Welltale story shows how to use all Welltale Story Language features.
 
 # Pronunciation mappings for the speech engine - for any less common words or fantastical terms
 pronunciations:
   Trost: Troast
-  Eldoria: el-DOH-reeah
+  Examplaria: exampLAHria
 
 # Game data - you can define any custom data your story needs and reference it
 # in template patterns like {{player.gold}} or scripts like <code>shop.potion * 3</code>

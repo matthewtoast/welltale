@@ -10,6 +10,7 @@ import {
   generateVoiceFromPrompt,
 } from "./ElevenLabsUtils";
 import { fetch, FetchOptions } from "./HTTPHelpers";
+import { CostKind, CostTracker, makeTokenCostEntry } from "./MeteringUtils";
 import type { AIChatMessage, UsageSink } from "./OpenRouterUtils";
 import {
   generateChatResponse,
@@ -29,11 +30,6 @@ import type {
 } from "./StoryServiceProvider";
 import type { VoiceSpec } from "./StoryTypes";
 import { generatePredictableKey, parameterize } from "./TextHelpers";
-import {
-  CostKind,
-  CostTracker,
-  makeTokenCostEntry,
-} from "./MeteringUtils";
 
 export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   protected costTracker: CostTracker | null = null;
@@ -295,22 +291,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
         return { url };
       }
     }
-    const result = await generateImage(
-      this.config.openai,
-      prompt,
-      options.model,
-      options.aspectRatio
-    );
-    if (!result || !result.images || result.images.length === 0) {
-      console.warn("Failed to generate image");
-      return { url: "" };
-    }
-    const firstImage = result.images[0];
-    if (!firstImage?.image_url?.url) {
-      console.warn("Invalid image response format");
-      return { url: "" };
-    }
-    const dataUrl = firstImage.image_url.url;
+    const dataUrl = await generateImage(this.config.openai, prompt);
     if (!dataUrl.startsWith("data:image/")) {
       console.warn("Invalid image data URL format");
       return { url: "" };

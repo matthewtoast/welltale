@@ -7,6 +7,7 @@ import { assignAddrs, BaseNode, parseXmlFragment } from "./StoryNodeHelpers";
 import { renderText } from "./StoryRenderMethods";
 import {
   CompilerContext,
+  ImageModelSlug,
   NestedRecords,
   PendingDataVoice,
   StoryCartridge,
@@ -35,7 +36,79 @@ export type CompileOptions = {
   doCompileVoices: boolean;
   verbose?: boolean;
   failOnXmlError?: boolean;
+  doGenerateThumbnails: boolean;
 };
+
+const THUMBNAIL_IMAGE_MODEL: ImageModelSlug =
+  "google/gemini-2.5-flash-image-preview";
+
+function isUrlValue(value: string) {
+  return /^https?:\/\//i.test(value);
+}
+
+function isPromptValue(value: string) {
+  if (!value) {
+    return false;
+  }
+  if (isUrlValue(value)) {
+    return false;
+  }
+  return !/^[\w-]+$/.test(value);
+}
+
+function metaTextValue(value: TSerial) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return snorm(value);
+}
+
+function buildThumbnailPrompt(meta: Record<string, TSerial>, current: string) {
+  const candidate = snorm(current || "");
+  if (isPromptValue(candidate)) {
+    return candidate;
+  }
+  const title = metaTextValue(meta.title ?? "");
+  const description = metaTextValue(meta.description ?? "");
+  if (!title && !description) {
+    return "";
+  }
+  if (!title) {
+    return `Cover art inspired by: ${description}`;
+  }
+  if (!description) {
+    return `Cover art for interactive audio story "${title}"`;
+  }
+  return `Cover art for interactive audio story "${title}". Focus on: ${description}`;
+}
+
+async function ensureThumbnail(
+  meta: Record<string, TSerial>,
+  context: CompilerContext
+) {
+  const raw = typeof meta.thumbnail === "string" ? meta.thumbnail : "";
+  const trimmed = snorm(raw || "");
+  if (trimmed && isUrlValue(trimmed)) {
+    return;
+  }
+  const prompt = buildThumbnailPrompt(meta, raw);
+  if (!prompt) {
+    return;
+  }
+  try {
+    const result = await context.provider.generateImage(prompt, {
+      model: THUMBNAIL_IMAGE_MODEL,
+      seed: context.rng.randAlphaNum(12),
+    });
+    if (!result.url) {
+      console.warn("Generated thumbnail missing url");
+      return;
+    }
+    meta.thumbnail = result.url;
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 async function buildStoryRoot(
   cartridge: StoryCartridge,
@@ -152,6 +225,11 @@ export async function compileStory(
   const renderedMeta = safeJsonParse(renderedMetaStr);
   if (renderedMeta) {
     Object.assign(context.scope, renderedMeta);
+    Object.assign(meta, renderedMeta);
+  }
+
+  if (options.doGenerateThumbnails) {
+    await ensureThumbnail(meta, context);
   }
 
   Object.keys(cartridge)
@@ -241,12 +319,17 @@ async function compilePendingDataVoices(
     if (verbose) {
       console.info(`Generating voice ${voice.ref}...`);
     }
-    const { id } = await context.provider.generateVoice(prompt, {});
-    voices[id] = {
-      id,
-      ref: voice.ref,
-      name: voice.name ?? id,
-      tags: voice.tags,
-    };
+    try {
+      const { id } = await context.provider.generateVoice(prompt, {});
+      voices[id] = {
+        id,
+        ref: voice.ref,
+        name: voice.name ?? id,
+        tags: voice.tags,
+      };
+    } catch (e) {
+      console.error(e);
+      continue;
+    }
   }
 }

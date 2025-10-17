@@ -73,6 +73,7 @@ async function go() {
 
   const c1 = await compileStory(compilerContext, cartridge, {
     doCompileVoices: false,
+    doGenerateThumbnails: true,
   });
 
   expect(c1.root, {
@@ -150,6 +151,7 @@ async function go() {
 
   const c2 = await compileStory(compilerContext2, cart2, {
     doCompileVoices: false,
+    doGenerateThumbnails: true,
   });
   expect(c2.root, {
     addr: "0",

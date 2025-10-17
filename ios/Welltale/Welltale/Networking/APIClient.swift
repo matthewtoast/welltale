@@ -73,10 +73,10 @@ struct APIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         let (data, response) = try await session.data(for: request)
-        print("[welltale] API response", response)
         guard let http = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
+        print("[welltale] API response", http.statusCode, http.url)
         if !(200...299).contains(http.statusCode) {
             throw APIError.status(http.statusCode)
         }

@@ -1,5 +1,6 @@
 import type { SQSEvent } from "aws-lambda";
 import { compileStoryJob } from "../lib/StoryInfraUtils";
+import { DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
 import { safeJsonParseTyped } from "./../lib/JSONHelpers";
 
 console.info("[worker] job:loaded");
@@ -18,7 +19,14 @@ export async function handler(e: SQSEvent) {
     }
     if (m.type === "compile") {
       try {
-        await compileStoryJob(m.id);
+        await compileStoryJob(m.id, {
+          diableCache: false,
+          verbose: true,
+          seed: "compile",
+          models: DEFAULT_LLM_SLUGS,
+          doCompileVoices: false,
+          doGenerateThumbnails: false,
+        });
       } catch (err) {
         console.error("Failed to compile story:", err);
       }
