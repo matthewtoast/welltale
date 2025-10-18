@@ -106,7 +106,7 @@ struct HomeView: View {
 
 private func makeStoryService(auth: AuthState) -> StoryService {
     let client = APIClient(
-        baseURL: AppConfig.apiBaseURL ?? URL(string: "http://localhost:3000")!,
+        baseURL: AppConfig.apiBaseURL!,
         tokenProvider: { auth.token }
     )
     return StoryService(client: client)
