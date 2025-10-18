@@ -1,5 +1,13 @@
+import { Names } from "aws-cdk-lib";
+import { CfnEventSourceMapping } from "aws-cdk-lib/aws-lambda";
 import { SSTConfig } from "sst";
-import { Bucket, NextjsSite, Queue, Table } from "sst/constructs";
+import {
+  Bucket,
+  Function as SstFunction,
+  NextjsSite,
+  Queue as SstQueue,
+  Table,
+} from "sst/constructs";
 
 // Whomever invokes this should export or pass these env vars!
 const REQUIRED_ENV_VARS = [
@@ -70,7 +78,7 @@ export default {
         },
         primaryIndex: { partitionKey: "id" },
       });
-      const queue = new Queue(stack, "Jobs", {
+      const queue = new SstQueue(stack, "Jobs", {
         consumer: {
           function: {
             handler: "jobs/worker.handler",
@@ -97,6 +105,16 @@ export default {
           },
         },
       });
+      const fn = queue.consumerFunction;
+      if (fn instanceof SstFunction) {
+        const id = `SqsEventSource:${Names.nodeUniqueId(queue.cdk.queue.node)}`;
+        const mapping = fn.node.tryFindChild(id) as
+          | CfnEventSourceMapping
+          | undefined;
+        if (mapping) {
+          mapping.maximumRetryAttempts = 0;
+        }
+      }
       const site = new NextjsSite(stack, "Site", {
         // customDomain: "",
         path: "web",

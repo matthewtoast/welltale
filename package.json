@@ -18,7 +18,8 @@
     "web:typecheck": "tsc -p web/tsconfig.typecheck.json --noEmit",
     "ios:typecheck": "xcodebuild -project ios/Welltale/Welltale.xcodeproj -scheme Welltale -sdk iphonesimulator build 2>&1 | grep -E \"(error:|warning:)\"",
     "web:sst:deploy": "sst deploy --stage prod",
-    "web:sst:remove": "sst remove --stage prod"
+    "web:sst:remove": "sst remove --stage prod",
+    "ios:sim": "bash -lc 'set -e; DEVICE=\"iPhone 16e\"; open -a Simulator; xcrun simctl boot \"$DEVICE\" || true; xcrun simctl bootstatus \"$DEVICE\" -b; pushd ios/Welltale >/dev/null; xcodebuild -scheme Welltale -configuration Debug -destination \"platform=iOS Simulator,name=$DEVICE\" -derivedDataPath .derived build; APP=$(pwd)/.derived/Build/Products/Debug-iphonesimulator/Welltale.app; BUNDLE_ID=$(/usr/libexec/PlistBuddy -c \"Print :CFBundleIdentifier\" \"$APP/Info.plist\"); popd >/dev/null; xcrun simctl uninstall \"$DEVICE\" \"$BUNDLE_ID\" || true; xcrun simctl install \"$DEVICE\" \"$APP\"; xcrun simctl launch \"$DEVICE\" \"$BUNDLE_ID\"'"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",
