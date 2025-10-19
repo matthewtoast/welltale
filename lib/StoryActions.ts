@@ -818,7 +818,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    tags: ["sound", "audio", "music", "speech"],
+    tags: ["sound", "audio", "music"],
     docs: {
       desc: dedent`
         Plays audio content in the story.
@@ -829,7 +829,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         
         - \`<sound>\` or \`<audio>\`: Sound effects
         - \`<music>\`: Music clip
-        - \`<speech>\`: Text to speech (equivalent to \`<p>\` and other text tags)
         
         The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
         
@@ -939,20 +938,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                   { seed: atts.seed }
                 );
                 url = music.url;
-                break;
-              case "speech":
-                const voice = await ctx.provider.generateSpeech(
-                  {
-                    voice: atts.voice,
-                    speaker: atts.from ?? atts.speaker ?? atts.voice,
-                    body: prompt,
-                    tags: cleanSplit(atts.tags, ","),
-                    pronunciations: ctx.session.pronunciations,
-                  },
-                  userVoicesAndPresetVoices(Object.values(ctx.session.voices)),
-                  { seed: atts.seed }
-                );
-                url = voice.url;
                 break;
               default:
                 url = "";

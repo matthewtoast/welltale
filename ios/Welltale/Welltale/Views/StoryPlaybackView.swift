@@ -47,9 +47,7 @@ struct StoryPlaybackView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         statusSection
-                        if viewModel.isWaitingForInput {
-                            inputSection
-                        }
+                        inputSection
                         if viewModel.seam == .finish {
                             Text("Story complete")
                                 .font(.headline)
@@ -99,8 +97,11 @@ struct StoryPlaybackView: View {
                 viewModel.togglePlayback()
             } label: {
                 Image(systemName: viewModel.playbackIcon)
-                    .font(.footnote)
-                    .foregroundColor(Color.wellText)
+                    .font(.title2)
+                    .foregroundColor(Color.black)
+                    .padding(12)
+                    .background(viewModel.playButtonColor)
+                    .clipShape(Circle())
             }
             .disabled(!viewModel.canTogglePlayback)
             .accessibilityLabel(viewModel.playbackLabel)
@@ -109,46 +110,47 @@ struct StoryPlaybackView: View {
 
     private var inputSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Respond")
-                    .font(.caption)
-                    .foregroundColor(Color.wellMuted)
-                Spacer()
-                Toggle("Auto", isOn: Binding(
-                    get: { viewModel.mode == .auto },
-                    set: { viewModel.setAuto($0) }
-                ))
-                .toggleStyle(SwitchToggleStyle(tint: Color.wellText))
-                .foregroundColor(Color.wellText)
-            }
             HStack(spacing: 8) {
-                TextField(
-                    "Type your response",
-                    text: Binding(
-                        get: { viewModel.inputDraft },
-                        set: { viewModel.updateDraft($0) }
+                if viewModel.mode == .manual {
+                    TextField(
+                        "Type your response",
+                        text: Binding(
+                            get: { viewModel.inputDraft },
+                            set: { viewModel.updateDraft($0) }
+                        )
                     )
-                )
-                .padding(10)
-                .background(Color.wellPanel)
-                .cornerRadius(8)
-                .foregroundColor(Color.wellText)
-                .colorScheme(.dark)
-                .onSubmit {
-                    viewModel.submitInput()
-                }
-                Button {
-                    viewModel.toggleMic()
-                } label: {
-                    Image(systemName: viewModel.micIcon)
+                    .padding(10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.wellPanel)
+                    .cornerRadius(8)
+                    .foregroundColor(Color.wellText)
+                    .colorScheme(.dark)
+                    .onSubmit {
+                        viewModel.submitInput()
+                    }
+                    .disabled(!viewModel.canEditInput)
+                    Button {
+                        viewModel.toggleMic()
+                    } label: {
+                        Image(systemName: viewModel.micIcon)
+                            .font(.body)
+                            .foregroundColor(Color.wellText)
+                    }
+                    .disabled(!viewModel.canUseMic)
+                    Button("Submit") {
+                        viewModel.submitInput()
+                    }
+                    .disabled(!viewModel.canSubmit || !viewModel.canEditInput)
+                    .foregroundColor(Color.wellText)
+                } else {
+                    Text(viewModel.autoDisplayText)
                         .font(.body)
-                        .foregroundColor(Color.wellText)
+                        .foregroundColor(viewModel.autoDisplayColor)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.wellPanel)
+                        .cornerRadius(8)
                 }
-                Button("Submit") {
-                    viewModel.submitInput()
-                }
-                .disabled(!viewModel.canSubmit)
-                .foregroundColor(Color.wellText)
             }
             if viewModel.showAutoProgress {
                 GeometryReader { proxy in
@@ -182,7 +184,7 @@ struct StoryPlaybackView: View {
         if viewModel.isPaused {
             return "Paused"
         }
-        return viewModel.isPlayingForeground ? "Playing" : "Idle"
+        return viewModel.isPlayingForeground ? "Playing" : "Loading"
     }
 }
 
@@ -216,6 +218,7 @@ final class StoryPlaybackViewModel: ObservableObject {
     private var autoCountdownTask: Task<Void, Never>?
     private var updatingDraftFromSpeech = false
     private var micFillsDraft = false
+    private let autoPlaceholder = "Speak when prompted"
 
     init() {
         Task { [weak self] in
@@ -273,6 +276,9 @@ final class StoryPlaybackViewModel: ObservableObject {
     }
 
     func submitInput() {
+        if !isWaitingForInput {
+            return
+        }
         let payload = resolvedPayload()
         if payload.isEmpty {
             return
@@ -346,10 +352,17 @@ final class StoryPlaybackViewModel: ObservableObject {
             }
         } else {
             cancelAutoCountdown()
+            if isSpeechActive {
+                stopSpeechCapture()
+            }
+            micFillsDraft = false
         }
     }
 
     func updateDraft(_ text: String) {
+        if !isWaitingForInput {
+            return
+        }
         if inputDraft == text {
             return
         }
@@ -365,6 +378,9 @@ final class StoryPlaybackViewModel: ObservableObject {
     }
 
     func toggleMic() {
+        if !isWaitingForInput {
+            return
+        }
         if isSpeechActive {
             micFillsDraft = false
             stopSpeechCapture()
@@ -395,6 +411,32 @@ final class StoryPlaybackViewModel: ObservableObject {
         mode == .auto && isWaitingForInput
     }
 
+    var autoDisplayText: String {
+        let trimmedDraft = inputDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedDraft.isEmpty {
+            return trimmedDraft
+        }
+        let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTranscript.isEmpty {
+            return trimmedTranscript
+        }
+        return autoPlaceholder
+    }
+
+    var autoDisplayColor: Color {
+        let hasContent = !inputDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return hasContent ? Color.wellText : Color.wellMuted
+    }
+
+    var canEditInput: Bool {
+        isWaitingForInput
+    }
+
+    var canUseMic: Bool {
+        isWaitingForInput
+    }
+
     var canTogglePlayback: Bool {
         hasPlaybackControls && seam != .finish && seam != .error && !isWaitingForInput
     }
@@ -405,6 +447,10 @@ final class StoryPlaybackViewModel: ObservableObject {
 
     var playbackLabel: String {
         isPaused ? "Play" : "Pause"
+    }
+
+    var playButtonColor: Color {
+        Color.white
     }
 
     private func makeHandlers() -> StoryRunnerHandlers {

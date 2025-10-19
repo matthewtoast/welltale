@@ -1,6 +1,7 @@
 import { omit, uniq } from "lodash";
 import { TSerial } from "../typings";
 import { autoFindVoiceId } from "./ElevenLabsUtils";
+import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
 import { safeJsonParse } from "./JSONHelpers";
 import { collectDataArtifacts, collectDataDocs } from "./StoryConstants";
 import type { ParseSeverity } from "./StoryNodeHelpers";
@@ -258,7 +259,11 @@ export async function compileStory(
       options.verbose
     );
   } else {
-    assignPendingVoices(dataArtifacts.pendingVoices, voices, []);
+    assignPendingVoices(
+      dataArtifacts.pendingVoices,
+      voices,
+      ELEVENLABS_PRESET_VOICES
+    );
   }
 
   if (dataArtifacts.pendingVoices.length > 0) {
