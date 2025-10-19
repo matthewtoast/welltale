@@ -1,5 +1,6 @@
-import { omit } from "lodash";
+import { omit, uniq } from "lodash";
 import { TSerial } from "../typings";
+import { autoFindVoiceId } from "./ElevenLabsUtils";
 import { safeJsonParse } from "./JSONHelpers";
 import { collectDataArtifacts, collectDataDocs } from "./StoryConstants";
 import type { ParseSeverity } from "./StoryNodeHelpers";
@@ -15,7 +16,7 @@ import {
   StorySource,
   VoiceSpec,
 } from "./StoryTypes";
-import { isBlank, snorm } from "./TextHelpers";
+import { isBlank, keywordize, snorm } from "./TextHelpers";
 export { parseXmlFragment } from "./StoryNodeHelpers";
 
 export function walkMap<T extends BaseNode, S extends BaseNode>(
@@ -256,7 +257,11 @@ export async function compileStory(
       context,
       options.verbose
     );
-  } else if (dataArtifacts.pendingVoices.length > 0) {
+  } else {
+    assignPendingVoices(dataArtifacts.pendingVoices, voices, []);
+  }
+
+  if (dataArtifacts.pendingVoices.length > 0) {
     console.warn(
       "Skipping data voice prompts because voice compilation is disabled"
     );
@@ -332,4 +337,33 @@ async function compilePendingDataVoices(
       continue;
     }
   }
+}
+
+// Assign each of the given pending voices an id, without repeating ids.
+export function assignPendingVoices(
+  pendingVoices: PendingDataVoice[],
+  voicesToAssign: Record<string, VoiceSpec>,
+  voicesToSearch: VoiceSpec[]
+) {
+  const voice = pendingVoices.shift();
+  if (!voice) {
+    return;
+  }
+  const terms = uniq([...keywordize(voice.prompt), ...voice.tags]);
+  const id = autoFindVoiceId(
+    {
+      voice: voice.name,
+      speaker: voice.name,
+      tags: terms,
+    },
+    voicesToSearch
+  );
+  voicesToAssign[id] = {
+    id,
+    ref: voice.ref,
+    name: voice.name ?? id,
+    tags: voice.tags,
+  };
+  const voicesToSearchWithout = voicesToSearch.filter((v) => v.id !== id);
+  assignPendingVoices(pendingVoices, voicesToAssign, voicesToSearchWithout);
 }

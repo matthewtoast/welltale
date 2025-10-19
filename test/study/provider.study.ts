@@ -1,10 +1,10 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import OpenAI from "openai";
-import { loadSstEnv } from "../env/env-sst";
-import { ELEVENLABS_PRESET_VOICES } from "../lib/ElevenLabsVoices";
-import { S3Cache } from "../lib/S3Cache";
-import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
+import { loadSstEnv } from "../../env/env-sst";
+import { ELEVENLABS_PRESET_VOICES } from "../../lib/ElevenLabsVoices";
+import { S3Cache } from "../../lib/S3Cache";
+import { DefaultStoryServiceProvider } from "../../lib/StoryDefaultServiceProvider";
 
 const env = loadSstEnv();
 

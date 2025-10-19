@@ -20,10 +20,10 @@ import {
   publicAtts,
   setState,
   TEXT_CONTENT_TAGS,
-  userVoicesAndPresetVoices,
 } from "./StoryConstants";
 import { collectMacros } from "./StoryMacro";
 
+import { userVoicesAndPresetVoices } from "./ElevenLabsVoices";
 import { extractInput } from "./StoryInput";
 import {
   countStackContainersBetween,

@@ -7,7 +7,7 @@ export type StoryCartridge = Record<string, Buffer | string>;
 
 export type VoiceSpec = {
   name: string;
-  ref: string;
+  ref?: string;
   id: string;
   tags: string[];
 };

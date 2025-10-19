@@ -2,12 +2,12 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import dedent from "dedent";
 import OpenAI from "openai";
 import { join } from "path";
-import { loadSstEnv } from "../env/env-sst";
-import { LocalCache } from "../lib/LocalCache";
-import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
-import { LocalStoryRunnerOptions } from "../lib/StoryLocalRunnerUtils";
-import { DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
-import { createWelltaleContent } from "../lib/WelltaleKnowledgeContext";
+import { loadSstEnv } from "../../env/env-sst";
+import { LocalCache } from "../../lib/LocalCache";
+import { DefaultStoryServiceProvider } from "../../lib/StoryDefaultServiceProvider";
+import { LocalStoryRunnerOptions } from "../../lib/StoryLocalRunnerUtils";
+import { DEFAULT_LLM_SLUGS } from "../../lib/StoryTypes";
+import { createWelltaleContent } from "../../lib/WelltaleKnowledgeContext";
 
 const ROOT_DIR = join(__dirname, "..");
 

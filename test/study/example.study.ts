@@ -1,21 +1,21 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import OpenAI from "openai";
 import { join } from "path";
-import { loadSstEnv } from "../env/env-sst";
-import { buildDefaultFuncs } from "../lib/EvalMethods";
-import { loadDirRecursive } from "../lib/FileUtils";
-import { LocalCache } from "../lib/LocalCache";
-import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
-import { PRNG } from "../lib/RandHelpers";
-import { compileStory } from "../lib/StoryCompiler";
-import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
-import { LocalStoryRunnerOptions } from "../lib/StoryLocalRunnerUtils";
+import { loadSstEnv } from "../../env/env-sst";
+import { buildDefaultFuncs } from "../../lib/EvalMethods";
+import { loadDirRecursive } from "../../lib/FileUtils";
+import { LocalCache } from "../../lib/LocalCache";
+import { createRunner, evaluateScript } from "../../lib/QuickJSUtils";
+import { PRNG } from "../../lib/RandHelpers";
+import { compileStory } from "../../lib/StoryCompiler";
+import { DefaultStoryServiceProvider } from "../../lib/StoryDefaultServiceProvider";
+import { LocalStoryRunnerOptions } from "../../lib/StoryLocalRunnerUtils";
 import {
   CompilerContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
-} from "../lib/StoryTypes";
-import { runUntilComplete } from "./TestUtils";
+} from "../../lib/StoryTypes";
+import { runUntilComplete } from "../TestUtils";
 
 const ROOT_DIR = join(__dirname, "..");
 
@@ -69,23 +69,20 @@ async function testTestStory() {
     doGenerateThumbnails: true,
   });
   const inputSets: string[][] = [
-    [
-      "Let's go into the forest.",
-      "I blurt out that the answer is the moon."
-    ],
+    ["Let's go into the forest.", "I blurt out that the answer is the moon."],
     [
       "I choose the forest path.",
       "Is the answer one of the seasons like spring summer autumn or winter?",
       "Buy the sword please.",
       "I'm done shopping, time to leave.",
-      "Take my sword as payment; it's enchanted and worth more than your toll so let me cross."
+      "Take my sword as payment; it's enchanted and worth more than your toll so let me cross.",
     ],
     [
       "I'll head toward the swamp.",
       "orange",
       "I'd like to buy a potion.",
       "That's it, I'm leaving now.",
-      "Accept this potion as payment; it heals any wound so let me cross your bridge."
+      "Accept this potion as payment; it heals any wound so let me cross your bridge.",
     ],
     [
       "I'll go through the swamp instead.",
@@ -94,7 +91,7 @@ async function testTestStory() {
       "orange",
       "I'm finished shopping, let me leave.",
       "I don't really have anything valuable.",
-      "Fine take 20 gold coins; they're dwarven mint and worth your toll so please let me pass."
+      "Fine take 20 gold coins; they're dwarven mint and worth your toll so please let me pass.",
     ],
   ];
   for (let i = 0; i < inputSets.length; i++) {

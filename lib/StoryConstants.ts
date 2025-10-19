@@ -1,6 +1,5 @@
 import { set, uniq } from "lodash";
 import { NonEmpty, TSerial } from "../typings";
-import { ELEVENLABS_PRESET_VOICES } from "./ElevenLabsVoices";
 import {
   isRecord,
   toNonEmptyString,
@@ -118,10 +117,6 @@ export function publicAtts<T extends Record<string, any>>(atts: T): T {
     }
   }
   return out as T;
-}
-
-export function userVoicesAndPresetVoices(userVoices: VoiceSpec[]) {
-  return [...userVoices, ...ELEVENLABS_PRESET_VOICES];
 }
 
 export function setState(

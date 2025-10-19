@@ -170,10 +170,55 @@ export const generateVoiceFromPrompt = async ({
   };
 };
 
-export function autoFindVoice(
-  spec: { speaker: string; voice: string; tags: string[] },
+export const searchVoices = async ({
+  client,
+  search,
+  voiceType,
+  category,
+  voiceIds,
+  sort,
+  sortDirection,
+  pageSize,
+  nextPageToken,
+}: {
+  client: ElevenLabsClient;
+  search?: string;
+  voiceType?:
+    | "personal"
+    | "community"
+    | "default"
+    | "workspace"
+    | "non-default";
+  category?: "premade" | "cloned" | "generated" | "professional";
+  voiceIds?: string[];
+  sort?: "created_at_unix" | "name";
+  sortDirection?: "asc" | "desc";
+  pageSize?: number;
+  nextPageToken?: string;
+}) => {
+  const response = await client.voices.search({
+    search,
+    voiceType,
+    category,
+    voiceIds,
+    sort,
+    sortDirection,
+    pageSize,
+    nextPageToken,
+  });
+  return response;
+};
+
+export type PartialSpeechSpec = {
+  speaker: string | null;
+  voice: string | null;
+  tags: string[];
+};
+
+export function autoFindVoiceId(
+  spec: PartialSpeechSpec,
   voices: VoiceSpec[]
-) {
+): string {
   // id (or ref) match is highest precedence
   // ref is provided in case the external system had a different identifier for the same voice
   // id is always the elevenlabs voice id, ref is some external id
@@ -181,17 +226,20 @@ export function autoFindVoice(
     const id = voices[i].id;
     const ref = voices[i].ref;
     if (
-      spec.voice.toLowerCase() === id.toLowerCase() ||
-      spec.voice.toLowerCase() === ref.toLowerCase() ||
+      (spec.voice && spec.voice.toLowerCase() === id.toLowerCase()) ||
+      (spec.voice && spec.voice.toLowerCase() === ref?.toLowerCase()) ||
       spec.tags.includes(id) ||
-      spec.tags.includes(ref)
+      (ref && spec.tags.includes(ref))
     ) {
       return id;
     }
   }
   // match by voice name
   for (let i = 0; i < voices.length; i++) {
-    if (spec.voice.toLowerCase() === voices[i].name.toLowerCase()) {
+    if (
+      spec.voice &&
+      spec.voice.toLowerCase() === voices[i].name.toLowerCase()
+    ) {
       return voices[i].id;
     }
   }
@@ -199,16 +247,20 @@ export function autoFindVoice(
   for (let i = 0; i < voices.length; i++) {
     if (
       spec.tags.includes(voices[i].name) ||
-      spec.speaker.toLowerCase() === voices[i].name.toLowerCase()
+      (spec.speaker &&
+        spec.speaker.toLowerCase() === voices[i].name.toLowerCase())
     ) {
       return voices[i].id;
     }
   }
   // find best fit given most tag matches
-  const gender = inferGenderFromName(spec.speaker);
-  if (gender && !spec.tags.includes(gender)) {
-    spec.tags.push(gender);
+  if (spec.speaker) {
+    const gender = inferGenderFromName(spec.speaker);
+    if (gender && !spec.tags.includes(gender)) {
+      spec.tags.push(gender);
+    }
   }
+
   let bestMatch = null;
   let maxMatches = 0;
   for (let i = 0; i < voices.length; i++) {
@@ -225,8 +277,8 @@ export function autoFindVoice(
     return bestMatch.id;
   }
   if (
-    spec.speaker.toLowerCase() === HOST_ID.toLowerCase() ||
-    spec.voice.toLowerCase() === HOST_ID.toLowerCase()
+    (spec.speaker && spec.speaker.toLowerCase() === HOST_ID.toLowerCase()) ||
+    (spec.voice && spec.voice.toLowerCase() === HOST_ID.toLowerCase())
   ) {
     return NEUTRAL_VOICE;
   }

@@ -1,6 +1,6 @@
 import { camelCase } from "lodash";
 import zodToJsonSchema from "zod-to-json-schema";
-import { autoFindVoice } from "../lib/ElevenLabsUtils";
+import { autoFindVoiceId } from "../lib/ElevenLabsUtils";
 import { ELEVENLABS_PRESET_VOICES } from "../lib/ElevenLabsVoices";
 import { castToTypeEnhanced } from "../lib/EvalCasting";
 import { buildDefaultFuncs } from "../lib/EvalMethods";
@@ -58,7 +58,7 @@ async function test() {
 
   // // Find preset voices
   expect(
-    autoFindVoice(
+    autoFindVoiceId(
       {
         speaker: "",
         tags: ["male", "deep", "american"],
@@ -69,7 +69,7 @@ async function test() {
     "pNInz6obpgDQGcFmaJgB"
   );
   expect(
-    autoFindVoice(
+    autoFindVoiceId(
       {
         speaker: "",
         tags: ["female", "young", "calm"],
@@ -80,7 +80,7 @@ async function test() {
     "LcfcDJNUP1GQjkzn1xUU"
   );
   expect(
-    autoFindVoice(
+    autoFindVoiceId(
       {
         speaker: "",
         tags: ["nonexistent", "tags"],
@@ -139,7 +139,7 @@ async function test() {
     voices: {},
     pronunciations: {},
     scripts: {},
-    meta: {}
+    meta: {},
   };
   const baseContext: BaseActionContext = {
     session: createDefaultSession("test", emptySource),

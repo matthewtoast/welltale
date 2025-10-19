@@ -1,9 +1,9 @@
-import { autoFindVoice } from "../lib/ElevenLabsUtils";
+import { autoFindVoiceId } from "../lib/ElevenLabsUtils";
 import { ELEVENLABS_PRESET_VOICES } from "../lib/ElevenLabsVoices";
 import { expect } from "./TestUtils";
 
 expect(
-  autoFindVoice(
+  autoFindVoiceId(
     {
       speaker: "Clyde",
       voice: "Clyde",
@@ -15,7 +15,7 @@ expect(
 );
 
 expect(
-  autoFindVoice(
+  autoFindVoiceId(
     {
       speaker: "Clyde",
       voice: "Clyde",
@@ -27,7 +27,7 @@ expect(
 );
 
 expect(
-  autoFindVoice(
+  autoFindVoiceId(
     {
       speaker: "HOST",
       voice: "",

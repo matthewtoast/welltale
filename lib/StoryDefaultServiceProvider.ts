@@ -3,7 +3,7 @@ import { OpenAI } from "openai";
 import { TSerial } from "../typings";
 import { Cache } from "./Cache";
 import {
-  autoFindVoice,
+  autoFindVoiceId,
   composeTrack,
   generateSoundEffect,
   generateSpeechClip,
@@ -214,7 +214,7 @@ export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
     options: BaseGenerateOptions
   ): Promise<{ url: string }> {
     const useCache = !this.options.disableCache && !options.disableCache;
-    const voiceId = autoFindVoice(spec, voices);
+    const voiceId = autoFindVoiceId(spec, voices);
     const bodyWithPronunciations = applyPronunciations(
       spec.body,
       spec.pronunciations
