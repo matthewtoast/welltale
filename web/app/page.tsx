@@ -114,9 +114,8 @@ export default function Page() {
             Interactive audio stories in every genre
           </h1>
           <p style={styles.blurb}>
-            Craft immersive tales that respond to every choice. Blend human
-            creativity with adaptive soundscapes, living characters, and
-            branching worlds that keep listeners engaged.
+            Experience gripping audio mystery, romance, fantasy and adventure
+            where your your choices shape what comes next.
           </p>
         </section>
       </div>
