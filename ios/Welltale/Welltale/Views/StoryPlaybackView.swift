@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AudioToolbox
 
 struct StoryPlaybackView: View {
     let storyId: String
@@ -108,43 +109,59 @@ struct StoryPlaybackView: View {
 
     private var inputSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if !viewModel.transcript.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Transcript")
-                        .font(.caption)
-                        .foregroundColor(Color.wellMuted)
-                    Text(viewModel.transcript)
-                        .font(.body)
-                        .padding(8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.wellPanel)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .foregroundColor(Color.wellText)
-                }
-            }
-            VStack(alignment: .leading, spacing: 8) {
+            HStack {
                 Text("Respond")
                     .font(.caption)
                     .foregroundColor(Color.wellMuted)
-                TextField("Type your response", text: $viewModel.inputDraft)
-                    .padding(10)
-                    .background(Color.wellPanel)
-                    .cornerRadius(8)
-                    .foregroundColor(Color.wellText)
-                    .colorScheme(.dark)
-                HStack {
-                    Button("Use Transcript") {
-                        viewModel.useTranscript()
-                    }
-                    .disabled(viewModel.transcript.isEmpty)
-                    .foregroundColor(Color.wellText)
-                    Spacer()
-                    Button("Submit") {
-                        viewModel.submitInput()
-                    }
-                    .disabled(!viewModel.canSubmit)
-                    .foregroundColor(Color.wellText)
+                Spacer()
+                Toggle("Auto", isOn: Binding(
+                    get: { viewModel.mode == .auto },
+                    set: { viewModel.setAuto($0) }
+                ))
+                .toggleStyle(SwitchToggleStyle(tint: Color.wellText))
+                .foregroundColor(Color.wellText)
+            }
+            HStack(spacing: 8) {
+                TextField(
+                    "Type your response",
+                    text: Binding(
+                        get: { viewModel.inputDraft },
+                        set: { viewModel.updateDraft($0) }
+                    )
+                )
+                .padding(10)
+                .background(Color.wellPanel)
+                .cornerRadius(8)
+                .foregroundColor(Color.wellText)
+                .colorScheme(.dark)
+                .onSubmit {
+                    viewModel.submitInput()
                 }
+                Button {
+                    viewModel.toggleMic()
+                } label: {
+                    Image(systemName: viewModel.micIcon)
+                        .font(.body)
+                        .foregroundColor(Color.wellText)
+                }
+                Button("Submit") {
+                    viewModel.submitInput()
+                }
+                .disabled(!viewModel.canSubmit)
+                .foregroundColor(Color.wellText)
+            }
+            if viewModel.showAutoProgress {
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.wellPanel)
+                            .frame(height: 2)
+                        Capsule()
+                            .fill(Color.wellText)
+                            .frame(width: proxy.size.width * CGFloat(viewModel.autoProgress), height: 2)
+                    }
+                }
+                .frame(height: 2)
             }
         }
         .padding()
@@ -160,7 +177,7 @@ struct StoryPlaybackView: View {
             return "Error"
         }
         if viewModel.isWaitingForInput {
-            return "Listening"
+            return viewModel.isSpeechActive ? "Listening" : "Awaiting input"
         }
         if viewModel.isPaused {
             return "Paused"
@@ -171,6 +188,11 @@ struct StoryPlaybackView: View {
 
 @MainActor
 final class StoryPlaybackViewModel: ObservableObject {
+    enum InputMode {
+        case manual
+        case auto
+    }
+
     @Published var story: StoryMetaDTO?
     @Published var isLoading = false
     @Published var error: String?
@@ -184,15 +206,30 @@ final class StoryPlaybackViewModel: ObservableObject {
     @Published var isSpeechActive = false
     @Published var isPaused = false
     @Published var hasPlaybackControls = false
+    @Published var mode: InputMode = .auto
+    @Published var autoProgress = 1.0
 
     private var runner: StoryRunner?
     private let speechController = SpeechCaptureController(locale: .en_us, config: .default)
     private var speechListenersConfigured = false
     private var started = false
+    private var autoCountdownTask: Task<Void, Never>?
+    private var updatingDraftFromSpeech = false
+    private var micFillsDraft = false
+
+    init() {
+        Task { [weak self] in
+            let enabled = await UserPreferences.shared.autoInputEnabled()
+            await MainActor.run {
+                self?.mode = enabled ? .auto : .manual
+            }
+        }
+    }
 
     deinit {
         let currentRunner = runner
         runner = nil
+        autoCountdownTask?.cancel()
         Task {
             await currentRunner?.stop()
         }
@@ -207,6 +244,10 @@ final class StoryPlaybackViewModel: ObservableObject {
         hasPlaybackControls = false
         started = false
         isPaused = false
+        cancelAutoCountdown()
+        inputDraft = ""
+        transcript = ""
+        micFillsDraft = false
         do {
             guard let configuration = StoryConfiguration.load() else {
                 error = "Missing WelltaleAPIBase or DevSessionToken"
@@ -232,32 +273,11 @@ final class StoryPlaybackViewModel: ObservableObject {
     }
 
     func submitInput() {
-        let trimmedDraft = inputDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        let payload = trimmedDraft.isEmpty ? trimmedTranscript : trimmedDraft
+        let payload = resolvedPayload()
         if payload.isEmpty {
             return
         }
-        stopSpeechCapture()
-        inputDraft = ""
-        transcript = ""
-        let event = StoryEvent(
-            time: Int(Date().timeIntervalSince1970 * 1000),
-            from: "YOU",
-            to: "",
-            obs: [],
-            body: payload,
-            tags: []
-        )
-        events.append(event)
-        currentEvent = event
-        isWaitingForInput = false
-        guard let currentRunner = runner else {
-            return
-        }
-        Task {
-            await currentRunner.submit(payload)
-        }
+        completeSubmission(payload: payload, reason: .user)
     }
 
     func preparePermissions() async {
@@ -311,17 +331,80 @@ final class StoryPlaybackViewModel: ObservableObject {
         }
     }
 
-    func useTranscript() {
-        if transcript.isEmpty {
+    func setAuto(_ enabled: Bool) {
+        let newMode: InputMode = enabled ? .auto : .manual
+        if mode == newMode {
             return
         }
-        inputDraft = transcript
+        mode = newMode
+        Task {
+            await UserPreferences.shared.setAutoInputEnabled(enabled)
+        }
+        if newMode == .auto {
+            if isWaitingForInput {
+                prepareAutoInput()
+            }
+        } else {
+            cancelAutoCountdown()
+        }
+    }
+
+    func updateDraft(_ text: String) {
+        if inputDraft == text {
+            return
+        }
+        inputDraft = text
+        if updatingDraftFromSpeech {
+            return
+        }
+        transcript = text
+        micFillsDraft = false
+        if mode == .auto {
+            cancelAutoCountdown()
+        }
+    }
+
+    func toggleMic() {
+        if isSpeechActive {
+            micFillsDraft = false
+            stopSpeechCapture()
+            if mode == .auto {
+                restartAutoCountdown()
+            }
+            return
+        }
+        micFillsDraft = true
+        inputDraft = ""
+        transcript = ""
+        cancelAutoCountdown()
+        autoProgress = 1
+        beginSpeechCapture()
     }
 
     var canSubmit: Bool {
         let hasDraft = !inputDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasTranscript = !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return hasDraft || hasTranscript
+    }
+
+    var micIcon: String {
+        isSpeechActive ? "mic.fill" : "mic"
+    }
+
+    var showAutoProgress: Bool {
+        mode == .auto && isWaitingForInput
+    }
+
+    var canTogglePlayback: Bool {
+        hasPlaybackControls && seam != .finish && seam != .error && !isWaitingForInput
+    }
+
+    var playbackIcon: String {
+        isPaused ? "play.fill" : "pause.fill"
+    }
+
+    var playbackLabel: String {
+        isPaused ? "Play" : "Pause"
     }
 
     private func makeHandlers() -> StoryRunnerHandlers {
@@ -333,7 +416,7 @@ final class StoryPlaybackViewModel: ObservableObject {
             },
             requestInput: { [weak self] in
                 await MainActor.run {
-                    self?.beginSpeechCapture()
+                    self?.handleInputRequest()
                 }
             },
             didFinish: { [weak self] in
@@ -351,12 +434,16 @@ final class StoryPlaybackViewModel: ObservableObject {
     }
 
     private func apply(snapshot: StoryRunnerSnapshot) {
+        let wasWaiting = isWaitingForInput
         events = snapshot.events
         currentEvent = snapshot.currentEvent
         isWaitingForInput = snapshot.isWaitingForInput
         isPlayingForeground = snapshot.isPlayingForeground
         seam = snapshot.seam
         isPaused = snapshot.isPaused
+        if wasWaiting && !snapshot.isWaitingForInput {
+            finishWaiting()
+        }
     }
 
     private func makeOptions(storyId: String) -> StoryOptions {
@@ -373,6 +460,25 @@ final class StoryPlaybackViewModel: ObservableObject {
         )
     }
 
+    private func handleInputRequest() {
+        if mode == .auto {
+            prepareAutoInput()
+        } else {
+            micFillsDraft = false
+            cancelAutoCountdown()
+        }
+    }
+
+    private func prepareAutoInput() {
+        micFillsDraft = true
+        inputDraft = ""
+        transcript = ""
+        cancelAutoCountdown()
+        autoProgress = 1
+        playChime()
+        beginSpeechCapture()
+    }
+
     private func beginSpeechCapture() {
         configureSpeechCallbacks()
         isSpeechActive = true
@@ -382,8 +488,8 @@ final class StoryPlaybackViewModel: ObservableObject {
         }
     }
 
-    private func stopSpeechCapture() {
-        speechController.stop(reason: .user)
+    private func stopSpeechCapture(reason: SpeechCaptureStopReason = .user) {
+        speechController.stop(reason: reason)
         isSpeechActive = false
     }
 
@@ -394,29 +500,134 @@ final class StoryPlaybackViewModel: ObservableObject {
         speechListenersConfigured = true
         speechController.emitter.on(.transcriptUpdated) { [weak self] in
             Task { @MainActor [weak self] in
-                self?.transcript = self?.speechController.accumulatedText ?? ""
+                self?.handleTranscriptUpdate()
             }
         }
         speechController.emitter.on(.stopped) { [weak self] in
             Task { @MainActor [weak self] in
                 self?.isSpeechActive = false
+                self?.handleSpeechStopped()
             }
         }
     }
 
-    var canTogglePlayback: Bool {
-        hasPlaybackControls && seam != .finish && seam != .error && !isWaitingForInput
+    private func handleTranscriptUpdate() {
+        let text = speechController.accumulatedText
+        transcript = text
+        if micFillsDraft {
+            updatingDraftFromSpeech = true
+            inputDraft = text
+            updatingDraftFromSpeech = false
+        }
+        restartAutoCountdown()
     }
 
-    var playbackIcon: String {
-        isPaused ? "play.fill" : "pause.fill"
+    private func handleSpeechStopped() {
+        restartAutoCountdown()
     }
 
-    var playbackLabel: String {
-        isPaused ? "Play" : "Pause"
+    private func restartAutoCountdown() {
+        autoCountdownTask?.cancel()
+        autoCountdownTask = nil
+        autoProgress = 1
+        guard mode == .auto, isWaitingForInput else {
+            return
+        }
+        let trimmed = inputDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return
+        }
+        let gap = speechController.lineGapMs
+        autoCountdownTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            await waitWithTimer(ms: 1000, segmentMs: 200)
+            if Task.isCancelled {
+                return
+            }
+            if gap > 0 {
+                let duration = Double(gap) / 1000
+                await MainActor.run {
+                    withAnimation(.linear(duration: duration)) {
+                        self.autoProgress = 0
+                    }
+                }
+                await waitWithTimer(ms: gap, segmentMs: 100)
+            } else {
+                await MainActor.run {
+                    self.autoProgress = 0
+                }
+            }
+            if Task.isCancelled {
+                return
+            }
+            await MainActor.run {
+                self.performAutoSubmitIfNeeded()
+            }
+        }
+    }
+
+    private func cancelAutoCountdown() {
+        autoCountdownTask?.cancel()
+        autoCountdownTask = nil
+        autoProgress = 1
+    }
+
+    private func performAutoSubmitIfNeeded() {
+        if !isWaitingForInput {
+            return
+        }
+        let payload = resolvedPayload()
+        if payload.isEmpty {
+            return
+        }
+        completeSubmission(payload: payload, reason: .autoStop)
+    }
+
+    private func resolvedPayload() -> String {
+        let draft = inputDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !draft.isEmpty {
+            return draft
+        }
+        return transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func completeSubmission(payload: String, reason: SpeechCaptureStopReason) {
+        cancelAutoCountdown()
+        stopSpeechCapture(reason: reason)
+        inputDraft = ""
+        transcript = ""
+        micFillsDraft = false
+        autoProgress = 1
+        let event = StoryEvent(
+            time: Int(Date().timeIntervalSince1970 * 1000),
+            from: "YOU",
+            to: "",
+            obs: [],
+            body: payload,
+            tags: []
+        )
+        events.append(event)
+        currentEvent = event
+        isWaitingForInput = false
+        guard let currentRunner = runner else {
+            return
+        }
+        Task {
+            await currentRunner.submit(payload)
+        }
+    }
+
+    private func finishWaiting() {
+        cancelAutoCountdown()
+        micFillsDraft = false
+    }
+
+    private func playChime() {
+        AudioServicesPlaySystemSound(1110)
     }
 }
-
 #Preview {
     StoryPlaybackView(storyId: "demo")
 }

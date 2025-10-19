@@ -55,6 +55,10 @@ final class SpeechCaptureController: ObservableObject {
         lines.map { $0.text }.joined(separator: "\n")
     }
 
+    var lineGapMs: Int {
+        config.lineGapMs
+    }
+
     var stopReason: SpeechCaptureStopReason? {
         lastStopReason
     }
@@ -250,7 +254,7 @@ final class SpeechCaptureController: ObservableObject {
         if exceededSegmentLimit(now: now) {
             restartSegment()
         }
-        if isFinal {
+        if isFinal && config.autoStopAfterMs > 0 {
             stop(reason: .autoStop)
         }
     }
