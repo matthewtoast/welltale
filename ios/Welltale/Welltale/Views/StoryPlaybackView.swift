@@ -289,6 +289,9 @@ final class StoryPlaybackViewModel: ObservableObject {
     private var autoCountdownTask: Task<Void, Never>?
     private var updatingDraftFromSpeech = false
     private var micFillsDraft = false
+    private var pausedDuringInput = false
+    private var transcriptPrefix = ""
+    private var snapshotWaiting = false
     private let autoPlaceholder = "Speak when prompted"
 
     init() {
@@ -320,6 +323,10 @@ final class StoryPlaybackViewModel: ObservableObject {
         started = false
         isPaused = false
         isAdvancing = false
+        pausedDuringInput = false
+        transcriptPrefix = ""
+        snapshotWaiting = false
+        isWaitingForInput = false
         cancelAutoCountdown()
         inputDraft = ""
         transcript = ""
@@ -369,7 +376,7 @@ final class StoryPlaybackViewModel: ObservableObject {
     }
 
     func play() {
-        if isWaitingForInput || seam == .finish || seam == .error {
+        if seam == .finish || seam == .error {
             return
         }
         if !started {
@@ -379,6 +386,7 @@ final class StoryPlaybackViewModel: ObservableObject {
             started = true
             isPaused = false
             isAdvancing = true
+            resumeHeldInput()
             Task {
                 await currentRunner.start()
             }
@@ -390,9 +398,14 @@ final class StoryPlaybackViewModel: ObservableObject {
             }
             isPaused = false
             isAdvancing = true
+            resumeHeldInput()
             Task {
                 await currentRunner.resume()
             }
+            return
+        }
+        if pausedDuringInput {
+            resumeHeldInput()
         }
     }
 
@@ -402,6 +415,15 @@ final class StoryPlaybackViewModel: ObservableObject {
         }
         isPaused = true
         isAdvancing = false
+        if snapshotWaiting {
+            pausedDuringInput = true
+            transcriptPrefix = transcript
+            cancelAutoCountdown()
+            if isSpeechActive {
+                stopSpeechCapture()
+            }
+            updateWaitingState()
+        }
         guard let currentRunner = runner else {
             return
         }
@@ -519,7 +541,7 @@ final class StoryPlaybackViewModel: ObservableObject {
     }
 
     var canTogglePlayback: Bool {
-        hasPlaybackControls && seam != .finish && seam != .error && !isWaitingForInput
+        hasPlaybackControls && seam != .finish && seam != .error
     }
 
     var playbackIcon: String {
@@ -554,6 +576,10 @@ final class StoryPlaybackViewModel: ObservableObject {
                 await MainActor.run {
                     self?.seam = .finish
                     self?.isAdvancing = false
+                    self?.pausedDuringInput = false
+                    self?.transcriptPrefix = ""
+                    self?.snapshotWaiting = false
+                    self?.updateWaitingState()
                 }
             },
             didError: { [weak self] message in
@@ -561,22 +587,31 @@ final class StoryPlaybackViewModel: ObservableObject {
                     self?.error = message
                     self?.seam = .error
                     self?.isAdvancing = false
+                    self?.pausedDuringInput = false
+                    self?.transcriptPrefix = ""
+                    self?.snapshotWaiting = false
+                    self?.updateWaitingState()
                 }
             }
         )
     }
 
     private func apply(snapshot: StoryRunnerSnapshot) {
-        let wasWaiting = isWaitingForInput
+        let wasSnapshotWaiting = snapshotWaiting
         let prevCount = events.count
         events = snapshot.events
         currentEvent = snapshot.currentEvent
-        isWaitingForInput = snapshot.isWaitingForInput
+        snapshotWaiting = snapshot.isWaitingForInput
         isPlayingForeground = snapshot.isPlayingForeground
         seam = snapshot.seam
         isPaused = snapshot.isPaused
-        if wasWaiting && !snapshot.isWaitingForInput {
+        updateWaitingState()
+        if wasSnapshotWaiting && !snapshot.isWaitingForInput {
             finishWaiting()
+        }
+        if !snapshot.isWaitingForInput {
+            pausedDuringInput = false
+            transcriptPrefix = ""
         }
         if snapshot.isWaitingForInput || snapshot.isPlayingForeground || snapshot.seam == .finish || snapshot.seam == .error || snapshot.isPaused || snapshot.events.count > prevCount {
             isAdvancing = false
@@ -599,6 +634,10 @@ final class StoryPlaybackViewModel: ObservableObject {
 
     private func handleInputRequest() {
         isAdvancing = false
+        pausedDuringInput = false
+        transcriptPrefix = ""
+        snapshotWaiting = true
+        updateWaitingState()
         if mode == .auto {
             prepareAutoInput()
         } else {
@@ -617,10 +656,13 @@ final class StoryPlaybackViewModel: ObservableObject {
         beginSpeechCapture()
     }
 
-    private func beginSpeechCapture() {
+    private func beginSpeechCapture(resetTranscript: Bool = true) {
         configureSpeechCallbacks()
         isSpeechActive = true
-        transcript = ""
+        if resetTranscript {
+            transcript = ""
+            transcriptPrefix = ""
+        }
         Task {
             await speechController.start()
         }
@@ -654,16 +696,32 @@ final class StoryPlaybackViewModel: ObservableObject {
             return
         }
         let text = speechController.accumulatedText
-        transcript = text
+        var combined = text
+        if !transcriptPrefix.isEmpty {
+            if !text.isEmpty,
+               let last = transcriptPrefix.last,
+               !last.isWhitespace,
+               let first = text.first,
+               !first.isWhitespace {
+                combined = transcriptPrefix + " " + text
+            } else {
+                combined = transcriptPrefix + text
+            }
+            transcriptPrefix = ""
+        }
+        transcript = combined
         if micFillsDraft {
             updatingDraftFromSpeech = true
-            inputDraft = text
+            inputDraft = combined
             updatingDraftFromSpeech = false
         }
         restartAutoCountdown()
     }
 
     private func handleSpeechStopped() {
+        if pausedDuringInput {
+            return
+        }
         restartAutoCountdown()
     }
 
@@ -733,11 +791,16 @@ final class StoryPlaybackViewModel: ObservableObject {
 
     private func completeSubmission(payload: String, reason: SpeechCaptureStopReason) {
         cancelAutoCountdown()
+        pausedDuringInput = true
         stopSpeechCapture(reason: reason)
         inputDraft = ""
         transcript = ""
+        transcriptPrefix = ""
         micFillsDraft = false
         autoProgress = 1
+        pausedDuringInput = false
+        snapshotWaiting = false
+        updateWaitingState()
         let event = StoryEvent(
             time: Int(Date().timeIntervalSince1970 * 1000),
             from: "YOU",
@@ -748,7 +811,6 @@ final class StoryPlaybackViewModel: ObservableObject {
         )
         events.append(event)
         currentEvent = event
-        isWaitingForInput = false
         isAdvancing = true
         guard let currentRunner = runner else {
             return
@@ -761,6 +823,28 @@ final class StoryPlaybackViewModel: ObservableObject {
     private func finishWaiting() {
         cancelAutoCountdown()
         micFillsDraft = false
+        pausedDuringInput = false
+        transcriptPrefix = ""
+        snapshotWaiting = false
+        updateWaitingState()
+    }
+
+    private func resumeHeldInput() {
+        if !pausedDuringInput {
+            return
+        }
+        pausedDuringInput = false
+        updateWaitingState()
+        if micFillsDraft {
+            beginSpeechCapture(resetTranscript: false)
+        }
+    }
+
+    private func updateWaitingState() {
+        let newValue = snapshotWaiting && !pausedDuringInput
+        if isWaitingForInput != newValue {
+            isWaitingForInput = newValue
+        }
     }
 
     private func playChime() {

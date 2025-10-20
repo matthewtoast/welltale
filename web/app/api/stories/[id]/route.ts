@@ -38,6 +38,13 @@ export async function GET(req: Request, ctx: StoryCtx) {
     storyRepo.getMeta(id),
     storyRepo.getCompiled(id),
   ]);
+  console.info({
+    meta,
+    source: {
+      meta: source?.meta,
+      voices: source?.voices,
+    },
+  });
   return NextResponse.json({ meta, source }, { status: 200 });
 }
 

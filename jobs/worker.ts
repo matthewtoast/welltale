@@ -25,7 +25,7 @@ export async function handler(e: SQSEvent) {
           seed: "compile",
           models: DEFAULT_LLM_SLUGS,
           doCompileVoices: false,
-          doGenerateThumbnails: false,
+          doGenerateThumbnails: true,
         });
       } catch (err) {
         console.error("Failed to compile story:", err);

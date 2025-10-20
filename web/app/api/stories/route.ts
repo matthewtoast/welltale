@@ -20,15 +20,8 @@ export async function GET(req: Request) {
   const user = await authenticateRequest(req);
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
   const u = new URL(req.url);
-  const q = (u.searchParams.get("q") || "").toLowerCase();
-  const metas = await storyRepo.listMetas();
-  const items = metas.filter((m) => {
-    if (!q) return true;
-    const hay = [m.title, m.author, m.description, ...(m.tags || [])]
-      .join("\n")
-      .toLowerCase();
-    return hay.includes(q);
-  });
+  const q = u.searchParams.get("q") || "";
+  const items = await storyRepo.searchMetas(q);
   return NextResponse.json({ items }, { status: 200 });
 }
 

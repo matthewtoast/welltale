@@ -28,6 +28,7 @@ export type StoryRepo = {
   getMeta(id: string): Promise<StoryMeta | null>;
   putMeta(meta: StoryMeta): Promise<StoryMeta>;
   listMetas(): Promise<StoryMeta[]>;
+  searchMetas(query: string): Promise<StoryMeta[]>;
   putCompiled(id: string, data: StorySource): Promise<void>;
   getCompiled(id: string): Promise<StorySource | null>;
   deleteStory(id: string): Promise<void>;
@@ -91,6 +92,30 @@ export function createStoryRepo(input: {
     const buf = await toBuffer(res.Body as Readable);
     return JSON.parse(buf.toString());
   }
+  async function searchMetas(query: string): Promise<StoryMeta[]> {
+    if (!query) {
+      return listMetas();
+    }
+    
+    const q = query.toLowerCase();
+    const res = await ddb.send(
+      new ScanCommand({
+        TableName: tableName,
+        FilterExpression:
+          "contains(#title, :q) OR contains(#author, :q) OR contains(#description, :q) OR contains(#tags, :q)",
+        ExpressionAttributeNames: {
+          "#title": "title",
+          "#author": "author",
+          "#description": "description",
+          "#tags": "tags",
+        },
+        ExpressionAttributeValues: marshall({ ":q": q }),
+      })
+    );
+    const items = res.Items || [];
+    return items.map((it) => unmarshall(it) as StoryMeta);
+  }
+
   async function deleteStory(id: string): Promise<void> {
     await Promise.all([
       ddb.send(
@@ -111,6 +136,7 @@ export function createStoryRepo(input: {
     getMeta,
     putMeta,
     listMetas,
+    searchMetas,
     putCompiled,
     getCompiled,
     deleteStory,
