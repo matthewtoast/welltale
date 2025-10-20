@@ -2,35 +2,53 @@ import SwiftUI
 
 struct StoryItemView: View {
     let story: StoryMetaDTO
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(story.title)
-                .font(.headline)
-                .foregroundColor(Color.wellText)
-                .lineLimit(2)
-            
-            Text(story.author)
-                .font(.subheadline)
-                .foregroundColor(Color.wellText)
-            
-            if !story.description.isEmpty {
-                Text(story.description)
-                    .font(.caption)
-                    .foregroundColor(Color.wellText)
-                    .lineLimit(3)
+        HStack(spacing: 12) {
+            thumbnail
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(story.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.wellText)
+                        .lineLimit(1)
+                    Text(story.author)
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.wellMuted.opacity(0.8))
+                        .lineLimit(1)
+                }
+                if !story.description.isEmpty {
+                    Text(story.description)
+                        .font(.caption2)
+                        .foregroundColor(Color.wellMuted.opacity(0.8))
+                        .lineLimit(2)
+                }
             }
-            
-            if !story.tags.isEmpty {
-                Text(story.tags.joined(separator: ", "))
-                    .font(.caption2)
-                    .foregroundColor(Color.wellText)
+            Spacer()
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+private extension StoryItemView {
+    var thumbnail: some View {
+        let url = URL(string: story.thumbnail)
+        return Group {
+            if let url {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .clipped()
+                } placeholder: {
+                    Color.gray.opacity(0.3)
+                }
+            } else {
+                Color.gray.opacity(0.3)
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.wellSurface)
-        .cornerRadius(10)
+        .frame(width: 48, height: 48)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -40,6 +58,7 @@ struct StoryItemView: View {
         title: "Sample Story",
         author: "John Doe",
         description: "This is a sample story description that shows how the story item will look in the list.",
+        thumbnail: "",
         tags: ["fiction", "adventure"],
         publish: .published,
         compile: .ready,

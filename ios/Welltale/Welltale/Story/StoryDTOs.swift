@@ -15,6 +15,7 @@ struct StoryMetaDTO: Codable, Identifiable, Hashable {
     let title: String
     let author: String
     let description: String
+    let thumbnail: String
     let tags: [String]
     let publish: Publish
     let compile: Compile
@@ -26,6 +27,7 @@ struct StoryMetaDTO: Codable, Identifiable, Hashable {
         case title
         case author
         case description
+        case thumbnail
         case tags
         case publish
         case compile
@@ -38,6 +40,7 @@ struct StoryMetaDTO: Codable, Identifiable, Hashable {
         title: String,
         author: String,
         description: String,
+        thumbnail: String,
         tags: [String],
         publish: Publish,
         compile: Compile,
@@ -48,6 +51,7 @@ struct StoryMetaDTO: Codable, Identifiable, Hashable {
         self.title = title
         self.author = author
         self.description = description
+        self.thumbnail = thumbnail
         self.tags = tags
         self.publish = publish
         self.compile = compile
@@ -61,6 +65,7 @@ struct StoryMetaDTO: Codable, Identifiable, Hashable {
         let title = try container.decode(String.self, forKey: .title)
         let author = try container.decode(String.self, forKey: .author)
         let description = try container.decode(String.self, forKey: .description)
+        let thumbnail = try container.decodeIfPresent(String.self, forKey: .thumbnail) ?? ""
         let tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
         let publish = try container.decode(Publish.self, forKey: .publish)
         let compile = try container.decode(Compile.self, forKey: .compile)
@@ -71,6 +76,7 @@ struct StoryMetaDTO: Codable, Identifiable, Hashable {
             title: title,
             author: author,
             description: description,
+            thumbnail: thumbnail,
             tags: tags,
             publish: publish,
             compile: compile,
@@ -85,6 +91,7 @@ struct StoryMetaDTO: Codable, Identifiable, Hashable {
         try container.encode(title, forKey: .title)
         try container.encode(author, forKey: .author)
         try container.encode(description, forKey: .description)
+        try container.encode(thumbnail, forKey: .thumbnail)
         try container.encode(tags, forKey: .tags)
         try container.encode(publish, forKey: .publish)
         try container.encode(compile, forKey: .compile)
@@ -99,6 +106,7 @@ extension StoryMetaDTO {
         lhs.title == rhs.title &&
         lhs.author == rhs.author &&
         lhs.description == rhs.description &&
+        lhs.thumbnail == rhs.thumbnail &&
         lhs.tags == rhs.tags &&
         lhs.publish == rhs.publish &&
         lhs.compile == rhs.compile &&
@@ -111,6 +119,7 @@ extension StoryMetaDTO {
         hasher.combine(title)
         hasher.combine(author)
         hasher.combine(description)
+        hasher.combine(thumbnail)
         hasher.combine(tags)
         hasher.combine(publish)
         hasher.combine(compile)

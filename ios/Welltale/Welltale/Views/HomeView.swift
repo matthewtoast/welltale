@@ -7,88 +7,65 @@ struct HomeView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var searchTask: Task<Void, Never>?
-    
+
     var body: some View {
         NavigationView {
             ZStack {
                 Color.wellBackground.ignoresSafeArea()
                 List {
-                    Section {
+                    HStack {
                         TextField("Search stories", text: $search)
                             .padding(10)
                             .background(Color.wellPanel)
-                            .cornerRadius(12)
+                            .cornerRadius(10)
                             .textInputAutocapitalization(.never)
                             .disableAutocorrection(true)
                             .foregroundColor(Color.wellText)
                             .colorScheme(.dark)
                     }
-                    .listRowBackground(Color.wellSurface)
-                    Section(header: Text("Config").foregroundColor(Color.wellText)) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Base URL")
-                                .font(.caption)
-                                .foregroundColor(Color.wellMuted)
-                            Text(configText(AppConfig.apiBaseURL?.absoluteString))
-                                .font(.footnote)
-                                .foregroundColor(Color.wellText)
-                                .textSelection(.enabled)
-                            Text("Raw: \(configText(AppConfig.rawAPIBase))")
-                                .font(.caption2)
-                                .foregroundColor(Color.wellMuted)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
+                    if isLoading && stories.isEmpty {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                                .tint(Color.wellText)
+                            Spacer()
                         }
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Token")
-                                .font(.caption)
-                                .foregroundColor(Color.wellMuted)
-                            Text(configText(AppConfig.devSessionToken))
-                                .font(.footnote)
-                                .foregroundColor(Color.wellText)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .textSelection(.enabled)
-                            Text("Raw: \(configText(AppConfig.rawDevSessionToken))")
-                                .font(.caption2)
-                                .foregroundColor(Color.wellMuted)
-                        }
-                    }
-                    .listRowBackground(Color.wellSurface)
-                    Section(header: Text("Tools").foregroundColor(Color.wellText)) {
-                        NavigationLink(destination: SpeechTestView()) {
-                            Label("Speech Test", systemImage: "waveform")
-                                .foregroundColor(Color.wellText)
-                        }
-                    }
-                    .listRowBackground(Color.wellSurface)
-                    Section {
-                        if isLoading && stories.isEmpty {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .tint(Color.wellText)
-                                Spacer()
+                        .listRowInsets(EdgeInsets(top: 24, leading: 0, bottom: 24, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    } else if let message = errorMessage {
+                        Text(message)
+                            .foregroundColor(Color.wellMuted)
+                            .listRowInsets(EdgeInsets(top: 24, leading: 16, bottom: 24, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    } else if stories.isEmpty {
+                        Text("No stories found")
+                            .foregroundColor(Color.wellMuted)
+                            .listRowInsets(EdgeInsets(top: 24, leading: 16, bottom: 24, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(stories) { story in
+                            NavigationLink(destination: StoryPlaybackView(storyId: story.id)) {
+                                StoryItemView(story: story)
                             }
-                        } else if let message = errorMessage {
-                            Text(message)
-                                .foregroundColor(Color.wellMuted)
-                        } else if stories.isEmpty {
-                            Text("No stories found")
-                                .foregroundColor(Color.wellMuted)
-                        } else {
-                            ForEach(stories) { story in
-                                NavigationLink(destination: StoryPlaybackView(storyId: story.id)) {
-                                    StoryItemView(story: story)
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .buttonStyle(PlainButtonStyle())
+                            .listRowSeparator(.hidden)
                         }
                     }
-                    .listRowBackground(Color.wellSurface)
                 }
-                .listStyle(.insetGrouped)
+                .listStyle(.plain)
                 .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Stories")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("")
         }
         .background(Color.wellBackground)
         .tint(Color.wellText)

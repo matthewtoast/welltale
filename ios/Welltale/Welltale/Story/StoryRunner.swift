@@ -32,10 +32,19 @@ actor StoryRunner {
     private var finished = false
     private var errored = false
     private var paused = false
+    private var audioReady = false
 
     init(coordinator: StoryCoordinator, handlers: StoryRunnerHandlers) {
         self.coordinator = coordinator
         self.handlers = handlers
+    }
+
+    func prepare() async {
+        if audioReady {
+            return
+        }
+        await audio.prepare()
+        audioReady = true
     }
 
     func start() {
@@ -44,7 +53,7 @@ actor StoryRunner {
         }
         paused = false
         task = Task {
-            await audio.prepare()
+            await self.prepare()
             await runCycle(input: nil)
         }
     }
@@ -92,6 +101,7 @@ actor StoryRunner {
         task?.cancel()
         task = nil
         await audio.stop()
+        audioReady = false
     }
 
     private func runCycle(input: String?) async {

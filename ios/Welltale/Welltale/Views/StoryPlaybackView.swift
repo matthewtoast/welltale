@@ -1,30 +1,18 @@
-import SwiftUI
-import Combine
 import AudioToolbox
+import Combine
+import SwiftUI
 
 struct StoryPlaybackView: View {
     let storyId: String
     @StateObject private var viewModel = StoryPlaybackViewModel()
+    @State private var showSettings = false
 
     var body: some View {
         ZStack {
             Color.wellBackground.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 16) {
-                if viewModel.isLoading {
-                    ProgressView("Loading")
-                        .tint(Color.wellText)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                } else if let story = viewModel.story {
+                if viewModel.story != nil {
                     VStack(alignment: .leading, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(story.title)
-                                .font(.title)
-                                .fontWeight(.semibold)
-                                .foregroundColor(Color.wellText)
-                            Text(story.author)
-                                .font(.subheadline)
-                                .foregroundColor(Color.wellMuted)
-                        }
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
                                 ForEach(Array(viewModel.events.enumerated()), id: \.offset) { item in
@@ -46,70 +34,88 @@ struct StoryPlaybackView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        statusSection
+                        playbackControls
                         inputSection
-                        if viewModel.seam == .finish {
-                            Text("Story complete")
-                                .font(.headline)
-                                .foregroundColor(.green)
-                        }
-                        if viewModel.seam == .error {
-                            Text(viewModel.error ?? "An error occurred")
-                                .font(.footnote)
-                                .foregroundColor(.red)
-                        }
                     }
-                } else if let error = viewModel.error {
-                    VStack(spacing: 12) {
-                        Text("Failed to load story")
-                            .font(.headline)
-                            .foregroundColor(Color.wellText)
-                        Text(error)
-                            .font(.body)
-                            .foregroundColor(Color.wellMuted)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.isLoading {
+                    ProgressView("Loading")
+                        .tint(Color.wellText)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 } else {
-                    Text("No story loaded")
-                        .foregroundColor(Color.wellText)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Spacer()
                 }
             }
             .padding()
         }
         .tint(Color.wellText)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.body)
+                        .foregroundColor(Color.wellText)
+                }
+            }
+            ToolbarItem(placement: .principal) {
+                if let story = viewModel.story {
+                    VStack(spacing: 4) {
+                        Text(story.title)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color.wellText)
+                            .lineLimit(1)
+                        Text(story.author)
+                            .font(.caption)
+                            .foregroundColor(Color.wellMuted)
+                            .lineLimit(1)
+                        statusIndicator
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 24) {
+                    Toggle(
+                        "Auto mode",
+                        isOn: Binding(
+                            get: { viewModel.mode == .auto },
+                            set: { viewModel.setAuto($0) }
+                        )
+                    )
+                    .tint(Color.green)
+                    Spacer()
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(Color.wellBackground.ignoresSafeArea())
+                .navigationTitle("Settings")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button {
+                            showSettings = false
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.body)
+                                .foregroundColor(Color.wellText)
+                        }
+                    }
+                }
+            }
+            .tint(Color.wellText)
+        }
         .task {
             await viewModel.preparePermissions()
             await viewModel.loadStory(id: storyId)
         }
     }
 
-    private var statusSection: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(viewModel.isPlayingForeground ? Color.green : Color.wellMuted)
-                .frame(width: 12, height: 12)
-            Text(statusText)
-                .font(.footnote)
-                .foregroundColor(Color.wellMuted)
-            Spacer()
-            Button {
-                viewModel.togglePlayback()
-            } label: {
-                Image(systemName: viewModel.playbackIcon)
-                    .font(.title2)
-                    .foregroundColor(Color.black)
-                    .padding(12)
-                    .background(viewModel.playButtonColor)
-                    .clipShape(Circle())
-            }
-            .disabled(!viewModel.canTogglePlayback)
-            .accessibilityLabel(viewModel.playbackLabel)
-        }
-    }
-
     private var inputSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 if viewModel.mode == .manual {
                     TextField(
@@ -137,11 +143,14 @@ struct StoryPlaybackView: View {
                             .foregroundColor(Color.wellText)
                     }
                     .disabled(!viewModel.canUseMic)
-                    Button("Submit") {
+                    Button {
                         viewModel.submitInput()
+                    } label: {
+                        Image(systemName: "paperplane.fill")
+                            .font(.body)
+                            .foregroundColor(Color.wellText)
                     }
                     .disabled(!viewModel.canSubmit || !viewModel.canEditInput)
-                    .foregroundColor(Color.wellText)
                 } else {
                     Text(viewModel.autoDisplayText)
                         .font(.body)
@@ -152,39 +161,100 @@ struct StoryPlaybackView: View {
                         .cornerRadius(8)
                 }
             }
-            if viewModel.showAutoProgress {
-                GeometryReader { proxy in
+
+            GeometryReader { proxy in
+                let baseWidth = proxy.size.width
+                let inset: CGFloat = 20
+                let totalWidth = max(0, baseWidth - inset)
+                let fillWidth = viewModel.showAutoProgress ? totalWidth * CGFloat(viewModel.autoProgress) : 0
+                HStack {
+                    Spacer()
                     ZStack(alignment: .leading) {
                         Capsule()
                             .fill(Color.wellPanel)
-                            .frame(height: 2)
+                            .frame(width: totalWidth, height: 2)
                         Capsule()
                             .fill(Color.wellText)
-                            .frame(width: proxy.size.width * CGFloat(viewModel.autoProgress), height: 2)
+                            .frame(width: fillWidth, height: 2)
                     }
+                    Spacer()
                 }
-                .frame(height: 2)
             }
+            .frame(height: 2)
+            .offset(y: 0)
         }
-        .padding()
-        .background(Color.wellSurface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    private var statusText: String {
-        if viewModel.seam == .finish {
-            return "Finished"
+    private var playbackControls: some View {
+        HStack {
+            Spacer()
+            Button {
+                viewModel.togglePlayback()
+            } label: {
+                Image(systemName: viewModel.playbackIcon)
+                    .font(.title2)
+                    .foregroundColor(Color.black)
+                    .padding(12)
+                    .background(viewModel.playButtonColor)
+                    .clipShape(Circle())
+            }
+            .disabled(!viewModel.canTogglePlayback)
+            .accessibilityLabel(viewModel.playbackLabel)
+        }
+    }
+}
+
+private extension StoryPlaybackView {
+    struct StatusDisplay {
+        let text: String
+        let dotColor: Color
+    }
+
+    var statusIndicator: some View {
+        let display = statusDisplay
+        return HStack(spacing: 4) {
+            Circle()
+                .fill(display.dotColor)
+                .frame(width: 8, height: 8)
+            Text(display.text)
+                .font(.caption2)
+                .foregroundColor(display.dotColor)
+                .lineLimit(1)
+        }
+    }
+
+    var statusDisplay: StatusDisplay {
+        if let message = viewModel.error?.trim(), !message.isEmpty {
+            return StatusDisplay(text: message, dotColor: .red)
         }
         if viewModel.seam == .error {
-            return "Error"
+            return StatusDisplay(text: "Error", dotColor: .red)
+        }
+        if viewModel.seam == .finish {
+            return StatusDisplay(text: "Story complete", dotColor: .indigo)
         }
         if viewModel.isWaitingForInput {
-            return viewModel.isSpeechActive ? "Listening" : "Awaiting input"
+            if viewModel.isSpeechActive {
+                return StatusDisplay(text: "Listening", dotColor: .green)
+            }
+            return StatusDisplay(text: "Awaiting input", dotColor: .orange)
         }
         if viewModel.isPaused {
-            return "Paused"
+            return StatusDisplay(text: "Paused", dotColor: .yellow)
         }
-        return viewModel.isPlayingForeground ? "Playing" : "Loading"
+        if viewModel.isPlayingForeground {
+            return StatusDisplay(text: "Playing", dotColor: .green)
+        }
+        if viewModel.isPriming {
+            return StatusDisplay(text: "Starting", dotColor: .gray)
+        }
+        if viewModel.isAdvancing {
+            return StatusDisplay(text: "Continuing", dotColor: .gray)
+        }
+        if viewModel.isLoading {
+            return StatusDisplay(text: "Loading", dotColor: .gray)
+        }
+        return StatusDisplay(text: "Idle", dotColor: .gray)
     }
 }
 
@@ -210,6 +280,7 @@ final class StoryPlaybackViewModel: ObservableObject {
     @Published var hasPlaybackControls = false
     @Published var mode: InputMode = .auto
     @Published var autoProgress = 1.0
+    @Published var isAdvancing = false
 
     private var runner: StoryRunner?
     private let speechController = SpeechCaptureController(locale: .en_us, config: .default)
@@ -244,9 +315,11 @@ final class StoryPlaybackViewModel: ObservableObject {
         }
         isLoading = true
         error = nil
+        seam = .grant
         hasPlaybackControls = false
         started = false
         isPaused = false
+        isAdvancing = false
         cancelAutoCountdown()
         inputDraft = ""
         transcript = ""
@@ -254,6 +327,7 @@ final class StoryPlaybackViewModel: ObservableObject {
         do {
             guard let configuration = StoryConfiguration.load() else {
                 error = "Missing WelltaleAPIBase or DevSessionToken"
+                seam = .error
                 isLoading = false
                 return
             }
@@ -268,9 +342,13 @@ final class StoryPlaybackViewModel: ObservableObject {
             self.runner = runner
             hasPlaybackControls = true
             isPaused = true
+            Task {
+                await runner.prepare()
+            }
             configureSpeechCallbacks()
         } catch {
             self.error = error.localizedDescription
+            seam = .error
         }
         isLoading = false
     }
@@ -295,21 +373,23 @@ final class StoryPlaybackViewModel: ObservableObject {
             return
         }
         if !started {
-            started = true
-            isPaused = false
             guard let currentRunner = runner else {
                 return
             }
+            started = true
+            isPaused = false
+            isAdvancing = true
             Task {
                 await currentRunner.start()
             }
             return
         }
         if isPaused {
-            isPaused = false
             guard let currentRunner = runner else {
                 return
             }
+            isPaused = false
+            isAdvancing = true
             Task {
                 await currentRunner.resume()
             }
@@ -321,6 +401,7 @@ final class StoryPlaybackViewModel: ObservableObject {
             return
         }
         isPaused = true
+        isAdvancing = false
         guard let currentRunner = runner else {
             return
         }
@@ -453,6 +534,10 @@ final class StoryPlaybackViewModel: ObservableObject {
         Color.white
     }
 
+    var isPriming: Bool {
+        isAdvancing && events.isEmpty
+    }
+
     private func makeHandlers() -> StoryRunnerHandlers {
         StoryRunnerHandlers(
             update: { [weak self] snapshot in
@@ -468,12 +553,14 @@ final class StoryPlaybackViewModel: ObservableObject {
             didFinish: { [weak self] in
                 await MainActor.run {
                     self?.seam = .finish
+                    self?.isAdvancing = false
                 }
             },
             didError: { [weak self] message in
                 await MainActor.run {
                     self?.error = message
                     self?.seam = .error
+                    self?.isAdvancing = false
                 }
             }
         )
@@ -481,6 +568,7 @@ final class StoryPlaybackViewModel: ObservableObject {
 
     private func apply(snapshot: StoryRunnerSnapshot) {
         let wasWaiting = isWaitingForInput
+        let prevCount = events.count
         events = snapshot.events
         currentEvent = snapshot.currentEvent
         isWaitingForInput = snapshot.isWaitingForInput
@@ -489,6 +577,9 @@ final class StoryPlaybackViewModel: ObservableObject {
         isPaused = snapshot.isPaused
         if wasWaiting && !snapshot.isWaitingForInput {
             finishWaiting()
+        }
+        if snapshot.isWaitingForInput || snapshot.isPlayingForeground || snapshot.seam == .finish || snapshot.seam == .error || snapshot.isPaused || snapshot.events.count > prevCount {
+            isAdvancing = false
         }
     }
 
@@ -507,6 +598,7 @@ final class StoryPlaybackViewModel: ObservableObject {
     }
 
     private func handleInputRequest() {
+        isAdvancing = false
         if mode == .auto {
             prepareAutoInput()
         } else {
@@ -558,6 +650,9 @@ final class StoryPlaybackViewModel: ObservableObject {
     }
 
     private func handleTranscriptUpdate() {
+        if !isWaitingForInput {
+            return
+        }
         let text = speechController.accumulatedText
         transcript = text
         if micFillsDraft {
@@ -588,18 +683,15 @@ final class StoryPlaybackViewModel: ObservableObject {
             guard let self else {
                 return
             }
-            await waitWithTimer(ms: 1000, segmentMs: 200)
-            if Task.isCancelled {
-                return
-            }
-            if gap > 0 {
-                let duration = Double(gap) / 1000
+            let delay = gap > 0 ? max(gap, 300) : 300
+            if delay > 0 {
+                let duration = Double(delay) / 1000
                 await MainActor.run {
                     withAnimation(.linear(duration: duration)) {
                         self.autoProgress = 0
                     }
                 }
-                await waitWithTimer(ms: gap, segmentMs: 100)
+                await waitWithTimer(ms: delay, segmentMs: 100)
             } else {
                 await MainActor.run {
                     self.autoProgress = 0
@@ -657,11 +749,12 @@ final class StoryPlaybackViewModel: ObservableObject {
         events.append(event)
         currentEvent = event
         isWaitingForInput = false
+        isAdvancing = true
         guard let currentRunner = runner else {
             return
         }
         Task {
-            await currentRunner.submit(payload)
+            await currentRunner.submit(payload, event: event)
         }
     }
 
@@ -674,6 +767,7 @@ final class StoryPlaybackViewModel: ObservableObject {
         AudioServicesPlaySystemSound(1110)
     }
 }
+
 #Preview {
     StoryPlaybackView(storyId: "demo")
 }
