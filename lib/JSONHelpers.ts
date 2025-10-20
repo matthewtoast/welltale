@@ -1,7 +1,12 @@
+import { dump, load } from "js-yaml";
 import JSON5 from "json5";
 
 export function quo(a: any) {
   return JSON.stringify(a);
+}
+
+export function toYaml(obj: any): string {
+  return dump(obj);
 }
 
 export function safeJsonParse(s: string | null): any | null {
@@ -18,7 +23,6 @@ export function safeJsonParse(s: string | null): any | null {
 export function safeYamlParse(s: string | null): any | null {
   if (!s) return null;
   try {
-    const { load } = require("js-yaml");
     return load(s);
   } catch (e) {
     return null;

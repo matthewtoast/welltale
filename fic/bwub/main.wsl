@@ -1,0 +1,689 @@
+<intro>
+  <music duration="10000" background="true">
+    Tense, late-night piano with distant thunder and soft rain on glass.
+  </music>
+
+  <p voice="narrator">
+    Midnight Minutes: A Boardroom Whodunnit.
+  </p>
+
+  <p voice="narrator">
+    Cornerstone Holdings — forty-second floor. A rainstorm pins you inside. The chairman, Harold Voss, is dead.
+    Nine board members, one locked suite, and four hours before dawn. The building is sealed; nobody can leave.
+    You are the one who will ask the questions, gather the proof, and name the killer before time runs out.
+  </p>
+
+  <sleep duration="1200" />
+</intro>
+
+<data key="meta" format="json">
+{
+  "title":"Midnight Minutes: A Boardroom Whodunnit",
+  "description":"Trapped overnight with nine suspicious board members after the chairman is found dead, you must interrogate, collect clues, and expose the killer before dawn.",
+  "tags":["mystery","suspense","interactive","detective","whodunnit","audio-story","corporate thriller"]
+}
+</data>
+
+<!-- Initialize state -->
+<script>
+  // Time in minutes
+  set("timeLeft", 240);
+  set("caseClosed", false);
+  set("accused", "");
+  set("playerName", "Detective");
+  set("evidence", {
+    weapon: false,
+    audio_log: false,
+    torn_note: false,
+    keycard_anomaly: false,
+    server_access: false,
+    fingerprints_lionel: false
+  });
+  // suspicion scores for each suspect
+  set("suspicion", {
+    eleanor_shaw: 0,
+    marcus_king: 0,
+    priya_desai: 0,
+    lionel_greene: 0,
+    rosa_mendez: 0,
+    kenji_takahashi: 0,
+    anika_bose: 0,
+    victor_hale: 0,
+    simone_laurent: 0
+  });
+  set("interrogated", {});
+  set("notes", []);
+  set("solutionId","lionel_greene");
+</script>
+
+<origin>
+  <p voice="narrator">
+    You enter the chairman's suite. Rain drums a steady rhythm on the windows. The body lies slumped at the desk.
+    The boardroom beyond holds nine other members — each with their own secrets, motives, and alibis.
+  </p>
+
+  <p voice="narrator">
+    You have four hours. Ask, probe, inspect. Use your voice to interrogate, your mind to connect evidence, and your instincts to accuse.
+    Say things like "inspect body", "examine evidence", "interrogate Marcus", "play audio log", or "accuse Simone".
+  </p>
+
+  <checkpoint />
+  <p voice="narrator">
+    What would you like to do first?
+  </p>
+
+  <input />
+  <llm:tag key="intent"
+    inspect_body="inspect the body or chairman"
+    examine_evidence="examine evidence or search the office"
+    list_suspects="list suspects or who is here"
+    interrogate="interrogate a board member"
+    play_log="play audio log or play recording"
+    accuse="accuse someone or make an accusation"
+    check_time="ask about time or clock">
+    {{input}}
+  </llm:tag>
+
+  <if cond="intent.includes('inspect_body')">
+    <jump to="inspect_body" />
+  </if>
+
+  <if cond="intent.includes('examine_evidence')">
+    <jump to="search_office" />
+  </if>
+
+  <if cond="intent.includes('list_suspects')">
+    <jump to="list_suspects" />
+  </if>
+
+  <if cond="intent.includes('interrogate')">
+    <jump to="choose_interrogation" />
+  </if>
+
+  <if cond="intent.includes('play_log')">
+    <jump to="play_audio" />
+  </if>
+
+  <if cond="intent.includes('accuse')">
+    <jump to="make_accusation" />
+  </if>
+
+  <if cond="intent.includes('check_time')">
+    <p voice="player">
+      How much time do I have left?
+    </p>
+    <p voice="narrator">
+      {$ Math.floor(timeLeft) $} minutes until dawn.
+    </p>
+    <jump to="origin" />
+  </if>
+
+  <jump to="interaction_loop" />
+</origin>
+
+<!-- Quick suspect roster -->
+<div id="list_suspects">
+  <p voice="narrator">
+    Board present: Eleanor Shaw (CFO), Marcus King (General Counsel), Priya Desai (CTO),
+    Lionel Greene (COO), Rosa Mendez (Head of PR), Kenji Takahashi (Investor Rep),
+    Anika Bose (Board Advisor), Victor Hale (VP Sales), Simone Laurent (Board Secretary).
+  </p>
+  <p voice="narrator">
+    Each has motive. Each has an alibi. Each will speak if you ask.
+  </p>
+  <jump to="interaction_loop" />
+</div>
+
+<!-- Inspect body -->
+<div id="inspect_body">
+  <p voice="narrator">
+    You approach Harold Voss's desk. He is slumped forward. A heavy letter opener lies on the floor beside him.
+  </p>
+
+  <sound duration="3000">
+    Subtle wet cloth scrape and shallow breathing cut off — chair creak, a small metallic clink.
+  </sound>
+
+  <p voice="narrator">
+    The opener has blood traces and partial fingerprints. The corner of a torn memo slips from the shredder nearby.
+    You notice a personal tablet on the desk with a timestamped recording.
+  </p>
+
+  <script>
+    set("timeLeft", Math.max(0, timeLeft - 5));
+    // discovered evidence
+    set("evidence.weapon", true);
+    // partial fingerprint ambiguous; player must examine or test later
+    set("evidence.partial_fingerprint_note","partial prints found, one labeled 'partial_simone' and an ambiguous smudge.");
+    set("notes", [...notes, "Found letter opener with blood; partial prints. Torn memo corner in shredder. Tablet with auto-saved audio."]);
+  </script>
+
+  <p voice="narrator">
+    You collect the opener carefully in a napkin. It might be wiped but not clean.
+  </p>
+
+  <jump to="interaction_loop" />
+</div>
+
+<!-- Search office and adjacent areas -->
+<div id="search_office">
+  <p voice="narrator">
+    Where do you search? The shredder bin, the keycard logs on the admin terminal, the server corridor, or the tablet?
+  </p>
+  <input />
+  <llm:tag key="search"
+    shredder="shredder or memo or torn"
+    keycard="keycard logs or logs or card"
+    server="server room or server access or CCTV"
+    tablet="tablet or audio or recording">
+    {{input}}
+  </llm:tag>
+
+  <if cond="search.includes('shredder')">
+    <p voice="narrator">
+      You dig through the shredded papers. You find a torn corner of a board memo with Harold's handwriting: "—reassign Greene—".
+    </p>
+    <script>
+      set("evidence.torn_note", true);
+      set("timeLeft", Math.max(0, timeLeft - 7));
+      set("notes", [...notes, "Torn memo corner: '—reassign Greene—' found in shredder."]);
+      // small suspicion bump for Lionel
+      set("suspicion.lionel_greene", suspicion.lionel_greene + 10);
+    </script>
+    <jump to="interaction_loop" />
+  </if>
+
+  <if cond="search.includes('keycard')">
+    <p voice="narrator">
+      You pull the admin terminal. The keycard log shows all entries between 11:15 and 12:30.
+      There's an anomaly — a short, two-minute entry at 11:58 to 12:00 by an unknown card.
+    </p>
+    <script>
+      set("evidence.keycard_anomaly", true);
+      set("timeLeft", Math.max(0, timeLeft - 5));
+      set("notes", [...notes, "Keycard anomaly: unknown short 11:58–12:00 entry."]);
+      set("suspicion.lionel_greene", suspicion.lionel_greene + 8);
+      set("suspicion.simone_laurent", suspicion.simone_laurent + 3);
+    </script>
+    <jump to="interaction_loop" />
+  </if>
+
+  <if cond="search.includes('server')">
+    <p voice="narrator">
+      In the server corridor you find warm footprints and a recently used tablet near the rack.
+      Server logs show Priya revoked a remote token at 11:50 — and CCTV in the chairman's corridor shows a brief outage between 11:50 and 12:10.
+    </p>
+    <script>
+      set("evidence.server_access", true);
+      set("timeLeft", Math.max(0, timeLeft - 8));
+      set("notes", [...notes, "Server access: Priya revoked token at 11:50; CCTV outage 11:50–12:10. Warm tablet found."]);
+      set("suspicion.priya_desai", suspicion.priya_desai + 6);
+    </script>
+    <jump to="interaction_loop" />
+  </if>
+
+  <if cond="search.includes('tablet')">
+    <p voice="narrator">
+      The tablet auto-saved a two-minute chairside audio note at 12:02 a.m. — a voice exchange, a scuffle, then silence.
+    </p>
+    <script>
+      set("evidence.audio_log", true);
+      set("timeLeft", Math.max(0, timeLeft - 3));
+      set("notes", [...notes, "Audio log timestamp 12:02: '—you can't do this, Harold—' then scuffle, then silence."]);
+      // audio affects suspicion depending on later analysis
+      set("suspicion.lionel_greene", suspicion.lionel_greene + 5);
+    </script>
+    <jump to="interaction_loop" />
+  </if>
+
+  <p voice="narrator">
+    I couldn't find that. Try somewhere else.
+  </p>
+  <jump to="search_office" />
+</div>
+
+<!-- Play audio log -->
+<div id="play_audio">
+  <if cond="!evidence.audio_log">
+    <p voice="narrator">
+      You haven't found the tablet yet. Search the chairman's desk or the tablet first.
+    </p>
+    <jump to="interaction_loop" />
+  </if>
+
+  <sound duration="8000">
+    A whispered argument, muffled voice: "—you can't do this, Harold—", heavy footstep, a short scuffle, a dull thunk, then nothing.
+  </sound>
+
+  <p voice="narrator">
+    The voice is muffled; one speaker sounds strained — not fully identifiable. There's a breathy exhale at the end.
+  </p>
+
+  <script>
+    set("timeLeft", Math.max(0, timeLeft - 4));
+    // Make audio available for forensic parsing
+    set("notes", [...notes, "Played audio log: muffled exchange at 12:02."]);
+  </script>
+
+  <!-- Allow the player to ask for analysis or play again -->
+  <p voice="narrator">
+    You can "analyze audio", "play again", or return to other tasks.
+  </p>
+  <input />
+  <llm:tag key="audio_action"
+    analyze="analyze audio or forensic or clean"
+    play_again="play again or replay"
+    back="back or return">
+    {{input}}
+  </llm:tag>
+
+  <if cond="audio_action.includes('analyze')">
+    <p voice="narrator">
+      Forensic enhancement suggests a second voice with a Southern business cadence — could match Lionel Greene.
+    </p>
+    <script>
+      set("timeLeft", Math.max(0, timeLeft - 6));
+      set("notes", [...notes, "Forensic: secondary voice timbre similar to Lionel Greene (southern inflection)."]);
+      set("suspicion.lionel_greene", suspicion.lionel_greene + 12);
+    </script>
+    <jump to="interaction_loop" />
+  </if>
+
+  <if cond="audio_action.includes('play')">
+    <jump to="play_audio" />
+  </if>
+
+  <jump to="interaction_loop" />
+</div>
+
+<!-- Choose interrogation target -->
+<div id="choose_interrogation">
+  <p voice="narrator">
+    Who do you want to interrogate? Name a board member: Eleanor, Marcus, Priya, Lionel, Rosa, Kenji, Anika, Victor, or Simone.
+  </p>
+
+  <input />
+  <llm:tag key="who"
+    eleanor="Eleanor Shaw"
+    marcus="Marcus King"
+    priya="Priya Desai"
+    lionel="Lionel Greene"
+    rosa="Rosa Mendez"
+    kenji="Kenji Takahashi"
+    anika="Anika Bose"
+    victor="Victor Hale"
+    simone="Simone Laurent">
+    {{input}}
+  </llm:tag>
+
+  <if cond="who.includes('Eleanor')">
+    <jump to="interrogate" />
+  </if>
+  <if cond="who.includes('Marcus')">
+    <jump to="interrogate" />
+  </if>
+  <if cond="who.includes('Priya')">
+    <jump to="interrogate" />
+  </if>
+  <if cond="who.includes('Lionel')">
+    <jump to="interrogate" />
+  </if>
+  <if cond="who.includes('Rosa')">
+    <jump to="interrogate" />
+  </if>
+  <if cond="who.includes('Kenji')">
+    <jump to="interrogate" />
+  </if>
+  <if cond="who.includes('Anika')">
+    <jump to="interrogate" />
+  </if>
+  <if cond="who.includes('Victor')">
+    <jump to="interrogate" />
+  </if>
+  <if cond="who.includes('Simone')">
+    <jump to="interrogate" />
+  </if>
+
+  <script>
+    // normalize the selected id for interrogation block
+    const map = {
+      "Eleanor Shaw":"eleanor_shaw",
+      "Marcus King":"marcus_king",
+      "Priya Desai":"priya_desai",
+      "Lionel Greene":"lionel_greene",
+      "Rosa Mendez":"rosa_mendez",
+      "Kenji Takahashi":"kenji_takahashi",
+      "Anika Bose":"anika_bose",
+      "Victor Hale":"victor_hale",
+      "Simone Laurent":"simone_laurent"
+    };
+    set("subject", map[who[0] || who] || "");
+  </script>
+</div>
+
+<!-- Interrogation block reused -->
+<block id="do_interrogation">
+  <param id="subject" />
+  <!-- increase time cost and mark interrogated -->
+  <script>
+    set("timeLeft", Math.max(0, timeLeft - 10));
+    ctx.session.state.interrogated = {...interrogated, [subject]: (interrogated[subject] || 0) + 1};
+  </script>
+
+  <!-- Use LLM to create an in-character response based on persona and history -->
+  <llm:line as="{{subject}}" with="player">
+    You are speaking for the named board member. Use the persona details: voice, age, behavior, motive, and alibi.
+    The player is interrogating you. Respond briefly (one or two sentences) consistent with your alibi and behavior.
+    If asked about alibi, state it. If cornered with evidence like the keycard anomaly, torn note, or audio log, show defensiveness or a slip appropriate to your persona.
+    Recent facts available:
+    - evidence: {{$ JSON.stringify(evidence) $}}
+    - notes: {{$ JSON.stringify(notes.slice(-6)) $}}
+    - suspicion for subject: {{$ suspicion[subject] $}}
+    Speak as the character, and end with a short revealable detail the player could probe further.
+  </llm:line>
+
+  <p voice="{{subject}}">
+    {{_}}
+  </p>
+
+  <!-- Parse the player's next input in this interrogation for admissions or contradictions -->
+  <p voice="narrator">
+    Ask follow-ups, press for contradictions, or step back. (Type a question, or say "end" to finish.)
+  </p>
+
+  <input from="player" />
+  <llm:parse key="interp"
+    admission="Did the subject admit anything of guilt or contradiction?"
+    alibi_match="Does the subject's reply match their stated alibi?"
+    emotional_tone="Tone and defensiveness score (0-1)">
+    The subject said: {{_}}. Analyze whether this contains an admission, contradiction with known evidence (notes, logs), and the subject's emotional tone.
+  </llm:parse>
+
+  <script>
+    // small algorithm to update suspicion
+    const subj = subject;
+    const admit = interp.admission || false;
+    const contrad = interp.alibi_match === "no";
+    const tone = interp.emotional_tone || 0;
+    let bump = 0;
+    if (admit) bump += 30;
+    if (contrad) bump += 20;
+    bump += Math.round(tone * 5);
+    set("suspicion", {...suspicion, [subj]: (suspicion[subj] || 0) + bump});
+    set("notes", [...notes, `Interrogated ${subj}: ${JSON.stringify(interp).slice(0,120)}`]);
+  </script>
+
+  <if cond="interp.admission">
+    <p voice="narrator">
+      The subject slipped: {{interp.admission}}.
+    </p>
+  </if>
+
+  <if cond="interp.alibi_match === 'no'">
+    <p voice="narrator">
+      Their statement contradicts known records. You should check logs or evidence that touch this claim.
+    </p>
+  </if>
+
+  <jump to="interaction_loop" />
+</block>
+
+<!-- Caller to interrogation block -->
+<div id="interrogate">
+  <if cond="!subject">
+    <p voice="narrator">
+      I didn't catch who you meant. Name a board member.
+    </p>
+    <jump to="choose_interrogation" />
+  </if>
+
+  <!-- Map subject to voice IDs for speech rendering -->
+  <p voice="narrator">
+    You approach {{subject.replace('_',' ')}}.
+  </p>
+
+  <yield to="do_interrogation" subject="{{subject}}" />
+</div>
+
+<!-- Accusation logic -->
+<div id="make_accusation">
+  <p voice="narrator">
+    Who do you accuse? Say a name clearly. Accusations cost twenty minutes.
+  </p>
+
+  <input />
+  <llm:tag key="acc"
+    eleanor="Eleanor Shaw"
+    marcus="Marcus King"
+    priya="Priya Desai"
+    lionel="Lionel Greene"
+    rosa="Rosa Mendez"
+    kenji="Kenji Takahashi"
+    anika="Anika Bose"
+    victor="Victor Hale"
+    simone="Simone Laurent">
+    {{input}}
+  </llm:tag>
+
+  <script>
+    const map = {
+      "Eleanor Shaw":"eleanor_shaw",
+      "Marcus King":"marcus_king",
+      "Priya Desai":"priya_desai",
+      "Lionel Greene":"lionel_greene",
+      "Rosa Mendez":"rosa_mendez",
+      "Kenji Takahashi":"kenji_takahashi",
+      "Anika Bose":"anika_bose",
+      "Victor Hale":"victor_hale",
+      "Simone Laurent":"simone_laurent"
+    };
+    const chosenName = acc[0] || acc;
+    const chosenId = map[chosenName] || "";
+    set("accused", chosenId);
+    set("timeLeft", Math.max(0, timeLeft - 20));
+  </script>
+
+  <if cond="accused === ''">
+    <p voice="narrator">
+      I didn't recognize that name. Try again.
+    </p>
+    <jump to="make_accusation" />
+  </if>
+
+  <p voice="player">
+    I accuse {{acc[0]}}.
+  </p>
+
+  <!-- Evaluate accusation success conditions -->
+  <script>
+    const hasAudio = evidence.audio_log;
+    const hasKeyAnom = evidence.keycard_anomaly;
+    const hasTorn = evidence.torn_note;
+    const hasFingerLionel = evidence.fingerprints_lionel || false;
+    const accusedIsLionel = accused === solutionId;
+    // success condition: accused is lionel and player has keycard anomaly + audio_log + (torn_note OR fingerprints_lionel)
+    const success = accusedIsLionel && hasAudio && hasKeyAnom && (hasTorn || hasFingerLionel);
+    set("accusationSuccess", success);
+  </script>
+
+  <if cond="accusationSuccess">
+    <p voice="narrator">
+      You present the evidence: the 12:02 audio, the anomalous keycard entry at 11:58–12:00, and the torn memo about reassigning Greene.
+    </p>
+
+    <p voice="narrator">
+      Confronted with the pattern of proof, Lionel's face goes from bravado to a hard, small acceptance. He reaches for a chair like a man measuring his options, then he chuckles darkly and drops his composure.
+    </p>
+
+    <sound duration="1600">
+      Chair scrape, Lionel's low exhale.
+    </sound>
+
+    <p voice="lionel_greene">
+      [gruff] I fought him, yes. He came at me like he already had the axe. I didn't mean— it got out of hand.
+    </p>
+
+    <script>
+      set("caseClosed", true);
+      set("timeLeft", Math.max(0, timeLeft - 2));
+    </script>
+
+    <jump to="resolution_success" />
+  </if>
+
+  <else>
+    <p voice="narrator">
+      You lay out what you have. The accused bristles, provides plausible denials, and others step in with their own alibis.
+    </p>
+
+    <script>
+      // penalty for wrongful accusation: loss of credibility; raise suspicion on player; time penalty already applied
+      set("suspicion", Object.fromEntries(Object.entries(suspicion).map(([k,v]) => [k, Math.max(0, v - 5)])));
+      set("notes", [...notes, `Wrong accusation made: ${acc[0]}.`]);
+    </script>
+
+    <p voice="narrator">
+      The board is unsettled. You can continue investigating — but you lost twenty minutes and a little momentum.
+    </p>
+
+    <jump to="interaction_loop" />
+  </else>
+</div>
+
+<!-- Success resolution -->
+<div id="resolution_success">
+  <p voice="narrator">
+    Lionel Greene confesses. Motive: Harold planned to cut his division. The keycard anomaly was a spare card he used to slip in at 11:58. The audio captured the fight at 12:02. He staged partial smudges to mislead toward Simone.
+  </p>
+
+  <p voice="narrator">
+    You call security. Dawn arrives. The boardroom opens to investigators. Your notes will be used as the narrative of what happened.
+  </p>
+
+  <outro>
+    <p voice="narrator">
+      Case closed: Harold Voss murdered by Lionel Greene. You exposed the pattern, connected the logs, and forced a confession.
+      Thank you for seeing it through.
+    </p>
+  </outro>
+
+  <end />
+</div>
+
+<!-- Main interaction loop -->
+<div id="interaction_loop">
+  <if cond="caseClosed">
+    <jump to="resolution_success" />
+  </if>
+
+  <if cond="timeLeft <= 0">
+    <p voice="narrator">
+      The sky lightens. Dawn arrives while the board still argues. Your case remains unresolved.
+    </p>
+    <p voice="narrator">
+      Outcome: Unsolved — you ran out of time.
+    </p>
+    <outro>
+      <p voice="narrator">
+        Time's up. The mystery waits for someone else.
+      </p>
+    </outro>
+    <end />
+  </if>
+
+  <p voice="narrator">
+    {$ Math.floor(timeLeft) $} minutes remaining. What do you do next? You can "inspect body", "search office", "interrogate [name]", "play audio log", "list suspects", "review notes", or "accuse [name]".
+  </p>
+
+  <input />
+  <llm:tag key="next_intent"
+    inspect="inspect the body or chairman"
+    search="search office or evidence or shredder or keycard or server or tablet"
+    interrogate="interrogate or question"
+    play="play audio or play recording or audio log"
+    list="list suspects"
+    notes="review notes or show notes"
+    accuse="accuse someone or make an accusation"
+    time="how much time left or time?">
+    {{input}}
+  </llm:tag>
+
+  <if cond="next_intent.includes('inspect')">
+    <jump to="inspect_body" />
+  </if>
+
+  <if cond="next_intent.includes('search')">
+    <jump to="search_office" />
+  </if>
+
+  <if cond="next_intent.includes('interrogate')">
+    <jump to="choose_interrogation" />
+  </if>
+
+  <if cond="next_intent.includes('play')">
+    <jump to="play_audio" />
+  </if>
+
+  <if cond="next_intent.includes('list')">
+    <jump to="list_suspects" />
+  </if>
+
+  <if cond="next_intent.includes('notes')">
+    <p voice="narrator">
+      Notes so far:
+      {$ notes.join(' — ') $}
+    </p>
+    <jump to="interaction_loop" />
+  </if>
+
+  <if cond="next_intent.includes('accuse')">
+    <jump to="make_accusation" />
+  </if>
+
+  <if cond="next_intent.includes('time')">
+    <p voice="narrator">
+      {$ Math.floor(timeLeft) $} minutes remaining.
+    </p>
+    <jump to="interaction_loop" />
+  </if>
+
+  <!-- Fallback: use AI to interpret any freeform intent -->
+  <llm:score key="free_action"
+    inspect="player wants to inspect or examine"
+    interrogate="player intends to question a person"
+    accuse="player intends to accuse"
+    search="player intends to search or analyze evidence"
+    play="player intends to play or analyze audio">
+    Interpret the player's freeform input and score which of these actions it best matches: {{$ input $}}
+  </llm:score>
+
+  <if cond="free_action.inspect > 0.6">
+    <jump to="inspect_body" />
+  </if>
+  <if cond="free_action.search > 0.6">
+    <jump to="search_office" />
+  </if>
+  <if cond="free_action.interrogate > 0.6">
+    <jump to="choose_interrogation" />
+  </if>
+  <if cond="free_action.play > 0.6">
+    <jump to="play_audio" />
+  </if>
+  <if cond="free_action.accuse > 0.6">
+    <jump to="make_accusation" />
+  </if>
+
+  <p voice="narrator">
+    I couldn't decide what you meant. Try a clear action: "search shredder", "interrogate Lionel", or "accuse Victor".
+  </p>
+
+  <jump to="interaction_loop" />
+</div>
+
+<!-- Default end if something falls through -->
+<outro>
+  <p voice="narrator">
+    Thank you for playing Midnight Minutes.
+  </p>
+</outro>
+<!-- continued -->

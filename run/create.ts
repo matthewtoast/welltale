@@ -1,14 +1,13 @@
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-import OpenAI from "openai";
+import { mkdirSync, writeFileSync } from "fs";
+import { join } from "path";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { loadSstEnv } from "../env/env-sst";
-import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
+import { createProvider } from "../lib/DevProvider";
+import { toYaml } from "../lib/JSONHelpers";
 import { DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
+import { parameterize } from "../lib/TextHelpers";
 import { createWelltaleContent } from "../lib/WelltaleKnowledgeContext";
-import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
-
-const env = loadSstEnv();
+import { DEFAULT_CACHE_DIR } from "./../lib/LocalCache";
 
 async function runCreate() {
   const argv = await yargs(hideBin(process.argv))
@@ -22,21 +21,6 @@ async function runCreate() {
       description: "Story concept",
       demandOption: true,
     })
-    .option("openRouterApiKey", {
-      type: "string",
-      description: "OpenRouter API key",
-      default: env.OPENROUTER_API_KEY,
-    })
-    .option("openRouterBaseUrl", {
-      type: "string",
-      description: "OpenRouter base URL",
-      default: env.OPENROUTER_BASE_URL,
-    })
-    .option("elevenlabsKey", {
-      type: "string",
-      description: "ElevenLabs API key",
-      default: env.ELEVENLABS_API_KEY,
-    })
     .option("cacheDir", {
       type: "string",
       default: DEFAULT_CACHE_DIR,
@@ -47,25 +31,15 @@ async function runCreate() {
     })
     .help()
     .parse();
-
-  const provider = new DefaultStoryServiceProvider(
-    {
-      eleven: new ElevenLabsClient({ apiKey: env.ELEVENLABS_API_KEY }),
-      openai: new OpenAI({
-        apiKey: env.OPENROUTER_API_KEY,
-        baseURL: env.OPENROUTER_BASE_URL,
-      }),
-      cache: new LocalCache(argv.cacheDir),
-    },
-    {
-      disableCache: false,
-      verbose: true,
-    }
-  );
-  const content = await createWelltaleContent(argv.idea, provider, {
+  const provider = createProvider();
+  const outdir = join(__dirname, "..", `./fic/${[parameterize(argv.slug)]}`);
+  mkdirSync(outdir, { recursive: true });
+  const { data, main } = await createWelltaleContent(argv.idea, provider, {
     useWebSearch: false,
     models: DEFAULT_LLM_SLUGS,
   });
+  writeFileSync(join(outdir, "data.yml"), toYaml(data));
+  writeFileSync(join(outdir, "main.wsl"), main);
 }
 
 runCreate();

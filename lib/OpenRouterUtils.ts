@@ -1,7 +1,18 @@
 import dedent from "dedent";
 import OpenAI from "openai";
+import { encoding_for_model, TiktokenModel } from "tiktoken";
 import { NonEmpty, TSerial } from "../typings";
 import { LLM_SLUGS } from "./StoryTypes";
+
+export const countTokens = (
+  text: string,
+  model: TiktokenModel = "gpt-4o-mini"
+) => {
+  const enc = encoding_for_model(model);
+  const tokens = enc.encode(text);
+  enc.free();
+  return tokens.length;
+};
 
 type OpenAIChatModel = (typeof LLM_SLUGS)[number];
 

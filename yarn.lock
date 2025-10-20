@@ -10830,6 +10830,11 @@ thingies@^2.5.0:
   resolved "https://registry.yarnpkg.com/thingies/-/thingies-2.5.0.tgz#5f7b882c933b85989f8466b528a6247a6881e04f"
   integrity sha512-s+2Bwztg6PhWUD7XMfeYm5qliDdSiZm7M7n8KjTkIsm3l/2lgVRc2/Gx/v+ZX8lT4FMA+i8aQvhcWylldc+ZNw==
 
+tiktoken@^1.0.22:
+  version "1.0.22"
+  resolved "https://registry.yarnpkg.com/tiktoken/-/tiktoken-1.0.22.tgz#a6c674839228bb88f32dfe646dff47193762f7d3"
+  integrity sha512-PKvy1rVF1RibfF3JlXBSP0Jrcw2uq3yXdgcEXtKTYn3QJ/cBRBHDnrJ5jHky+MENZ6DIPwNUGWpkVx+7joCpNA==
+
 tiny-emitter@^2.1.0:
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/tiny-emitter/-/tiny-emitter-2.1.0.tgz#1d1a56edfc51c43e863cbb5382a72330e3555423"

@@ -32,17 +32,12 @@ import {
   nearestAncestorOfType,
   nextNode,
   parentNodeOf,
-  parseXmlFragment,
   searchForNode,
   skipBlock,
   updateChildAddresses,
 } from "./StoryNodeHelpers";
 import { renderAtts, renderText } from "./StoryRenderMethods";
-import {
-  applyRuntimeMacros,
-  instantiateNodes,
-  processIncludeRuntime,
-} from "./StoryRuntimeUtils";
+import { applyRuntimeMacros, processIncludeRuntime } from "./StoryRuntimeUtils";
 import {
   ActionHandler,
   BaseActionContext,
@@ -54,7 +49,6 @@ import {
   StorySession,
 } from "./StoryTypes";
 import { cleanSplit, isBlank, snorm } from "./TextHelpers";
-import { createWelltaleContent } from "./WelltaleKnowledgeContext";
 
 function tagOutKey(atts: Record<string, TSerial>, fallback: string = "_") {
   return (atts.key ?? fallback).toString();
@@ -1310,116 +1304,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       setState(ctx.scope, tagOutKey(atts), res as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
-    },
-  },
-  {
-    tags: ["llm:create"],
-    docs: {
-      desc: dedent`
-        Generates Welltale Story Language content at runtime and injects it in place of this tag.
-
-        The generated WSL replaces the tag and executes immediately.
-      `,
-      ex: [
-        {
-          code: dedent`
-            <llm:create>
-              Write a single paragraph introducing a mysterious door.
-            </llm:create>
-          `,
-        },
-      ],
-      cats: ["ai"],
-    },
-    syntax: {
-      block: true,
-      atts: {
-        models: {
-          type: "string",
-          desc: "Comma-separated list of model slugs to use",
-          req: false,
-        },
-        web: {
-          type: "boolean",
-          desc: "Enable web search during generation",
-          req: false,
-          default: "false",
-        },
-        seed: {
-          type: "string",
-          desc: "Seed for deterministic generation",
-          req: false,
-        },
-      },
-    },
-    exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const prompt = snorm(
-        await renderText(await marshallText(ctx.node, ctx), ctx)
-      );
-      const fallback = nextNode(ctx.node, ctx.session.root, false);
-      const remove = () => {
-        const parent = parentNodeOf(ctx.node, ctx.session.root);
-        if (parent) {
-          const idx = parent.kids.findIndex((k) => k.addr === ctx.node.addr);
-          if (idx >= 0) {
-            parent.kids.splice(idx, 1);
-            updateChildAddresses(parent);
-          }
-          return;
-        }
-        const idx = ctx.session.root.kids.findIndex(
-          (k) => k.addr === ctx.node.addr
-        );
-        if (idx >= 0) {
-          ctx.session.root.kids.splice(idx, 1);
-          updateChildAddresses(ctx.session.root);
-        }
-      };
-      if (!prompt) {
-        console.warn("<llm:create> prompt is empty");
-        remove();
-        return { ops: [], next: fallback };
-      }
-      const models = normalizeModels(ctx.options, atts.models);
-      const useWebSearch = isTruthy(atts.web) ? true : false;
-      const seed = atts.seed;
-      const generated = await createWelltaleContent(prompt, ctx.provider, {
-        models,
-        useWebSearch,
-        seed,
-      }).catch((err) => {
-        console.warn("<llm:create> failed", err);
-        return "";
-      });
-      const trimmed = snorm(generated ?? "");
-      if (!trimmed) {
-        console.warn("<llm:create> produced empty content");
-        remove();
-        return { ops: [], next: fallback };
-      }
-      const fragment = parseXmlFragment(trimmed);
-      const replacements = instantiateNodes(fragment.kids);
-      const parent = parentNodeOf(ctx.node, ctx.session.root);
-      if (parent) {
-        const idx = parent.kids.findIndex((k) => k.addr === ctx.node.addr);
-        if (idx >= 0) {
-          parent.kids.splice(idx, 1, ...replacements);
-          updateChildAddresses(parent);
-        }
-      } else {
-        const idx = ctx.session.root.kids.findIndex(
-          (k) => k.addr === ctx.node.addr
-        );
-        if (idx >= 0) {
-          ctx.session.root.kids.splice(idx, 1, ...replacements);
-          updateChildAddresses(ctx.session.root);
-        }
-      }
-      if (!replacements.length) {
-        return { ops: [], next: fallback };
-      }
-      return { ops: [], next: { node: replacements[0] } };
     },
   },
   {

@@ -49,7 +49,9 @@ export async function renderContext(
       tags,
       docs,
       syntax,
-    })).filter(({ docs, syntax }) => !!docs);
+    })).filter(
+      ({ docs, syntax, tags }) => !!docs && !tags.includes("llm:create")
+    );
 
     parts.push(
       `Documentation on all supported special XML tags in Welltale:${SQUIGGLE_DELIM}` +
@@ -126,28 +128,81 @@ export async function createWelltaleContent(
   textCompletionOptions: GenerateTextCompletionOptions,
   renderContextOptions: RenderContextOptions = DEFAULT_RENDER_CTX_OPTIONS
 ) {
+  const data = await provider.generateJson(
+    dedent`
+    Given the following story prompt, generate story metadata for an interactive audio story.
+    <PROMPT>${prompt}</PROMPT>
+    The data in this object is used both as metadata for searching stories, and as initial values for the story.
+    It must contain title, tags, description. The other fields are optional and only used if necessary.
+    The rest of the object is open-ended and can be used to pre-define values for state variables that may be used in the story.
+    If you define any voices but separately define character data make sure to use the same id string.
+    Unless specified, the fields you add should primarily be usable as either (a) *values* for story scripting or (b) text strings that can be used in LLM prompts or fragments thereof.
+  `,
+    {
+      prompt,
+      title: "Interesting original title for the story",
+      tags: [
+        'Array of 5 or more string tags for the story, e.g. "fantasy", "suspense"...',
+      ],
+      description:
+        "Short promo blurb describing what the story is about; short enough to display within a small smartphone app medallion",
+      pronunciations: {
+        "[key]":
+          "Key-value pairs mapping unfamiliar words to pronunciations. like Trost: Troast",
+      },
+      player: {
+        "[key]":
+          "Key-value pairs with data for the player (empty object if none needed)",
+      },
+      voices: {
+        "[voice-id]":
+          "Detailed description of the voice of this character; include gender, age, accent, speaking style, etc",
+      },
+      "[key]":
+        "Any other readable values we want to define for the story. can be any JSON-serializable type",
+    },
+    textCompletionOptions
+  );
+
   const result = await provider.generateChat(
     [
       {
         role: "system",
         body: dedent`
-          You are an interactive audio story author. You're an expert at crafting entertaining, audio-first stories with interactive and dynamic elements.
-          You've written successful audio games, audiobooks, short audio stories, audio articles, podcasts, and more, all using interactive audio as a medium.
-          You always use Welltale Story Language (WSL) to write stories because it is your favorite framework. Your knowledge of Welltale is exhaustive.
+          You are an interactive audio story author. You craft immersive, audio-first narratives with dynamic, interactive elements.
+
+          You write stories using **Welltale Story Language (WSL)** — your preferred framework for interactive audio storytelling.
+
+          Your understanding of WSL, and its ability to create open-ended stories and branching narratives with infinite replayability, is complete and authoritative:
+
           >>>>> WELLTALE KNOWLEDGE BEGIN >>>>>
           ${await renderContext(renderContextOptions)}
           <<<<< WELLTALE KNOWLEDGE END <<<<<
-          The user will give you an instruction, and you will write them a complete story in WSL following their guidelines.
-          Remember, you write audio stories, thus output content will only be heard, not seen, so please write accordingly!
-          You always write elegant WSL syntax using only the minimal ceremony necessary to tell the story per the user's specification.
+
+          The user will give you a creative instruction.
+
+          Your task is to write a w in **WSL**, fully aligned with the user’s intent.
+
+          Output only valid WSL content — no explanations, commentary, or markdown.
+
+          If your content is incomplete, add a comment like \`<!-- continued -->\` on the last line.
+
+          **Guidelines:**
+          - Use elegant, minimal WSL syntax with no unnecessary ceremony. Do not reference this engine, Welltale, etc. in the story itself.
+          - Write for audio listeners: prioritize pacing, rhythm, and clarity (but don't reference this unless asked).
+          - Encourage interactivity and player agency. Leverage the DSL's generative features and template patterns to generate unique content per playthrough.
+          - Prefer to create dynamic (as opposed to hard-coded) content.Use <while>, <block>/<yield>, variables and more to 10X your storytelling capabilities.
+          - Don't be too "on the nose" with content. Focus on creating elegant story structures with high dynamism more than written content per se.
+          - Think of your task as to create a "unique situation generator" - open-ended, branching, and endless narrative.
+          - Consider abstractions like scenes, locations, characters (and moods), items to avoid hardcoding. Part story, part simulated world.
         `,
       },
       {
         role: "user",
         body: dedent`
-          Create the Welltale content for an interactive audio story, based on my instruction:
+          Create the Welltale content for a story based on this information:
           ---
-          ${prompt}
+          ${JSON.stringify(data, null, 2)}
           ---
           Return only the WSL content of the story:
         `,
@@ -155,5 +210,9 @@ export async function createWelltaleContent(
     ],
     textCompletionOptions
   );
-  return result.body;
+
+  return {
+    data,
+    main: result.body,
+  };
 }

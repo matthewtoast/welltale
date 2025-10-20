@@ -100,7 +100,6 @@ async function ensureThumbnail(
   try {
     const result = await context.provider.generateImage(prompt, {
       model: THUMBNAIL_IMAGE_MODEL,
-      seed: context.rng.randAlphaNum(12),
     });
     if (!result.url) {
       console.warn("Generated thumbnail missing url");
