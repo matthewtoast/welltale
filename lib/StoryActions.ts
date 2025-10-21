@@ -501,17 +501,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         Conditional execution of story content. Evaluates a JavaScript expression and executes
         child elements only if the condition is true.
         
-        Note: \`<else>\` blocks are supported, but they must be _inside_ the \`<if>\` block.
-        \`<else>\` tags that appear outside of \`<if>\` will be ignored.
+        Note: \`<else>\` blocks are *not* supported currently.
       `,
       ex: [
         {
           code: dedent`
             <if cond="playerName === 'Alex'">
               <p>Ah, Alex! I've been expecting you.</p>
-              <else>
-                <p>Welcome, stranger. What brings you here?</p>
-              </else>
             </if>
           `,
         },
@@ -1709,9 +1705,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
                 <var name="playerGold" value="{$ playerGold - itemCost $}" />
                 <var name="inventory" value="{$ [...inventory, itemName] $}" />
               </if>
-              <else>
+              <if cond="playerGold < itemCost">
                 <p>You don't have enough gold for the {{itemName}}.</p>
-              </else>
+              </if>
             </block>
             
             <yield to="shop-transaction" itemName="Health Potion" itemCost="50" />

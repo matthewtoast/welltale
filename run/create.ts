@@ -11,9 +11,14 @@ import { DEFAULT_CACHE_DIR } from "./../lib/LocalCache";
 
 async function runCreate() {
   const argv = await yargs(hideBin(process.argv))
-    .option("slug", {
+    .option("title", {
       type: "string",
-      description: "Slug for story",
+      description: "Story title",
+      demandOption: true,
+    })
+    .option("author", {
+      type: "string",
+      description: "Author name",
       demandOption: true,
     })
     .option("idea", {
@@ -32,12 +37,18 @@ async function runCreate() {
     .help()
     .parse();
   const provider = createProvider();
-  const outdir = join(__dirname, "..", `./fic/${[parameterize(argv.slug)]}`);
+  const outdir = join(__dirname, "..", `./fic/${[parameterize(argv.title)]}`);
   mkdirSync(outdir, { recursive: true });
-  const { data, main } = await createWelltaleContent(argv.idea, provider, {
-    useWebSearch: false,
-    models: DEFAULT_LLM_SLUGS,
-  });
+  const { data, main } = await createWelltaleContent(
+    argv.title,
+    argv.author,
+    argv.idea,
+    provider,
+    {
+      useWebSearch: false,
+      models: DEFAULT_LLM_SLUGS,
+    }
+  );
   writeFileSync(join(outdir, "data.yml"), toYaml(data));
   writeFileSync(join(outdir, "main.wsl"), main);
 }

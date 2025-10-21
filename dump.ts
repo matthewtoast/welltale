@@ -124,8 +124,7 @@ Attrs: {"name":{"type":"string","desc":"Variable name (aliases: key, id)","req":
 Tag: <if>
 Desc: Conditional execution of story content. Evaluates a JavaScript expression and executes
 child elements only if the condition is true.
-Note: `<else>` blocks are supported, but they must be _inside_ the `<if>` block.
-`<else>` tags that appear outside of `<if>` will be ignored.
+Note: `<else>` blocks are *not* supported currently.
 Attrs: {"cond":{"type":"string","desc":"JavaScript expression to evaluate. Has access to all scope variables.","req":true}}
 
 Tag: <jump>
@@ -574,23 +573,21 @@ voices:
       With your life (and toes) intact, you continue through the forest.
       Eventually the woods thin and you find yourself in an open field.
     </narrator>
-
-    <!-- An <else> block can be placed inside of an <if> tag for more complex conditional support. --->
-    <else>
-      <wretch>
-        Ye answer was wrong. Which makes me happy, as I've not had a meal in days.
-        Hee hee hee, don't even try to run away...
-      </wretch>
-      <narrator>
-        Before you know it, you find yourself in the clutches of this strange creature.
-        Giggling, it begins taking off your shoes.
-      </narrator>
-      <!-- The <sound> tag generates or plays sound effects. -->
-      <sound duration="5000">
-        Grotesque sound of a mouth chewing and gnawing on meat and gristle
-      </sound>
-      <jump to="dead" />
-    </else>
+  </if>
+  <if cond="!riddleSolved">
+    <wretch>
+      Ye answer was wrong. Which makes me happy, as I've not had a meal in days.
+      Hee hee hee, don't even try to run away...
+    </wretch>
+    <narrator>
+      Before you know it, you find yourself in the clutches of this strange creature.
+      Giggling, it begins taking off your shoes.
+    </narrator>
+    <!-- The <sound> tag generates or plays sound effects. -->
+    <sound duration="5000">
+      Grotesque sound of a mouth chewing and gnawing on meat and gristle
+    </sound>
+    <jump to="dead" />
   </if>
 
   <!-- The <jump> tag navigates to another section by its id. -->
@@ -664,17 +661,20 @@ voices:
       </narrator>
       <!-- The <break> tag exits the current loop immediately. -->
       <break />
+
+      <!-- Else blocks are a hidden feature; they ONLY work when placed INSIDE of an If block -->
+      <else>
+        <rhymer>
+          {% Create a short rhyming response to "{{playerWord.lastWord}}" that blocks the path %}
+        </rhymer>
+        <if cond="rhymeTurns >= 5">
+          <narrator>
+            Perhaps you should try a word that's harder to rhyme...
+          </narrator>
+        </if>
+      </else>
     </if>
-    <else>
-      <rhymer>
-        {% Create a short rhyming response to "{{playerWord.lastWord}}" that blocks the path %}
-      </rhymer>
-      <if cond="rhymeTurns >= 5">
-        <narrator>
-          Perhaps you should try a word that's harder to rhyme...
-        </narrator>
-      </if>
-    </else>
+
   </while>
 
   <jump to="outpost" />
@@ -711,11 +711,11 @@ voices:
         You purchase the {{item}}. You now have {{gold}} gold remaining.
       </narrator>
     </if>
-    <else>
+    <if cond="gold < price">
       <merchant>
         [apologetically] Ah, but you need {{price}} gold for the {{item}}. You only have {{gold}}.
       </merchant>
-    </else>
+    </if>
   </block>
 
   <block id="sell-item">
@@ -736,11 +736,11 @@ voices:
         You sell the {{item}}. You now have {{gold}} gold.
       </narrator>
     </if>
-    <else>
+    <if cond="!hasItem">
       <merchant>
         [confused] But you don't have a {{item}} to sell me!
       </merchant>
-    </else>
+    </if>
   </block>
 
   <merchant>
@@ -801,13 +801,13 @@ voices:
       </merchant>
       <var name="merchantDone" value="true" type="boolean" />
     </if>
-    <else>
-      <if cond="!intent.includes('buy') && !intent.includes('sell')">
-        <narrator>
-          Anything else? You can buy items, sell items, or leave.
-        </narrator>
-      </if>
-    </else>
+
+    <if cond="!intent.includes('buy') && !intent.includes('sell')">
+      <narrator>
+        Anything else? You can buy items, sell items, or leave.
+      </narrator>
+      <continue />
+    </if>
   </while>
 
   <narrator>
