@@ -6,7 +6,7 @@ import { createProvider } from "../lib/DevProvider";
 import { DEFAULT_LLM_SLUGS } from "../lib/engine/StoryTypes";
 import { toYaml } from "../lib/JSONHelpers";
 import { parameterize } from "../lib/TextHelpers";
-import { createWelltaleContent } from "../lib/WelltaleKnowledgeContext";
+import { createWelltaleContent } from "../lib/WelltaleGenerativeHelpers";
 import { DEFAULT_CACHE_DIR } from "./../lib/LocalCache";
 
 async function runCreate() {

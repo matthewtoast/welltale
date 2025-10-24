@@ -41,7 +41,6 @@ import { renderAtts, renderText } from "./StoryRenderMethods";
 import { applyRuntimeMacros, processIncludeRuntime } from "./StoryRuntimeUtils";
 import {
   ActionHandler,
-  BaseActionContext,
   ImageAspectRatio,
   ImageModelSlug,
   OP,
@@ -52,14 +51,6 @@ import {
 
 function tagOutKey(atts: Record<string, TSerial>, fallback: string = "_") {
   return (atts.key ?? fallback).toString();
-}
-
-async function meetsCond(
-  ifExpr: string,
-  ctx: BaseActionContext
-): Promise<boolean> {
-  const result = await ctx.evaluator(ifExpr, ctx.scope);
-  return isTruthy(result);
 }
 
 function gatherDialogLines(
