@@ -6,8 +6,8 @@ import {
 } from "@sebastianwessel/quickjs";
 import { parseScript } from "meriyah";
 import { TSerial } from "../typings";
+import { NestedRecords } from "./engine/StoryTypes";
 import { ExprEvalFunc } from "./EvalCasting";
-import { NestedRecords } from "./StoryTypes";
 import { cleanSplit, removeTrailing } from "./TextHelpers";
 
 const isIdent = (s: string) => /^[A-Za-z_$][\w$]*$/.test(s);

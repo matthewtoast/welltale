@@ -1,13 +1,13 @@
-import { buildDefaultFuncs } from "../lib/EvalMethods";
-import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
-import { PRNG } from "../lib/RandHelpers";
-import { extractInput } from "../lib/StoryInput";
-import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { extractInput } from "../lib/engine/StoryInput";
+import { MockStoryServiceProvider } from "../lib/engine/StoryServiceProvider";
 import {
   BaseActionContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
-} from "../lib/StoryTypes";
+} from "../lib/engine/StoryTypes";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
+import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
+import { PRNG } from "../lib/RandHelpers";
 import { expect } from "./TestUtils";
 
 async function test() {
@@ -20,7 +20,7 @@ async function test() {
     voices: {},
     pronunciations: {},
     scripts: {},
-    meta: {}
+    meta: {},
   };
   const baseContext: BaseActionContext = {
     session: createDefaultSession("test", emptySource),

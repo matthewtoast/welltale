@@ -1,13 +1,13 @@
-import { buildDefaultFuncs } from "../lib/EvalMethods";
-import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
-import { PRNG } from "../lib/RandHelpers";
-import { renderText } from "../lib/StoryRenderMethods";
-import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { renderText } from "../lib/engine/StoryRenderMethods";
+import { MockStoryServiceProvider } from "../lib/engine/StoryServiceProvider";
 import {
   BaseActionContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
-} from "../lib/StoryTypes";
+} from "../lib/engine/StoryTypes";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
+import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
+import { PRNG } from "../lib/RandHelpers";
 import { TSerial } from "../typings";
 import { expect } from "./TestUtils";
 
@@ -17,7 +17,7 @@ async function run() {
     voices: {},
     pronunciations: {},
     scripts: {},
-    meta: {}
+    meta: {},
   };
   const rng = new PRNG("test");
   const runner = await createRunner();

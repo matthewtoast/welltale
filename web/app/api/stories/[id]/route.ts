@@ -5,7 +5,7 @@ import { ulid } from "ulid";
 import { loadAppEnv } from "../../../../../env/env-app";
 import { authenticateRequest } from "../../../../lib/api/auth";
 import { safeJsonParseTyped } from "./../../../../../lib/JSONHelpers";
-import { createStoryRepo } from "./../../../../../lib/StoryRepo";
+import { createStoryRepo } from "./../../../../../lib/engine/StoryRepo";
 
 export const runtime = "nodejs";
 

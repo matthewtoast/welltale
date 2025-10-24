@@ -9,9 +9,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { FormEvent, useEffect, useRef } from "react";
+import { HOST_ID } from "../../../../lib/engine/StoryConstants";
+import { StoryMeta } from "../../../../lib/engine/StoryTypes";
 import { textWithBracketsToSpans } from "../../../../lib/ReactHelpers";
-import { HOST_ID } from "../../../../lib/StoryConstants";
-import { StoryMeta } from "../../../../lib/StoryTypes";
 import { strToDeterministicRgba } from "../../../../lib/StyleHelpers";
 import { colors } from "../../../lib/colors";
 import { Col } from "../../components/Col";

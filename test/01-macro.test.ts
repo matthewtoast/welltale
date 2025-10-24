@@ -1,12 +1,12 @@
-import { PRNG } from "../lib/RandHelpers";
-import { compileStory } from "../lib/StoryCompiler";
-import { findNodes } from "../lib/StoryNodeHelpers";
-import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { compileStory } from "../lib/engine/StoryCompiler";
+import { findNodes } from "../lib/engine/StoryNodeHelpers";
+import { MockStoryServiceProvider } from "../lib/engine/StoryServiceProvider";
 import {
   CompilerContext,
   DEFAULT_LLM_SLUGS,
   StoryNode,
-} from "../lib/StoryTypes";
+} from "../lib/engine/StoryTypes";
+import { PRNG } from "../lib/RandHelpers";
 import { createTestCartridge, expect, runTestStory } from "./TestUtils";
 
 async function compileMacroStory(xml: string): Promise<StoryNode> {
@@ -103,7 +103,7 @@ async function testRuntimeIncludeProcessing() {
   const eventOps = ops.filter((op) => op.type === "play-media");
   expect(eventOps.length, 4); // div content + before + included content + after
 
-  const textBodies = eventOps.map(op => op.event?.body.trim());
+  const textBodies = eventOps.map((op) => op.event?.body.trim());
   expect(textBodies[0], "Welcome message"); // From the div
   expect(textBodies[1], "Before include");
   expect(textBodies[2], "Welcome message"); // This should come from the included content
@@ -146,8 +146,13 @@ async function testRuntimeMacroAppendProcessing() {
 
   const inputs: string[] = [];
   const { session } = await runTestStory(xmlContent, inputs);
-  const container = findNodes(session.root, node => node.type === "container")[0];
-  const paragraphs = container ? container.kids.filter(kid => kid.type === "p") : [];
+  const container = findNodes(
+    session.root,
+    (node) => node.type === "container"
+  )[0];
+  const paragraphs = container
+    ? container.kids.filter((kid) => kid.type === "p")
+    : [];
   expect(paragraphs.length, 2);
   expect(textOf(paragraphs[0]), "Call");
   expect(textOf(paragraphs[1]), "Echo");
@@ -168,16 +173,16 @@ async function testCompileTimeBehavior() {
 `);
 
   // Original nodes should be present in compiled tree
-  const guardNodes = findNodes(root, node => node.type === "guard");
+  const guardNodes = findNodes(root, (node) => node.type === "guard");
   expect(guardNodes.length, 1);
   expect(textOf(guardNodes[0]), "State your business.");
 
-  const merchantNodes = findNodes(root, node => node.type === "merchant");
+  const merchantNodes = findNodes(root, (node) => node.type === "merchant");
   expect(merchantNodes.length, 1);
   expect(textOf(merchantNodes[0]), "Welcome traveler");
 
   // Macro nodes should be present
-  const macroNodes = findNodes(root, node => node.type === "macro");
+  const macroNodes = findNodes(root, (node) => node.type === "macro");
   expect(macroNodes.length, 1);
 }
 

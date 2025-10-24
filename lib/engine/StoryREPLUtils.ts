@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import readline from "readline";
-import { isSkipActive, triggerSkip } from "./SkipHelpers";
+import { isSkipActive, triggerSkip } from "../SkipHelpers";
 import { CAROT } from "./StoryLocalRunnerUtils";
-import { OP, SeamType, StoryAdvanceResult } from "./StoryTypes";
+import { SeamType, StoryAdvanceResult } from "./StoryTypes";
 
 export async function instantiateREPL(
   run: (input: string | null) => Promise<StoryAdvanceResult | null>,

@@ -1,3 +1,4 @@
+import { apiSafeRequest } from "../WebAPI";
 import { assignInput } from "./StoryConstants";
 import { runWithPrefetch } from "./StoryRunnerCorePrefetch";
 import {
@@ -6,7 +7,6 @@ import {
   StoryOptions,
   StorySession,
 } from "./StoryTypes";
-import { apiSafeRequest } from "./WebAPI";
 
 export async function apiAdvanceStory(
   baseUrl: string,

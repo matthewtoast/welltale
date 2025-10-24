@@ -2,13 +2,13 @@ import dedent from "dedent";
 import { last } from "lodash";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadDirRecursive } from "./FileUtils";
-import { ACTION_HANDLERS } from "./StoryActions";
-import { TEMPLATE_SYNTAX } from "./StoryDocs";
+import { ACTION_HANDLERS } from "./engine/StoryActions";
+import { TEMPLATE_SYNTAX } from "./engine/StoryDocs";
 import {
   GenerateTextCompletionOptions,
   StoryServiceProvider,
-} from "./StoryServiceProvider";
+} from "./engine/StoryServiceProvider";
+import { loadDirRecursive } from "./FileUtils";
 
 const ROOT_DIR = join(__dirname, "..");
 

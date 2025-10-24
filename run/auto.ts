@@ -4,19 +4,15 @@ import OpenAI from "openai";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadSstEnv } from "../env/env-sst";
-import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
+import { CompileOptions, compileStory } from "../lib/engine/StoryCompiler";
+import { DefaultStoryServiceProvider } from "../lib/engine/StoryDefaultServiceProvider";
 import {
   CAROT,
   LocalStoryRunnerOptions,
   terminalRenderOps,
-} from "../lib/StoryLocalRunnerUtils";
-import { advanceToNext } from "../lib/StoryRunnerCoreBlocking";
-import { runUntilComplete } from "../lib/StoryRunnerCorePrefetch";
-import { loadDirRecursive } from "./../lib/FileUtils";
-import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
-import { PRNG } from "./../lib/RandHelpers";
-import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
-import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+} from "../lib/engine/StoryLocalRunnerUtils";
+import { advanceToNext } from "../lib/engine/StoryRunnerCoreBlocking";
+import { runUntilComplete } from "../lib/engine/StoryRunnerCorePrefetch";
 import {
   CompilerContext,
   createDefaultSession,
@@ -24,7 +20,11 @@ import {
   OP,
   SeamType,
   StoryAdvanceResult,
-} from "./../lib/StoryTypes";
+} from "../lib/engine/StoryTypes";
+import { MockStoryServiceProvider } from "./../lib/engine/StoryServiceProvider";
+import { loadDirRecursive } from "./../lib/FileUtils";
+import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
+import { PRNG } from "./../lib/RandHelpers";
 
 const env = loadSstEnv();
 

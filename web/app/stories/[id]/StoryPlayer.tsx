@@ -1,8 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { runWithSkip, triggerSkip } from "../../../../lib/SkipHelpers";
-import { StoryCoordinatorWeb } from "../../../../lib/StoryCoordinatorWeb";
+import { StoryCoordinatorWeb } from "../../../../lib/engine/StoryCoordinatorWeb";
 import {
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
@@ -12,7 +11,8 @@ import {
   StoryOptions,
   StorySession,
   StorySource,
-} from "../../../../lib/StoryTypes";
+} from "../../../../lib/engine/StoryTypes";
+import { runWithSkip, triggerSkip } from "../../../../lib/SkipHelpers";
 import { StoryPlayerUI } from "./StoryPlayerUI";
 
 export function StoryPlayer(props: { meta: StoryMeta; source: StorySource }) {

@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { ACTION_HANDLERS } from "../../../lib/StoryActions";
-import { TEMPLATE_SYNTAX } from "../../../lib/StoryDocs";
+import { ACTION_HANDLERS } from "../../../lib/engine/StoryActions";
+import { TEMPLATE_SYNTAX } from "../../../lib/engine/StoryDocs";
 import { CodeBlock } from "../../components/CodeBlock";
 import styles from "./docs.module.css";
 import DocsClient, { HandlerEntry } from "./DocsClient";

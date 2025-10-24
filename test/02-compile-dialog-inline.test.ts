@@ -1,11 +1,11 @@
-import { PRNG } from "../lib/RandHelpers";
-import { compileStory } from "../lib/StoryCompiler";
-import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+import { compileStory } from "../lib/engine/StoryCompiler";
+import { MockStoryServiceProvider } from "../lib/engine/StoryServiceProvider";
 import {
   CompilerContext,
   DEFAULT_LLM_SLUGS,
   StoryNode,
-} from "../lib/StoryTypes";
+} from "../lib/engine/StoryTypes";
+import { PRNG } from "../lib/RandHelpers";
 import { expect } from "./TestUtils";
 
 function hasType(node: StoryNode, type: string): boolean {

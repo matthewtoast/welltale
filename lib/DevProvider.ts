@@ -2,7 +2,7 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import OpenAI from "openai";
 import { loadSstEnv } from "../env/env-sst";
 import { DEFAULT_CACHE_DIR, LocalCache } from "./LocalCache";
-import { DefaultStoryServiceProvider } from "./StoryDefaultServiceProvider";
+import { DefaultStoryServiceProvider } from "./engine/StoryDefaultServiceProvider";
 const env = loadSstEnv();
 export function createProvider() {
   const provider = new DefaultStoryServiceProvider(

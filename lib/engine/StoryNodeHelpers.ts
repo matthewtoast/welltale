@@ -1,8 +1,8 @@
 import { DOMParser } from "@xmldom/xmldom";
+import { isBlank, smoosh, snorm } from "../TextHelpers";
 import { LOOP_TAGS, TEXT_CONTENT_TAGS, TEXT_TAG } from "./StoryConstants";
 import { renderAtts } from "./StoryRenderMethods";
 import { BaseActionContext, StoryNode } from "./StoryTypes";
-import { isBlank, smoosh, snorm } from "./TextHelpers";
 
 export type BaseNode = {
   type: string;

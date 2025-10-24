@@ -1,4 +1,4 @@
-import { VoiceSpec } from "./StoryTypes";
+import { VoiceSpec } from "./engine/StoryTypes";
 
 export const NEUTRAL_VOICE = "21m00Tcm4TlvDq8ikWAM"; // Rachel
 

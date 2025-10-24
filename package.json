@@ -8,7 +8,7 @@
   },
   "scripts": {
     "ts": "npx tsx --",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "rm tsconfig.tsbuildinfo && tsc --noEmit",
     "test": "for f in $(find . -name '*.test.ts' -not -path './node_modules/*' | sort); do echo \"Running $f\"; npx tsx \"$f\" || exit 1; done",
     "verify": "yarn typecheck && yarn test",
     "repl": "yarn ts ./run/repl.ts",

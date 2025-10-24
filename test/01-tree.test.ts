@@ -1,20 +1,20 @@
-import { buildDefaultFuncs } from "../lib/EvalMethods";
-import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
-import { PRNG } from "../lib/RandHelpers";
 import {
   collateText,
   findNodes,
   marshallText,
   searchForNode,
   walkTree,
-} from "../lib/StoryNodeHelpers";
-import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
+} from "../lib/engine/StoryNodeHelpers";
+import { MockStoryServiceProvider } from "../lib/engine/StoryServiceProvider";
 import {
   BaseActionContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   StoryNode,
-} from "../lib/StoryTypes";
+} from "../lib/engine/StoryTypes";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
+import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
+import { PRNG } from "../lib/RandHelpers";
 import { expect } from "./TestUtils";
 
 function createTestTree(): StoryNode {
@@ -107,7 +107,7 @@ async function test() {
     voices: {},
     pronunciations: {},
     scripts: {},
-    meta: {}
+    meta: {},
   };
   const context: BaseActionContext = {
     session: createDefaultSession("test", emptySource),

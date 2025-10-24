@@ -1,14 +1,8 @@
 import { isDeepStrictEqual } from "util";
-import { LocalStoryRunnerOptions } from "../lib/StoryLocalRunnerUtils";
-import { advanceToNextUntilBlocking } from "../lib/StoryRunnerCoreBlocking";
-import { PRNG } from "./../lib/RandHelpers";
-import { compileStory } from "./../lib/StoryCompiler";
+import { compileStory } from "../lib/engine/StoryCompiler";
+import { LocalStoryRunnerOptions } from "../lib/engine/StoryLocalRunnerUtils";
+import { advanceToNextUntilBlocking } from "../lib/engine/StoryRunnerCoreBlocking";
 import {
-  MockStoryServiceProvider,
-  StoryServiceProvider,
-} from "./../lib/StoryServiceProvider";
-import {
-  BaseActionContext,
   CompilerContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
@@ -16,7 +10,12 @@ import {
   SeamType,
   StorySession,
   StorySource,
-} from "./../lib/StoryTypes";
+} from "../lib/engine/StoryTypes";
+import {
+  MockStoryServiceProvider,
+  StoryServiceProvider,
+} from "./../lib/engine/StoryServiceProvider";
+import { PRNG } from "./../lib/RandHelpers";
 
 export function expect(a: unknown, b: unknown, doThrow: boolean = true) {
   const ja = JSON.stringify(a);
@@ -113,10 +112,8 @@ export async function runTestStory(
   });
   const session = createDefaultSession("test", sources);
   if (testOptions) {
-    if (testOptions.resume !== undefined)
-      session.resume = testOptions.resume;
-    if (testOptions.turn !== undefined)
-      session.turn = testOptions.turn;
+    if (testOptions.resume !== undefined) session.resume = testOptions.resume;
+    if (testOptions.turn !== undefined) session.turn = testOptions.turn;
     if (testOptions.address !== undefined)
       session.address = testOptions.address;
   }

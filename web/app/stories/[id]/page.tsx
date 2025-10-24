@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { StoryMeta, StorySource } from "../../../../lib/StoryTypes";
+import { StoryMeta, StorySource } from "../../../../lib/engine/StoryTypes";
 import { StoryPlayer } from "./StoryPlayer";
 
 type StoryPageProps = {
@@ -11,7 +11,9 @@ type StoryRes = {
   source: StorySource | null;
 };
 
-async function fetchStoryData(id: string): Promise<{ meta: StoryMeta | null; source: StorySource | null }> {
+async function fetchStoryData(
+  id: string
+): Promise<{ meta: StoryMeta | null; source: StorySource | null }> {
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
   if (!host) return { meta: null, source: null };

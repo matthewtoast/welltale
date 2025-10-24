@@ -1,11 +1,8 @@
+import { compileStory } from "../lib/engine/StoryCompiler";
+import { findNodes } from "../lib/engine/StoryNodeHelpers";
+import { MockStoryServiceProvider } from "../lib/engine/StoryServiceProvider";
+import { CompilerContext, DEFAULT_LLM_SLUGS } from "../lib/engine/StoryTypes";
 import { PRNG } from "../lib/RandHelpers";
-import { compileStory } from "../lib/StoryCompiler";
-import { findNodes } from "../lib/StoryNodeHelpers";
-import { MockStoryServiceProvider } from "../lib/StoryServiceProvider";
-import {
-  CompilerContext,
-  DEFAULT_LLM_SLUGS,
-} from "../lib/StoryTypes";
 import { expect } from "./TestUtils";
 
 async function go() {
@@ -72,10 +69,7 @@ voices:
   );
   expect(merchantNodes.length, 1);
 
-  const guardNodes = findNodes(
-    source.root,
-    (node) => node.type === "guard"
-  );
+  const guardNodes = findNodes(source.root, (node) => node.type === "guard");
   expect(guardNodes.length, 1);
 
   // Only XML macro nodes should be present in compiled tree (data macros are stored separately)

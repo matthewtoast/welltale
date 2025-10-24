@@ -3,7 +3,7 @@
 import { marked } from "marked";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { ActionHandlerCategory } from "../../../lib/StoryTypes";
+import { ActionHandlerCategory } from "../../../lib/engine/StoryTypes";
 import styles from "./docs.module.css";
 
 interface HandlerOption {

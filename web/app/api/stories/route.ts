@@ -3,7 +3,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { loadAppEnv } from "../../../../env/env-app";
 import { authenticateRequest } from "../../../lib/api/auth";
-import { createStoryRepo } from "./../../../../lib/StoryRepo";
+import { createStoryRepo } from "./../../../../lib/engine/StoryRepo";
 
 const env = loadAppEnv();
 
@@ -32,5 +32,8 @@ export async function DELETE(req: Request) {
   if (metas.length === 0)
     return NextResponse.json({ ok: true, deleted: 0 }, { status: 200 });
   for (const meta of metas) await storyRepo.deleteStory(meta.id);
-  return NextResponse.json({ ok: true, deleted: metas.length }, { status: 200 });
+  return NextResponse.json(
+    { ok: true, deleted: metas.length },
+    { status: 200 }
+  );
 }

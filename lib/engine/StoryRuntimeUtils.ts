@@ -1,7 +1,12 @@
-import { cloneNode, findNodes, BaseNode, updateChildAddresses } from "./StoryNodeHelpers";
-import { StoryNode } from "./StoryTypes";
+import { isBlank } from "../TextHelpers";
 import { MacroDefinition } from "./StoryMacro";
-import { isBlank } from "./TextHelpers";
+import {
+  BaseNode,
+  cloneNode,
+  findNodes,
+  updateChildAddresses,
+} from "./StoryNodeHelpers";
+import { StoryNode } from "./StoryTypes";
 
 export function processIncludeRuntime(
   includeNode: StoryNode,
@@ -36,7 +41,7 @@ export function processIncludeRuntime(
 
   const target = moduleables[0];
   const newChain = [...includeChain, targetId];
-  
+
   // Clone the target's children and process any nested includes
   const clonedChildren = target.kids.map((child) => {
     const cloned = cloneNode(child);
@@ -77,7 +82,10 @@ export function applyRuntimeMacros(
   updateChildAddresses(root);
 }
 
-function applyMacroList(nodes: StoryNode[], macro: MacroDefinition): StoryNode[] {
+function applyMacroList(
+  nodes: StoryNode[],
+  macro: MacroDefinition
+): StoryNode[] {
   const out: StoryNode[] = [];
   for (let i = 0; i < nodes.length; i++) {
     out.push(...transformNodeForMacro(nodes[i], macro));
@@ -110,7 +118,10 @@ function matchesSelectors(
   return false;
 }
 
-function matchesSelector(node: StoryNode, selector: MacroDefinition["selectors"][number]): boolean {
+function matchesSelector(
+  node: StoryNode,
+  selector: MacroDefinition["selectors"][number]
+): boolean {
   if (node.type === "#text") return false;
   if (selector.tag && node.type !== selector.tag) return false;
   for (let i = 0; i < selector.attrs.length; i++) {

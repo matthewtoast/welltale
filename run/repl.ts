@@ -4,25 +4,24 @@ import OpenAI from "openai";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadSstEnv } from "../env/env-sst";
-import { DefaultStoryServiceProvider } from "../lib/StoryDefaultServiceProvider";
+import { CompileOptions, compileStory } from "../lib/engine/StoryCompiler";
+import { DefaultStoryServiceProvider } from "../lib/engine/StoryDefaultServiceProvider";
 import {
   LocalStoryRunnerOptions,
   terminalRenderOps,
-} from "../lib/StoryLocalRunnerUtils";
-import { instantiateREPL } from "../lib/StoryREPLUtils";
-import { advanceToNext } from "../lib/StoryRunnerCoreBlocking";
-import { loadDirRecursive } from "./../lib/FileUtils";
-import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
-import { PRNG } from "./../lib/RandHelpers";
-import { CompileOptions, compileStory } from "./../lib/StoryCompiler";
-import { MockStoryServiceProvider } from "./../lib/StoryServiceProvider";
+} from "../lib/engine/StoryLocalRunnerUtils";
+import { instantiateREPL } from "../lib/engine/StoryREPLUtils";
+import { advanceToNext } from "../lib/engine/StoryRunnerCoreBlocking";
 import {
   CompilerContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
-  OP,
   StoryAdvanceResult,
-} from "./../lib/StoryTypes";
+} from "../lib/engine/StoryTypes";
+import { MockStoryServiceProvider } from "./../lib/engine/StoryServiceProvider";
+import { loadDirRecursive } from "./../lib/FileUtils";
+import { DEFAULT_CACHE_DIR, LocalCache } from "./../lib/LocalCache";
+import { PRNG } from "./../lib/RandHelpers";
 
 const env = loadSstEnv();
 

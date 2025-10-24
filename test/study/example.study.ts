@@ -2,19 +2,19 @@ import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import OpenAI from "openai";
 import { join } from "path";
 import { loadSstEnv } from "../../env/env-sst";
+import { compileStory } from "../../lib/engine/StoryCompiler";
+import { DefaultStoryServiceProvider } from "../../lib/engine/StoryDefaultServiceProvider";
+import { LocalStoryRunnerOptions } from "../../lib/engine/StoryLocalRunnerUtils";
+import {
+  CompilerContext,
+  createDefaultSession,
+  DEFAULT_LLM_SLUGS,
+} from "../../lib/engine/StoryTypes";
 import { buildDefaultFuncs } from "../../lib/EvalMethods";
 import { loadDirRecursive } from "../../lib/FileUtils";
 import { LocalCache } from "../../lib/LocalCache";
 import { createRunner, evaluateScript } from "../../lib/QuickJSUtils";
 import { PRNG } from "../../lib/RandHelpers";
-import { compileStory } from "../../lib/StoryCompiler";
-import { DefaultStoryServiceProvider } from "../../lib/StoryDefaultServiceProvider";
-import { LocalStoryRunnerOptions } from "../../lib/StoryLocalRunnerUtils";
-import {
-  CompilerContext,
-  createDefaultSession,
-  DEFAULT_LLM_SLUGS,
-} from "../../lib/StoryTypes";
 import { runUntilComplete } from "../TestUtils";
 
 const ROOT_DIR = join(__dirname, "..");

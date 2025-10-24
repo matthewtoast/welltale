@@ -1,20 +1,20 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { loadDevEnv } from "../env/env-dev";
-import { StoryCoordinatorWeb } from "../lib/StoryCoordinatorWeb";
+import { StoryCoordinatorWeb } from "../lib/engine/StoryCoordinatorWeb";
 import {
   LocalStoryRunnerOptions,
   terminalRenderOps,
-} from "../lib/StoryLocalRunnerUtils";
-import { instantiateREPL } from "../lib/StoryREPLUtils";
+} from "../lib/engine/StoryLocalRunnerUtils";
+import { instantiateREPL } from "../lib/engine/StoryREPLUtils";
 import {
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   OP,
   StoryAdvanceResult,
   StoryOptions,
-} from "../lib/StoryTypes";
-import { apiFetchDevSessions } from "../lib/StoryWebAPI";
+} from "../lib/engine/StoryTypes";
+import { apiFetchDevSessions } from "../lib/engine/StoryWebAPI";
 import { cleanSplit } from "../lib/TextHelpers";
 
 const devEnv = loadDevEnv();

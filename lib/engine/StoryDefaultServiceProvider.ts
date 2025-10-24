@@ -1,17 +1,17 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { OpenAI } from "openai";
-import { TSerial } from "../typings";
-import { Cache } from "./Cache";
+import { TSerial } from "../../typings";
+import { Cache } from "../Cache";
 import {
   autoFindVoiceId,
   composeTrack,
   generateSoundEffect,
   generateSpeechClip,
   generateVoiceFromPrompt,
-} from "./ElevenLabsUtils";
-import { fetch, FetchOptions } from "./HTTPHelpers";
-import { CostKind, CostTracker, makeTokenCostEntry } from "./MeteringUtils";
-import type { AIChatMessage, UsageSink } from "./OpenRouterUtils";
+} from "../ElevenLabsUtils";
+import { fetch, FetchOptions } from "../HTTPHelpers";
+import { CostKind, CostTracker, makeTokenCostEntry } from "../MeteringUtils";
+import type { AIChatMessage, UsageSink } from "../OpenRouterUtils";
 import {
   generateChatResponse,
   generateImage,
@@ -19,7 +19,8 @@ import {
   generateJsonWithWeb,
   generateText,
   moderateInput,
-} from "./OpenRouterUtils";
+} from "../OpenRouterUtils";
+import { generatePredictableKey, parameterize } from "../TextHelpers";
 import type {
   BaseGenerateOptions,
   GenerateImageOptions,
@@ -29,7 +30,6 @@ import type {
   StoryServiceProvider,
 } from "./StoryServiceProvider";
 import type { VoiceSpec } from "./StoryTypes";
-import { generatePredictableKey, parameterize } from "./TextHelpers";
 
 export abstract class BaseStoryServiceProvider implements StoryServiceProvider {
   protected costTracker: CostTracker | null = null;

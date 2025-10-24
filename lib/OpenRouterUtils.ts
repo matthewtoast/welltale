@@ -2,7 +2,7 @@ import dedent from "dedent";
 import OpenAI from "openai";
 import { encoding_for_model, TiktokenModel } from "tiktoken";
 import { NonEmpty, TSerial } from "../typings";
-import { LLM_SLUGS } from "./StoryTypes";
+import { LLM_SLUGS } from "./engine/StoryTypes";
 
 export const countTokens = (
   text: string,

@@ -1,4 +1,4 @@
-import { apiSafeRequest } from "./WebAPI";
+import { apiSafeRequest } from "../WebAPI";
 
 export type StorySpec = {
   title: string;

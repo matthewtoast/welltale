@@ -1,6 +1,6 @@
 import {
-  DynamoDBClient,
   DeleteItemCommand,
+  DynamoDBClient,
   GetItemCommand,
   PutItemCommand,
   ScanCommand,
@@ -12,8 +12,8 @@ import {
 } from "@aws-sdk/client-s3";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { Readable } from "stream";
-import { s3ObjectExists, uploadBufferToS3 } from "./AWSUtils";
-import { toBuffer } from "./BufferUtils";
+import { s3ObjectExists, uploadBufferToS3 } from "./../AWSUtils";
+import { toBuffer } from "./../BufferUtils";
 import { StoryMeta, StorySource } from "./StoryTypes";
 
 export function uploadKey(id: string): string {
@@ -96,7 +96,7 @@ export function createStoryRepo(input: {
     if (!query) {
       return listMetas();
     }
-    
+
     const q = query.toLowerCase();
     const res = await ddb.send(
       new ScanCommand({

@@ -4,7 +4,7 @@ import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { NextResponse } from "next/server";
 import { loadAppEnv } from "../../../../../../../env/env-app";
 import { authenticateRequest } from "../../../../../../lib/api/auth";
-import { createStoryRepo } from "./../../../../../../../lib/StoryRepo";
+import { createStoryRepo } from "./../../../../../../../lib/engine/StoryRepo";
 
 const env = loadAppEnv();
 

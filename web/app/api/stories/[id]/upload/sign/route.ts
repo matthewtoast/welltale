@@ -3,7 +3,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
 import { loadAppEnv } from "../../../../../../../env/env-app";
 import { authenticateRequest } from "../../../../../../lib/api/auth";
-import { uploadKey } from "./../../../../../../../lib/StoryRepo";
+import { uploadKey } from "./../../../../../../../lib/engine/StoryRepo";
 
 const env = loadAppEnv();
 const s3Client = new S3Client({});

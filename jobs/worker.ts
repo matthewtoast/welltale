@@ -1,6 +1,6 @@
 import type { SQSEvent } from "aws-lambda";
-import { compileStoryJob } from "../lib/StoryInfraUtils";
-import { DEFAULT_LLM_SLUGS } from "../lib/StoryTypes";
+import { compileStoryJob } from "../lib/engine/StoryInfraUtils";
+import { DEFAULT_LLM_SLUGS } from "../lib/engine/StoryTypes";
 import { safeJsonParseTyped } from "./../lib/JSONHelpers";
 
 console.info("[worker] job:loaded");

@@ -1,3 +1,4 @@
+import type { CostEntry } from "./../MeteringUtils";
 import { assignInput } from "./StoryConstants";
 import { advanceStory } from "./StoryEngine";
 import { StoryServiceProvider } from "./StoryServiceProvider";
@@ -8,7 +9,6 @@ import {
   StoryOptions,
   StorySession,
 } from "./StoryTypes";
-import type { CostEntry } from "./MeteringUtils";
 
 export async function advanceToNext(
   input: string | null,

@@ -1,14 +1,14 @@
 import { readdir } from "fs/promises";
 import { zipDir } from "../lib/ZipUtils";
 import { loadDirRecursive } from "./FileUtils";
-import { collectDataArtifacts, collectDataDocs } from "./StoryConstants";
+import { collectDataArtifacts, collectDataDocs } from "./engine/StoryConstants";
 import {
   apiFinalizeUpload,
   apiRequestUpload,
   apiSaveMeta,
   apiUploadZip,
   StorySpec,
-} from "./StoryWebAPI";
+} from "./engine/StoryWebAPI";
 
 export async function syncStory(
   base: string,

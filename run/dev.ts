@@ -6,7 +6,10 @@ import { hideBin } from "yargs/helpers";
 import { loadDevEnv } from "../env/env-dev";
 import { loadSstEnv } from "../env/env-sst";
 import { listDirs, safeConfigValue, syncStory } from "../lib/DevTools";
-import { apiDeleteAllStories, apiFetchDevSessions } from "../lib/StoryWebAPI";
+import {
+  apiDeleteAllStories,
+  apiFetchDevSessions,
+} from "../lib/engine/StoryWebAPI";
 import {
   cleanSplit,
   extractNetworkDomainFromSSTString,

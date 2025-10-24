@@ -1,4 +1,4 @@
-import { setState } from "../lib/StoryConstants";
+import { setState } from "../lib/engine/StoryConstants";
 import { expect, runTestStory } from "./TestUtils";
 
 async function testRootPrelude() {
