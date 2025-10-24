@@ -3,8 +3,8 @@ import path from "path";
 import { ACTION_HANDLERS } from "../../../lib/StoryActions";
 import { TEMPLATE_SYNTAX } from "../../../lib/StoryDocs";
 import { CodeBlock } from "../../components/CodeBlock";
-import DocsClient, { HandlerEntry } from "./DocsClient";
 import styles from "./docs.module.css";
+import DocsClient, { HandlerEntry } from "./DocsClient";
 
 const QUICKSTART_CODE = `<p>Welcome to your adventure!</p>
 <input name.description="your character's name" />

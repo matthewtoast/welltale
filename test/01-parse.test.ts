@@ -18,6 +18,7 @@ import {
 } from "../lib/StoryTypes";
 import {
   enhanceText,
+  extractNetworkDomainFromSSTString,
   generatePredictableKey,
   isBlank,
   LIQUID,
@@ -222,6 +223,17 @@ async function test() {
     "foo.bar.baz.bux": "222",
   });
   expect(f2, { baba: "asdf", foo: { bar: { baz: { bux: "222" } } } });
+
+  const sst = `
+    The module 'react-dom' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install react-dom'
+      ▲ Next.js 15.5.4
+      - Local:        http://localhost:3000
+      - Network:      http://10.32.1.12:3000
+      - Experiments (use with caution):
+        ✓ externalDir
+  `;
+  const n1 = extractNetworkDomainFromSSTString(sst);
+  expect(n1, "10.32.1.12:3000");
 }
 
 test();

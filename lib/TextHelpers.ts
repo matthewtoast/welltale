@@ -551,3 +551,14 @@ export function keywordize(s: string): string[] {
     .filter((word) => word.length > 2 && !STOP_WORDS.includes(word));
   return [...new Set(words)];
 }
+
+export const extractNetworkDomainFromSSTString = (s: string): string | null => {
+  const clean = s.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "");
+  const m = clean.match(/Network:\s+(https?:\/\/\S+)/i);
+  const mm = m ? m[1].trim() : null;
+  if (!mm) {
+    return null;
+  }
+  const parts = mm.split("//");
+  return parts[1];
+};

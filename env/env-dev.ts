@@ -7,8 +7,8 @@ loadEnvFile(import.meta.url, ".env.dev");
 export const ZDevEnvSchema = z.intersection(
   ZBaseEnvSchema,
   z.object({
-    AWS_ACCOUNT_ID: z.string(),
     WELLTALE_API_BASE: z.string(),
+    WELLTALE_API_PROTO: z.string(),
   })
 );
 

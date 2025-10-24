@@ -2,7 +2,7 @@ import Foundation
 
 struct AppConfig {
     static var apiBaseURL: URL? {
-        guard let raw = processedValue(for: "WelltaleAPIBase"),
+        guard let raw = rawAPIBase,
               let url = URL(string: raw) else {
             return nil
         }
@@ -10,11 +10,15 @@ struct AppConfig {
     }
 
     static var devSessionToken: String? {
-        processedValue(for: "DevSessionToken")
+        rawValue(for: "DevSessionToken")
     }
 
     static var rawAPIBase: String? {
-        rawValue(for: "WelltaleAPIBase")
+        guard let proto = rawValue(for: "WelltaleAPIProto"),
+              let base = rawValue(for: "WelltaleAPIBase") else {
+            return nil
+        }
+        return "\(proto)://\(base)"
     }
 
     static var rawDevSessionToken: String? {
@@ -30,17 +34,6 @@ struct AppConfig {
             return nil
         }
         return unquoted(trimmed)
-    }
-
-    private static func processedValue(for key: String) -> String? {
-        guard let raw = rawValue(for: key) else {
-            return nil
-        }
-        guard !raw.contains("$(") else {
-            return nil
-        }
-        return raw
-            .replacingOccurrences(of: "\\/", with: "/")
     }
 
     private static func unquoted(_ value: String) -> String {
