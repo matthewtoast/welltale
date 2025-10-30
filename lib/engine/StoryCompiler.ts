@@ -1,3 +1,4 @@
+import * as yaml from "js-yaml";
 import { omit, uniq } from "lodash";
 import { TSerial } from "../../typings";
 import { autoFindVoiceId } from "../ElevenLabsUtils";
@@ -111,6 +112,43 @@ async function ensureThumbnail(
   }
 }
 
+function extractFrontmatter(rawContent: string): {
+  content: string;
+  frontmatter: Record<string, TSerial> | null;
+} {
+  const regex = /^---\s*\n([\s\S]*?)\n---\s*$/gm;
+  const blocks: string[] = [];
+  let match;
+
+  while ((match = regex.exec(rawContent)) !== null) {
+    blocks.push(match[1]);
+  }
+
+  if (blocks.length === 0) {
+    return { content: rawContent, frontmatter: null };
+  }
+
+  const frontmatter: Record<string, TSerial> = {};
+
+  for (const block of blocks) {
+    try {
+      const parsed = yaml.load(block);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        Object.assign(frontmatter, parsed);
+      }
+    } catch (e) {
+      console.warn("Failed to parse frontmatter block:", e);
+    }
+  }
+
+  const content = rawContent.replace(/^---\s*\n[\s\S]*?\n---\s*$/gm, "");
+
+  return {
+    content: content.trim(),
+    frontmatter: Object.keys(frontmatter).length > 0 ? frontmatter : null,
+  };
+}
+
 async function buildStoryRoot(
   cartridge: StoryCartridge,
   context: CompilerContext,
@@ -118,7 +156,7 @@ async function buildStoryRoot(
   collect:
     | ((path: string, severity: ParseSeverity, message: string) => void)
     | undefined
-): Promise<StoryNode> {
+): Promise<{ root: StoryNode; meta: Record<string, TSerial> }> {
   const root: StoryNode = {
     addr: "0",
     type: "root",
@@ -127,14 +165,7 @@ async function buildStoryRoot(
     text: "",
   };
   function isMain(p: string) {
-    return (
-      p === "main.xml" ||
-      p.endsWith("/main.xml") ||
-      p.endsWith("\\main.xml") ||
-      p === "main.wsl" ||
-      p.endsWith("/main.wsl") ||
-      p.endsWith("\\main.wsl")
-    );
+    return p.endsWith("main.xml") || p.endsWith("main.wsl");
   }
   const all = Object.keys(cartridge).filter(
     (k) => k.endsWith(".xml") || k.endsWith(".wsl")
@@ -143,9 +174,12 @@ async function buildStoryRoot(
   const rest = all.filter((k) => !isMain(k));
   const keys = [...mains, ...rest];
   const accumulatedNodes: BaseNode[] = [];
+  const meta: Record<string, TSerial> = {};
   for (let i = 0; i < keys.length; i++) {
     const path = keys[i];
-    const content = cartridge[path].toString("utf-8");
+    const rawContent = cartridge[path].toString("utf-8");
+    const { content, frontmatter } = extractFrontmatter(rawContent);
+    Object.assign(meta, frontmatter);
     if (verbose) {
       console.info("Parsing", path);
     }
@@ -177,7 +211,7 @@ async function buildStoryRoot(
     );
     root.kids.push(mapped);
   }
-  return root;
+  return { root, meta };
 }
 
 export async function compileStory(
@@ -198,7 +232,7 @@ export async function compileStory(
   const dataDocs = collectDataDocs(cartridge);
   const dataArtifacts = collectDataArtifacts(dataDocs);
 
-  const root = await buildStoryRoot(
+  const { root, meta } = await buildStoryRoot(
     cartridge,
     context,
     options.verbose,
@@ -206,11 +240,12 @@ export async function compileStory(
   );
   assignAddrs(root);
 
+  Object.assign(meta, dataArtifacts.meta);
+
   const pronunciations: Record<string, string> = {
     ...dataArtifacts.pronunciations,
   };
   const voices: Record<string, VoiceSpec> = { ...dataArtifacts.readyVoices };
-  const meta: Record<string, TSerial> = { ...dataArtifacts.meta };
   const scripts: NestedRecords = {};
   const outputs: StorySource = {
     scripts,

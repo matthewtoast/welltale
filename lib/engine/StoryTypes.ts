@@ -105,39 +105,46 @@ export const LLM_SLUGS = [
   "openai/gpt-4.1-mini",
   "openai/gpt-4.1-nano",
   "openai/gpt-4o",
+  "openai/gpt-4o-mini",
   "anthropic/claude-3.5-sonnet",
   "deepseek/deepseek-r1",
-  "deepseek/deepseek-v3.1",
-  "mistralai/mistral-large",
-  "meta-llama/llama-3.1-70b-instruct",
+  "deepseek/deepseek-chat-v3.1",
   "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
+  "moonshotai/kimi-k2:free",
+  "moonshotai/kimi-k2-0905:exacto",
+  "moonshotai/kimi-k2",
+  "moonshotai/kimi-k2-0905",
 ] as const;
 
-export const LLM_MODEL_TAGS = ["mini", "uncensored"] as const;
+export const LLM_MODEL_TAGS = [
+  "mini",
+  "uncensored",
+  "writing",
+  "roleplay",
+] as const;
 
 export const LLM_SLUGS_TAGGED: Record<
   (typeof LLM_SLUGS)[number],
   (typeof LLM_MODEL_TAGS)[number][]
 > = {
-  "openai/gpt-5": [],
-  "openai/gpt-5-mini": ["mini"],
-  "openai/gpt-5-nano": ["mini"],
-  "openai/gpt-4.1": [],
-  "openai/gpt-4.1-mini": ["mini"],
-  "openai/gpt-4.1-nano": ["mini"],
-  "openai/gpt-4o": [],
-  "anthropic/claude-3.5-sonnet": [],
-  "deepseek/deepseek-r1": [],
-  "deepseek/deepseek-v3.1": [],
-  "mistralai/mistral-large": [],
-  "meta-llama/llama-3.1-70b-instruct": [],
+  "openai/gpt-5": [], // $1.25/M input tokens $10/M output tokens
+  "openai/gpt-5-mini": ["mini"], // $0.25/M input tokens $2/M output tokens
+  "openai/gpt-5-nano": ["mini"], // $0.05/M input tokens $0.40/M output tokens
+  "openai/gpt-4.1": [], // $2/M input tokens $8/M output tokens
+  "openai/gpt-4.1-mini": ["mini"], // $0.40/M input tokens $1.60/M output tokens
+  "openai/gpt-4.1-nano": ["mini"], // $0.10/M input tokens $0.40/M output tokens
+  "openai/gpt-4o": [], // $0.15/M input tokens $0.60/M output tokens $0.217/K input imgs
+  "openai/gpt-4o-mini": [], // $0.15/M input tokens $0.60/M output tokens $0.217/K input imgs
+  "anthropic/claude-3.5-sonnet": [], // $3/M input tokens $15/M output tokens $4.80/K input imgs
+  "deepseek/deepseek-r1": [], // $0.40/M input tokens $2/M output tokens
+  "deepseek/deepseek-chat-v3.1": ["roleplay"], // $0.27/M input tokens $1/M output tokens
   "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": [
     "uncensored",
-  ],
-  "meta-llama/llama-3.3-70b-instruct:free": ["uncensored"],
-  "meta-llama/llama-3.2-3b-instruct:free": ["uncensored"],
+  ], // $0/M input tokens $0/M output tokens
+  "moonshotai/kimi-k2:free": ["writing"], // $0/M input tokens $0/M output tokens
+  "moonshotai/kimi-k2-0905:exacto": ["writing"], // $0.60/M input tokens $2.50/M output tokens
+  "moonshotai/kimi-k2": ["writing"], // $0.14/M input tokens $2.49/M output tokens
+  "moonshotai/kimi-k2-0905": ["writing"], // $0.39/M input tokens $1.90/M output tokens
 };
 
 export const DEFAULT_LLM_SLUGS: NonEmpty<(typeof LLM_SLUGS)[number]> = [
