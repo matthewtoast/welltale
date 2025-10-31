@@ -1,0 +1,88 @@
+---
+starterWords:
+  - 黄色
+  - サル
+  - 甘い
+  - 南国
+  - フルーツ
+  - 皮
+  - 長い
+  - 朝ごはん
+  - スムージー
+  - 棒
+---
+
+<p id="start">
+  マジカルバナナをプレイしましょう！始めます。
+</p>
+
+<var name="prevWord" type="string" value="バナナ">
+<var name="currWord" type="string" value="{$ randElement(starterWords) $}">
+<var name="wordsUsed" type="array<string>" value="{{currWord}}" />
+
+<loop>
+  <p>{{prevWord}}と言ったら{{currWord}}</p>
+
+  <input />
+
+  <llm:parse
+    key="response"
+    promptWord="the word the player was given"
+    answerWord="the word the player answered">
+    The user is playing Magical Banana. Their answer should be in the form Xと言ったらY or similar. Flexibly parse what they said:
+    {{input}}
+  </llm:parse>
+
+  <if cond="response.promptWord != currWord">
+    <p>間違った言葉です!</p>
+    <jump to="lose" />
+  </if>
+
+  <if cond="wordsUsed.includes(response.answerWord)">
+    <p>言葉を繰り返しました！</p>
+    <jump to="lose" />
+  </if>
+
+  <llm:score
+    key="score"
+    relevance="how relevant the answer word is to the given word">
+    The given word was {{currWord}}. The answer was {{response.answerWord}}.
+    How relevant is the word? Give a score 0.0-1.0.
+    For example: Banana+yellow is 1.0. Banana+cat is 0.0. Banana+popsicle is 0.5. Car+engine is 1.0. Car+winter is 0.1.
+  </llm:score>
+
+  <if cond="score.relevance < 0.5">
+    <p>無関係な言葉です!</p>
+    <jump to="lose" />
+  </if>
+
+  <llm:text key="nextWord">
+    We're playing Magical Banana. The opponent's word was {{response.answerWord}}.
+    Your response is "{{response.answerWord}}と言ったら_"
+    Return ONLY the word you choose for your response:
+  </llm:text>
+
+  <script>
+    set("prevWord", response.answerWord)
+    set("currWord", nextWord)
+  </script>
+</loop>
+
+<div id="lose">
+  <p>ゲームオーバー！</p>
+  <jump to="replay">
+</div>
+
+<div id="replay">
+  <p>もう一度プレイしますか？</p>
+  <input key="playAgain" answer.type="boolean" answer.description="true if the user said 'yes', 'let's go', 'why not', 'はい', 'one more time' (etc)  or amything in the affirmative; false if not" />
+  <if cond="playAgain.answer">
+    <jump to="start" />
+  </if>
+  <jump to="exit" />
+</div>
+
+<div id="exit">
+  <p>またね！</p>
+  <exit />
+</div>

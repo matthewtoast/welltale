@@ -88,6 +88,15 @@ export function isFalsy(v: any) {
   return !isTruthy(v);
 }
 
+function tryParseArray(value: TSerial): TSerial[] | null {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return null;
+  if (!value.includes(",")) return null;
+  const parts = cleanSplit(value, ",");
+  if (!parts.length) return null;
+  return parts;
+}
+
 export function castToTypeEnhanced(value: TSerial, type?: string): TSerial {
   if (!type || type === "string") return castToString(value);
   if (type === "number") return castToNumber(value);
@@ -115,10 +124,18 @@ export function castToTypeEnhanced(value: TSerial, type?: string): TSerial {
     return null;
   }
 
-  // Handle arrays if type is like "string[]"
+  // Handle arrays if type is like "string[]" or "array<string>"
   if (type.endsWith("[]")) {
     const itemType = type.slice(0, -2);
-    const arr = Array.isArray(value) ? value : [value];
+    const parsed = tryParseArray(value);
+    const arr = parsed ?? (Array.isArray(value) ? value : [value]);
+    return arr.map((item) => castToTypeEnhanced(item, itemType));
+  }
+
+  if (type.startsWith("array<") && type.endsWith(">")) {
+    const itemType = type.slice(6, -1);
+    const parsed = tryParseArray(value);
+    const arr = parsed ?? (Array.isArray(value) ? value : [value]);
     return arr.map((item) => castToTypeEnhanced(item, itemType));
   }
 

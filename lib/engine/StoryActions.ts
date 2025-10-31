@@ -298,17 +298,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           req: false,
           default: "local",
         },
-        retryMax: {
-          type: "number",
-          desc: "Maximum retry attempts if extraction fails",
-          req: false,
-          default: "3",
-        },
-        catch: {
-          type: "string",
-          desc: "ID of element to jump to if all retries fail",
-          req: false,
-        },
         "[field].description": {
           type: "string",
           desc: "Description for AI to extract this field from input",
@@ -696,7 +685,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    tags: ["while"],
+    tags: ["while", "loop"],
     docs: {
       desc: dedent`
         Repeats child elements while a condition remains true. The condition is evaluated before
@@ -739,14 +728,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         cond: {
           type: "string",
           desc: "JavaScript expression evaluated before each iteration",
-          req: true,
+          req: false,
         },
       },
     },
     exec: async (ctx) => {
       const atts = await renderAtts(ctx.node.atts, ctx);
       let next;
-      const conditionTrue = await ctx.evaluator(atts.cond, ctx.scope);
+      const conditionTrue =
+        isBlank(ctx.node.atts.cond) || // Allow bare <while>
+        (await ctx.evaluator(atts.cond, ctx.scope));
       if (conditionTrue && ctx.node.kids.length > 0) {
         next = nextNode(ctx.node, ctx.session.root, true);
       } else {

@@ -45,12 +45,12 @@ async function runRepl() {
     .option("doPlayMedia", {
       type: "boolean",
       description: "Play audio files true/false",
-      default: true,
+      default: false,
     })
     .option("doGenerateAudio", {
       type: "boolean",
       description: "Generate other audio",
-      default: true,
+      default: false,
     })
     .option("doCompileVoices", {
       type: "boolean",
@@ -60,7 +60,7 @@ async function runRepl() {
     .option("doGenerateThumbnails", {
       type: "boolean",
       description: "Generate thumbnails during compile",
-      default: true,
+      default: false,
     })
     .option("cartridgeDir", {
       type: "string",

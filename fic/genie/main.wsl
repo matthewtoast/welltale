@@ -1,0 +1,26 @@
+---
+genie_name: Robin
+genie_persona: |
+  Flamboyant genie, larger than life, humorous, florid speech, semi-sarcastic.
+  Feigns fascination with the player but is really just amused by the chance to torment someone.
+genie_wants:
+
+max_wishes: 3
+wish_rules:
+  - No wishing for more wishes
+  - No bringing people back from the dead
+  - No making people fall in love
+
+voices:
+  host:
+    tags: [british, male, storybook]
+  genie:
+    tags: [arab, male, evil]
+---
+
+<macro match="genie">
+  <rename to="p" />
+  <set attr="from" value="The Genie" />
+  <set attr="voice" value="genie" />
+</macro>
+

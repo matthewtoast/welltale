@@ -4,7 +4,6 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { createProvider } from "../lib/DevProvider";
 import { DEFAULT_LLM_SLUGS } from "../lib/engine/StoryTypes";
-import { toYaml } from "../lib/JSONHelpers";
 import { parameterize } from "../lib/TextHelpers";
 import { createWelltaleContent } from "../lib/WelltaleGenerativeHelpers";
 import { DEFAULT_CACHE_DIR } from "./../lib/LocalCache";
@@ -39,7 +38,7 @@ async function runCreate() {
   const provider = createProvider();
   const outdir = join(__dirname, "..", `./fic/${[parameterize(argv.title)]}`);
   mkdirSync(outdir, { recursive: true });
-  const { data, main } = await createWelltaleContent(
+  const main = await createWelltaleContent(
     argv.title,
     argv.author,
     argv.idea,
@@ -49,7 +48,6 @@ async function runCreate() {
       models: DEFAULT_LLM_SLUGS,
     }
   );
-  writeFileSync(join(outdir, "data.yml"), toYaml(data));
   writeFileSync(join(outdir, "main.wsl"), main);
 }
 

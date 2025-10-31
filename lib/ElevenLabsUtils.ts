@@ -215,6 +215,57 @@ export type PartialSpeechSpec = {
   tags: string[];
 };
 
+const TAG_WEIGHT_GROUPS: Array<[string[], number]> = [
+  [["male", "female", "woman", "man", "boy", "girl"], 4],
+  [
+    [
+      "british",
+      "brit",
+      "american",
+      "american-english",
+      "arab",
+      "arabic",
+      "australian",
+      "aussie",
+      "canadian",
+      "chinese",
+      "dutch",
+      "french",
+      "german",
+      "hispanic",
+      "latino",
+      "latina",
+      "indian",
+      "irish",
+      "italian",
+      "japanese",
+      "korean",
+      "mexican",
+      "norwegian",
+      "polish",
+      "portuguese",
+      "russian",
+      "scottish",
+      "scots",
+      "spanish",
+      "swedish",
+      "welsh",
+    ],
+    3,
+  ],
+  [["young", "old", "elderly", "teen", "child"], 2],
+];
+
+function getTagWeight(tag: string): number {
+  const lowerTag = tag.toLowerCase();
+  for (const [tags, weight] of TAG_WEIGHT_GROUPS) {
+    if (tags.includes(lowerTag)) {
+      return weight;
+    }
+  }
+  return 1;
+}
+
 export function autoFindVoiceId(
   spec: PartialSpeechSpec,
   voices: VoiceSpec[]
@@ -253,7 +304,7 @@ export function autoFindVoiceId(
       return voices[i].id;
     }
   }
-  // find best fit given most tag matches
+  // find best fit given weighted tag matches
   if (spec.speaker) {
     const gender = inferGenderFromName(spec.speaker);
     if (gender && !spec.tags.includes(gender)) {
@@ -262,14 +313,17 @@ export function autoFindVoiceId(
   }
 
   let bestMatch = null;
-  let maxMatches = 0;
+  let maxScore = 0;
   for (let i = 0; i < voices.length; i++) {
     const voice = voices[i];
-    const matchCount = voice.tags.filter((tag) =>
-      spec.tags.includes(tag)
-    ).length;
-    if (matchCount > maxMatches) {
-      maxMatches = matchCount;
+    let score = 0;
+    for (const voiceTag of voice.tags) {
+      if (spec.tags.some((t) => t.toLowerCase() === voiceTag.toLowerCase())) {
+        score += getTagWeight(voiceTag);
+      }
+    }
+    if (score > maxScore) {
+      maxScore = score;
       bestMatch = voice;
     }
   }

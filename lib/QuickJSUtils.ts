@@ -114,7 +114,7 @@ export const evaluateScript = async (
     } else if (error && typeof error === "object") {
       console.error(error.stack ?? error.message ?? error.name ?? error);
     }
-    console.info(`=====\n${body}\n=====`);
+    console.info(`=====\n=====${prelude}\n${body}\n=====`);
   }
 
   try {

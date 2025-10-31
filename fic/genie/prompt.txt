@@ -1,0 +1,6 @@
+game about a mischievous genie. everything the player wishes for ends up interpreted in a way that is bad for the player or not what they really wanted.
+for example if the player says "i wish for a million dollars" the genie grants them Zimbabwean dollars circa 2009 when even a trillion couldn't pay for bus fare.
+the granted wishes should get more and more absurd the harder the player tries to be exact - a loophole should always be found!
+the genie has standard rules such as no wishing for more wishes and if the player tries these, should be refused
+the player is free to ask the genie questions or give normal conversation; it must be phrased "i wish..." or "my next wish is..." to count as a wish
+there is a way to win the game: to wish for the things the genie wants - these are part of the genie's story and the player must glean them to find out

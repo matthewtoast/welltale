@@ -151,54 +151,71 @@ export default function DocsClient({ handlers }: DocsClientProps) {
       </div>
 
       <div className={styles.tagList}>
-        {filteredHandlers.map((handler) => (
-          <div key={handler.primaryTag} className={styles.tagCard}>
-            <div className={styles.tagHeader}>
-              <h3 className={styles.tagName}>&lt;{handler.primaryTag}&gt;</h3>
-              <div
-                className={styles.tagDescription}
-                dangerouslySetInnerHTML={{
-                  __html: processMarkdown(handler.description),
-                }}
-              />
-            </div>
+        {filteredHandlers.map((handler) => {
+          const synonyms = handler.tags.filter(
+            (tag) => tag !== handler.primaryTag
+          );
+          return (
+            <div key={handler.primaryTag} className={styles.tagCard}>
+              <div className={styles.tagHeader}>
+                <h3 className={styles.tagName}>&lt;{handler.primaryTag}&gt;</h3>
+                {synonyms.length > 0 && (
+                  <div className={styles.tagSynonyms}>
+                    <span className={styles.tagSynonymsLabel}>Synonyms</span>
+                    <ul className={styles.tagSynonymsList}>
+                      {synonyms.map((tag) => (
+                        <li key={tag} className={styles.tagSynonym}>
+                          &lt;{tag}&gt;
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div
+                  className={styles.tagDescription}
+                  dangerouslySetInnerHTML={{
+                    __html: processMarkdown(handler.description),
+                  }}
+                />
+              </div>
 
-            <div className={styles.tagDetails}>
-              {handler.examples.length > 0 && (
-                <div className={styles.example}>
-                  <h4>Examples:</h4>
-                  {handler.examples.map((ex, i) => (
-                    <div key={i}>
-                      {ex.block}
-                      {ex.note && (
-                        <p className={styles.exampleNote}>{ex.note}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {handler.options.length > 0 && (
-                <div className={styles.attributes}>
-                  <h4>Options:</h4>
-                  <ul className={styles.attrList}>
-                    {handler.options.map((option) => (
-                      <li key={option.name} className={styles.attrItem}>
-                        <span className={styles.attrName}>{option.name}</span>
-                        {option.required && (
-                          <span className={styles.required}> (required)</span>
+              <div className={styles.tagDetails}>
+                {handler.examples.length > 0 && (
+                  <div className={styles.example}>
+                    <h4>Examples:</h4>
+                    {handler.examples.map((ex, i) => (
+                      <div key={i}>
+                        {ex.block}
+                        {ex.note && (
+                          <p className={styles.exampleNote}>{ex.note}</p>
                         )}
-                        <span className={styles.attrDesc}>
-                          : {option.description}
-                        </span>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
-                </div>
-              )}
+                  </div>
+                )}
+
+                {handler.options.length > 0 && (
+                  <div className={styles.attributes}>
+                    <h4>Options:</h4>
+                    <ul className={styles.attrList}>
+                      {handler.options.map((option) => (
+                        <li key={option.name} className={styles.attrItem}>
+                          <span className={styles.attrName}>{option.name}</span>
+                          {option.required && (
+                            <span className={styles.required}> (required)</span>
+                          )}
+                          <span className={styles.attrDesc}>
+                            : {option.description}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

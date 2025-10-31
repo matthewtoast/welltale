@@ -185,7 +185,7 @@ export async function advanceStory(
       rng,
       provider,
       // We need to get a new scope on every node since it may have introduced new scope
-      scope: createScope(session, session.meta),
+      scope: createScope(session),
       evaluator,
     };
 
@@ -304,10 +304,7 @@ export async function advanceStory(
   }
 }
 
-export function createScope(
-  session: StorySession,
-  extra: Record<string, TSerial>
-): { [key: string]: TSerial } {
+export function createScope(session: StorySession): { [key: string]: TSerial } {
   function findWritableScope(): { [key: string]: TSerial } | null {
     for (let i = session.stack.length - 1; i >= 0; i--) {
       const writeableScope = session.stack[i].writeableScope;
@@ -331,7 +328,6 @@ export function createScope(
       return (
         session.state[prop] ??
         session.meta[prop] ??
-        extra[prop] ??
         session[prop as keyof typeof session] ??
         null
       );
@@ -405,7 +401,7 @@ export async function execNodesList(
       session,
       rng,
       provider,
-      scope: createScope(session, session.meta),
+      scope: createScope(session),
       evaluator,
     };
     await handler.exec(ctx);
