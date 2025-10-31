@@ -142,9 +142,6 @@ export async function advanceStory(
     return { ops: out, session, seam, addr, info, cost };
   }
 
-  const visits: Record<string, number> = {};
-  let iterations = 0;
-
   while (true) {
     if (session.address === OUTRO_RETURN_ADDR) {
       session.address = null;
@@ -160,21 +157,6 @@ export async function advanceStory(
       const error = `Node ${session.address} not found`;
       console.warn(error);
       return done(SeamType.ERROR, null, { error });
-    }
-
-    if (!visits[node.addr]) {
-      visits[node.addr] += 1;
-    } else {
-      return done(SeamType.GRANT, node.addr, {
-        reason: `Loop encountered at node ${node.addr}`,
-      });
-    }
-
-    if (iterations > 0 && iterations % options.ream === 0) {
-      iterations += 1;
-      return done(SeamType.GRANT, node.addr, {
-        reason: `Iteration ${iterations} reached`,
-      });
     }
 
     const ctx: ActionContext = {
