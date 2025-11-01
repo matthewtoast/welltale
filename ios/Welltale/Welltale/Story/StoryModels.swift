@@ -24,7 +24,6 @@ struct StorySession: Codable {
     var meta: [String: AnyCodable]
     var cache: [String: AnyCodable]
     var target: String?
-    var genie: [String: AnyCodable]?
     var ddv: StoryDDV?
     var player: StoryPlayer?
     var voices: [String: StoryVoice]
@@ -47,7 +46,6 @@ struct StorySession: Codable {
         meta: [String: AnyCodable],
         cache: [String: AnyCodable],
         target: String?,
-        genie: [String: AnyCodable]?,
         ddv: StoryDDV?,
         player: StoryPlayer?,
         voices: [String: StoryVoice],

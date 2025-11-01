@@ -15,7 +15,6 @@ struct StorySessionFactory {
             meta: [:],
             cache: [:],
             target: nil,
-            genie: nil,
             ddv: StoryDDV(cycles: [:], bags: [:]),
             player: StoryPlayer(id: id),
             voices: [:],
