@@ -26,7 +26,7 @@ async function testDialogInlineCompile() {
   const context: CompilerContext = {
     provider,
     rng,
-    scope: {},
+    locals: {},
     options: { models: DEFAULT_LLM_SLUGS },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },

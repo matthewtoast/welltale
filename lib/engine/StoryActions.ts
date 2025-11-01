@@ -1,5 +1,5 @@
 import dedent from "dedent";
-import { omit } from "lodash";
+import { omit, set } from "lodash";
 import { TSerial } from "../../typings";
 import {
   castToBoolean,
@@ -14,6 +14,7 @@ import { parseNumberOrNull } from "../MathHelpers";
 import { makeCheckpoint, recordEvent } from "./StoryCheckpointUtils";
 import {
   DESCENDABLE_TAGS,
+  getReadableScope,
   HOST_ID,
   INPUT_TAGS,
   normalizeModels,
@@ -195,11 +196,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       const next = nextNode(ctx.node, ctx.session.root, false);
       const ops: OP[] = [];
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       let text = "";
       if (isBlank(text)) {
         // Assume text nodes never contain actionable children, only text
-        text = await renderText(await marshallText(ctx.node, ctx), ctx);
+        text = await renderText(
+          await marshallText(ctx.node, ctx),
+          getReadableScope(ctx.session),
+          ctx
+        );
       }
       // Early exit spurious empty nodes
       if (isBlank(text)) {
@@ -234,7 +243,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             { seed: atts.seed }
           )
         : { url: "" };
-      setState(ctx.scope, tagOutKey(atts), text);
+      setState(ctx.session, tagOutKey(atts), text);
       ops.push({
         type: "play-media",
         media: url,
@@ -318,7 +327,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
     exec: async (ctx) => {
       const nextAfter = nextNode(ctx.node, ctx.session.root, false);
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
 
       if (!ctx.session.input) {
         makeCheckpoint(ctx, []);
@@ -370,21 +383,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           Object.assign(extracted, enhanced);
         }
 
-        ctx.scope["input"] = raw;
-        ctx.session.state["input"] = raw;
-        const tkey = tagOutKey(atts);
-
+        const tkey = tagOutKey(atts, "input");
         if (ctx.options.verbose) {
           console.info("<input>", raw, tkey, extracted);
         }
-
         for (const key in extracted) {
           const subkey = `${tkey}.${key}`;
-          setState(ctx.scope, subkey, extracted[key]);
-          ctx.scope[key] = extracted[key];
+          setState(ctx.session, subkey, extracted[key]);
           if (atts.scope === "global") {
-            setState(ctx.session.state, subkey, extracted[key]);
+            setState(ctx.session, subkey, extracted[key]);
           }
+        }
+        if (Object.keys(extracted).length < 1) {
+          setState(ctx.session, "input", raw);
         }
 
         ctx.session.input = null;
@@ -448,7 +459,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         },
         value: {
           type: "string",
-          desc: "Value to assign. Can be literal or expression. If omitted, uses inner content.",
+          desc: "Value to assign. If omitted, uses element's inner content.",
           req: false,
         },
         type: {
@@ -460,14 +471,19 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       const key = atts.name ?? atts.key ?? atts.id;
       let rollup = (await marshallText(ctx.node, ctx)).trim();
       const value = await renderText(
         !isBlank(rollup) ? rollup : atts.value,
+        getReadableScope(ctx.session),
         ctx
       );
-      setState(ctx.scope, key, castToTypeEnhanced(value, atts.type));
+      setState(ctx.session, key, castToTypeEnhanced(value, atts.type));
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.session.root, false),
@@ -505,9 +521,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       let next;
-      const conditionTrue = await ctx.evaluator(atts.cond, ctx.scope);
+      const conditionTrue = await ctx.evaluator(
+        atts.cond,
+        getReadableScope(ctx.session)
+      );
       if (conditionTrue && ctx.node.kids.length > 0) {
         // Find first non-else child
         const firstNonElse = ctx.node.kids.find((k) => k.type !== "else");
@@ -574,7 +597,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       let next: { node: StoryNode } | null = searchForNode(
         ctx.session.root,
         atts.to ?? atts.target ?? atts.destination
@@ -631,8 +658,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {},
     },
     exec: async (ctx) => {
-      const text = await renderText(await marshallText(ctx.node, ctx), ctx);
-      await ctx.evaluator(text, ctx.scope);
+      const text = await renderText(
+        await marshallText(ctx.node, ctx),
+        getReadableScope(ctx.session),
+        ctx
+      );
+      await ctx.evaluator(text, getReadableScope(ctx.session));
       return {
         ops: [],
         next: nextNode(ctx.node, ctx.session.root, false),
@@ -671,7 +702,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       return {
         ops: [
           {
@@ -733,11 +768,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       let next;
       const conditionTrue =
         isBlank(ctx.node.atts.cond) || // Allow bare <while>
-        (await ctx.evaluator(atts.cond, ctx.scope));
+        (await ctx.evaluator(atts.cond, getReadableScope(ctx.session)));
       if (conditionTrue && ctx.node.kids.length > 0) {
         next = nextNode(ctx.node, ctx.session.root, true);
       } else {
@@ -882,12 +921,20 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       let url = atts.href ?? atts.url ?? atts.src ?? "";
       const next = nextNode(ctx.node, ctx.session.root, false);
       const ops: OP[] = [];
       if (!url) {
-        const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
+        const rollup = await renderText(
+          await marshallText(ctx.node, ctx),
+          getReadableScope(ctx.session),
+          ctx
+        );
         const prompt = (
           !isBlank(rollup) ? rollup : (atts.prompt ?? atts.description)
         ).trim();
@@ -920,7 +967,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           }
         }
       }
-      setState(ctx.scope, tagOutKey(atts), url);
+      setState(ctx.session, tagOutKey(atts), url);
       ops.push({
         type: "play-media",
         event: null,
@@ -1044,8 +1091,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
+      const prompt = await renderText(
+        await marshallText(ctx.node, ctx),
+        getReadableScope(ctx.session),
+        ctx
+      );
       const useWebSearch = isTruthy(atts.web) ? true : false;
       const models = normalizeModels(ctx.options, atts.models);
       const seed = atts.seed;
@@ -1054,7 +1109,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         useWebSearch,
         seed,
       });
-      setState(ctx.scope, tagOutKey(atts), snorm(result));
+      setState(ctx.session, tagOutKey(atts), snorm(result));
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
@@ -1114,8 +1169,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
+      const prompt = await renderText(
+        await marshallText(ctx.node, ctx),
+        getReadableScope(ctx.session),
+        ctx
+      );
       const labels = omit(publicAtts(atts), "key", "web");
       const useWebSearch = isTruthy(atts.web) ? true : false;
       const models = normalizeModels(ctx.options, atts.models);
@@ -1129,7 +1192,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         { labels: "array<string> - Classification labels for the input" },
         { models, useWebSearch }
       );
-      setState(ctx.scope, tagOutKey(atts), ensureArray(out.labels ?? []));
+      setState(ctx.session, tagOutKey(atts), ensureArray(out.labels ?? []));
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
@@ -1185,8 +1248,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
+      const prompt = await renderText(
+        await marshallText(ctx.node, ctx),
+        getReadableScope(ctx.session),
+        ctx
+      );
       const cleaned = omit(publicAtts(atts), "key", " web");
       const schema: Record<string, TSerial> = {};
       for (const k in cleaned) {
@@ -1204,7 +1275,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema,
         { models, useWebSearch, seed }
       );
-      setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
+      setState(ctx.session, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
@@ -1257,8 +1328,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const body = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
+      const body = await renderText(
+        await marshallText(ctx.node, ctx),
+        getReadableScope(ctx.session),
+        ctx
+      );
       const models = normalizeModels(ctx.options, atts.models);
       const raw = atts.threshold;
       let threshold = 0.5;
@@ -1277,10 +1356,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       });
       if (!res) {
         console.warn("<llm:moderate> returned null");
-        setState(ctx.scope, tagOutKey(atts), null);
+        setState(ctx.session, tagOutKey(atts), null);
         return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
-      setState(ctx.scope, tagOutKey(atts), res as unknown as TSerial);
+      setState(ctx.session, tagOutKey(atts), res as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
@@ -1382,8 +1461,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
+      const prompt = await renderText(
+        await marshallText(ctx.node, ctx),
+        getReadableScope(ctx.session),
+        ctx
+      );
       const schemaAll = parseFieldGroupsNested(
         omit(publicAtts(atts), "key", "web", "models", "seed")
       );
@@ -1402,7 +1489,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema,
         { models, useWebSearch, seed }
       );
-      setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
+      setState(ctx.session, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
@@ -1502,8 +1589,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const prompt = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
+      const prompt = await renderText(
+        await marshallText(ctx.node, ctx),
+        getReadableScope(ctx.session),
+        ctx
+      );
       const schemaAll = parseFieldGroupsNested(
         omit(publicAtts(atts), "key", "web", "models", "seed")
       );
@@ -1522,7 +1617,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         schema,
         { models, useWebSearch, seed }
       );
-      setState(ctx.scope, tagOutKey(atts), result as unknown as TSerial);
+      setState(ctx.session, tagOutKey(atts), result as unknown as TSerial);
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
@@ -1595,9 +1690,17 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       const body = snorm(
-        await renderText(await marshallText(ctx.node, ctx), ctx)
+        await renderText(
+          await marshallText(ctx.node, ctx),
+          getReadableScope(ctx.session),
+          ctx
+        )
       );
       const peers = cleanSplit(atts.with, ",");
       const defaults =
@@ -1646,9 +1749,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       const stateKey = tagOutKey(atts, "line");
       if (stripped.length === 0) {
         console.warn("<llm:line> generated empty output");
-        setState(ctx.scope, stateKey, null);
+        setState(ctx.session, stateKey, null);
       } else {
-        setState(ctx.scope, stateKey, stripped);
+        setState(ctx.session, stateKey, stripped);
       }
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
@@ -1762,7 +1865,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       const targetBlockId = atts.target ?? atts.to;
       const returnToNodeId = atts.returnTo ?? atts.return;
       if (!targetBlockId) {
@@ -1797,7 +1904,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       for (const [key, value] of Object.entries(
         omit(atts, "to", "return", "returnTo")
       )) {
-        setState(readableScope, key, value);
+        set(readableScope, key, value);
       }
       ctx.session.stack.push({
         returnAddress,
@@ -2138,7 +2245,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       const url = atts.src ?? atts.href ?? atts.url;
       let raw = "";
       let fmt = (atts.format ?? "json").toLowerCase();
@@ -2161,7 +2272,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       }
       // Treated as the data in the normal case, or fallback if we have a URL
       if (isBlank(raw)) {
-        raw = await renderText(await marshallText(ctx.node, ctx, ""), ctx);
+        raw = await renderText(
+          await marshallText(ctx.node, ctx, ""),
+          getReadableScope(ctx.session),
+          ctx
+        );
       }
       let val = null as TSerial | null;
       if (fmt === "yaml" || fmt === "yml") {
@@ -2173,7 +2288,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       } else {
         val = raw;
       }
-      setState(ctx.scope, tagOutKey(atts), val);
+      setState(ctx.session, tagOutKey(atts), val);
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
@@ -2519,7 +2634,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       const url = atts.src ?? atts.href ?? atts.url;
       let raw = "";
       if (!isBlank(url) && isValidUrl(url)) {
@@ -2532,7 +2651,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         }
       }
       if (isBlank(raw)) {
-        raw = await renderText(await marshallText(ctx.node, ctx, ""), ctx);
+        raw = await renderText(
+          await marshallText(ctx.node, ctx, ""),
+          getReadableScope(ctx.session),
+          ctx
+        );
       }
       if (isBlank(raw)) {
         console.warn("<read> missing content");
@@ -2667,12 +2790,20 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
       let url = atts.href ?? atts.url ?? atts.src ?? "";
       const next = nextNode(ctx.node, ctx.session.root, false);
       const ops: OP[] = [];
       if (!url) {
-        const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
+        const rollup = await renderText(
+          await marshallText(ctx.node, ctx),
+          getReadableScope(ctx.session),
+          ctx
+        );
         const prompt = (
           !isBlank(rollup) ? rollup : (atts.prompt ?? atts.description)
         ).trim();
@@ -2687,7 +2818,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
           url = result.url;
         }
       }
-      setState(ctx.scope, tagOutKey(atts), url);
+      setState(ctx.session, tagOutKey(atts), url);
       ops.push({
         type: "show-media",
         media: url,
@@ -2755,8 +2886,16 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       },
     },
     exec: async (ctx) => {
-      const atts = await renderAtts(ctx.node.atts, ctx);
-      const rollup = await renderText(await marshallText(ctx.node, ctx), ctx);
+      const atts = await renderAtts(
+        ctx.node.atts,
+        getReadableScope(ctx.session),
+        ctx
+      );
+      const rollup = await renderText(
+        await marshallText(ctx.node, ctx),
+        getReadableScope(ctx.session),
+        ctx
+      );
       const message = !isBlank(rollup) ? rollup : atts.message;
       if (message) {
         console.info(atts.message);
@@ -2767,7 +2906,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
             atts,
             session: omit(ctx.session, ["checkpoints"]),
             options: ctx.options,
-            scope: ctx.scope,
           },
           {
             depth: null,

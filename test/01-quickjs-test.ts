@@ -1,6 +1,7 @@
-import { buildDefaultFuncs, Primitive } from "../lib/EvalMethods";
+import { buildDefaultFuncs } from "../lib/EvalMethods";
 import { createRunner, evaluateScript } from "../lib/QuickJSUtils";
 import { PRNG } from "../lib/RandHelpers";
+import { TSerial } from "../typings";
 import { expect } from "./TestUtils";
 
 async function go() {
@@ -9,7 +10,7 @@ async function go() {
   const prng = new PRNG("test");
   const funcs = buildDefaultFuncs(
     {
-      wim: (n: Primitive) => (n as number) * (n as number),
+      wim: (n: TSerial) => (n as number) * (n as number),
     },
     prng
   );

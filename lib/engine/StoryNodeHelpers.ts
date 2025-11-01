@@ -1,6 +1,11 @@
 import { DOMParser } from "@xmldom/xmldom";
 import { isBlank, smoosh, snorm } from "../TextHelpers";
-import { LOOP_TAGS, TEXT_CONTENT_TAGS, TEXT_TAG } from "./StoryConstants";
+import {
+  getReadableScope,
+  LOOP_TAGS,
+  TEXT_CONTENT_TAGS,
+  TEXT_TAG,
+} from "./StoryConstants";
 import { renderAtts } from "./StoryRenderMethods";
 import { BaseActionContext, StoryNode } from "./StoryTypes";
 
@@ -206,8 +211,12 @@ export async function marshallText(
   texts: string[] = []
 ): Promise<string> {
   if (node.type === "when") {
-    const atts = await renderAtts(node.atts, ctx);
-    const cond = await ctx.evaluator(atts.cond, ctx.scope);
+    const atts = await renderAtts(
+      node.atts,
+      getReadableScope(ctx.session),
+      ctx
+    );
+    const cond = await ctx.evaluator(atts.cond, getReadableScope(ctx.session));
     if (cond) {
       for (let i = 0; i < node.kids.length; i++) {
         texts.push(await marshallText(node.kids[i], ctx, join));

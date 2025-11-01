@@ -146,10 +146,10 @@ async function runRepl() {
   const compilerContext: CompilerContext = {
     rng,
     provider,
-    scope: {},
     options: { models: runnerOptions.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },
+    locals: {},
   };
 
   const sources = await compileStory(

@@ -92,7 +92,6 @@ export type StorySession = {
   checkpoints: StoryCheckpoint[];
   cache: Record<string, TSerial>;
   target?: string | null;
-  genie?: Record<string, Buffer | string>;
   ddv: DDVState;
 } & StorySource;
 
@@ -278,17 +277,16 @@ export type CompilerOptions = {
 export interface CompilerContext {
   rng: PRNG;
   provider: StoryServiceProvider;
-  scope: { [key: string]: TSerial };
   options: CompilerOptions;
   evaluator: EvaluatorFunc;
   ddv: DDVState;
+  locals: Record<string, TSerial>;
 }
 
 export interface BaseActionContext {
   session: StorySession;
   rng: PRNG;
   provider: StoryServiceProvider;
-  scope: { [key: string]: TSerial };
   options: StoryOptions;
   evaluator: EvaluatorFunc;
 }

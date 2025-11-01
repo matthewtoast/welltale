@@ -1,7 +1,7 @@
-import { TScalar, TSerial } from "../typings";
+import { TSerial } from "../typings";
 import { cleanSplit } from "./TextHelpers";
 
-export type ExprEvalFunc = (...args: TScalar[]) => TSerial;
+export type ExprEvalFunc = (...args: TSerial[]) => TSerial;
 
 export function castToBoolean(v: any): boolean {
   if (typeof v === "boolean") return v;

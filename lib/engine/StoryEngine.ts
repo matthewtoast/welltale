@@ -1,13 +1,13 @@
 import { isEmpty } from "lodash";
 import sift, { Query } from "sift";
-import { TSerial } from "../../typings";
-import { isTruthy } from "../EvalCasting";
+import { castToString, isTruthy } from "../EvalCasting";
 import { buildDefaultFuncs } from "../EvalMethods";
 import { CostTracker, createCostTracker } from "../MeteringUtils";
 import { createRunner, evaluateScript } from "../QuickJSUtils";
 import { PRNG } from "../RandHelpers";
 import { ACTION_HANDLERS } from "./StoryActions";
 import { makeCheckpoint } from "./StoryCheckpointUtils";
+import { getReadableScope, setState } from "./StoryConstants";
 import {
   dumpTree,
   findNodes,
@@ -69,14 +69,19 @@ export async function advanceStory(
   }
   const funcs = buildDefaultFuncs(
     {
+      set: (k, v) => {
+        setState(session, castToString(k), v);
+        return null;
+      },
       events: fnEvents,
       dialog: fnConvo,
     },
     rng
   );
   const storyRunner = await createRunner();
-  const evaluator: EvaluatorFunc = async (expr, scope) => {
-    return await evaluateScript(expr, scope, funcs, storyRunner);
+  const evaluator: EvaluatorFunc = async (expr, vars) => {
+    const result = await evaluateScript(expr, vars, funcs, storyRunner);
+    return result;
   };
 
   // <var> etc may be declared at the top level so evaluate those sequentially
@@ -330,8 +335,6 @@ export async function enactNodeAction(
     session,
     rng,
     provider,
-    // We need to get a new scope on every node since it may have introduced new scope
-    scope: createScope(session),
     evaluator,
   };
   const handler = ACTION_HANDLERS.find(
@@ -340,8 +343,14 @@ export async function enactNodeAction(
   let result: ActionResult | null = null;
   const guardExpr = node.atts.if;
   if (typeof guardExpr === "string") {
-    const renderedGuard = await renderText(guardExpr, ctx);
-    const guard = isTruthy(await evaluator(renderedGuard, ctx.scope));
+    const renderedGuard = await renderText(
+      guardExpr,
+      getReadableScope(ctx.session),
+      ctx
+    );
+    const guard = isTruthy(
+      await evaluator(renderedGuard, getReadableScope(ctx.session))
+    );
     if (!guard) {
       result = { ops: [], next: nextNode(node, session.root, false) };
     }
@@ -351,76 +360,4 @@ export async function enactNodeAction(
   }
   const actionResult = result!;
   return actionResult;
-}
-
-export function createScope(session: StorySession): { [key: string]: TSerial } {
-  function findWritableScope(): { [key: string]: TSerial } | null {
-    for (let i = session.stack.length - 1; i >= 0; i--) {
-      const writeableScope = session.stack[i].writeableScope;
-      if (writeableScope) {
-        return writeableScope;
-      }
-    }
-    return null;
-  }
-
-  return new Proxy({} as { [key: string]: TSerial }, {
-    get(target, prop: string) {
-      for (let i = session.stack.length - 1; i >= 0; i--) {
-        const eitherScope =
-          session.stack[i].writeableScope ?? session.stack[i].readableScope;
-        if (eitherScope && prop in eitherScope) {
-          return eitherScope[prop];
-        }
-      }
-      // Return null here instead of undefined so we can reference unknown vars in evalExpr w/o throwing
-      return (
-        session.state[prop] ??
-        session.meta[prop] ??
-        session[prop as keyof typeof session] ??
-        null
-      );
-    },
-    set(target, prop: string, value) {
-      const scope = findWritableScope();
-      if (scope) {
-        scope[prop] = value;
-      } else {
-        session.state[prop] = value;
-      }
-      return true;
-    },
-    ownKeys(target) {
-      const keys: string[] = [];
-      for (let i = session.stack.length - 1; i >= 0; i--) {
-        const scope = session.stack[i].writeableScope;
-        for (const key in scope) {
-          keys.push(key);
-        }
-      }
-      for (const key in session.state) {
-        keys.push(key);
-      }
-      return keys;
-    },
-    getOwnPropertyDescriptor(target, prop: string) {
-      for (let i = session.stack.length - 1; i >= 0; i--) {
-        const scope = session.stack[i].writeableScope;
-        if (scope && prop in scope) {
-          return {
-            configurable: true,
-            enumerable: true,
-            value: scope[prop],
-          };
-        }
-      }
-      if (prop in session.state) {
-        return {
-          configurable: true,
-          enumerable: true,
-          value: session.state[prop],
-        };
-      }
-    },
-  });
 }

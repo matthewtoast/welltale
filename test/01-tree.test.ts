@@ -113,7 +113,6 @@ async function test() {
     session: createDefaultSession("test", emptySource),
     rng,
     provider: mockProvider,
-    scope: {},
     evaluator: async (expr, scope) => {
       return await evaluateScript(expr, scope, funcs, scriptRunner);
     },

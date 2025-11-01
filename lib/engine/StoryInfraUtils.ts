@@ -76,17 +76,17 @@ export async function compileStoryJob(
   const rng = new PRNG(options.seed);
   const scriptRunner = await createRunner();
   const funcs = buildDefaultFuncs({}, rng);
-  const evaluator: EvaluatorFunc = async (expr, scope) => {
-    return await evaluateScript(expr, scope, funcs, scriptRunner);
+  const evaluator: EvaluatorFunc = async (expr, vars) => {
+    return await evaluateScript(expr, vars, funcs, scriptRunner);
   };
 
   const compilerContext: CompilerContext = {
     rng,
     provider,
-    scope: {},
     options: { models: options.models },
     evaluator,
     ddv: { cycles: {}, bags: {} },
+    locals: {},
   };
 
   const compiled = await compileStory(compilerContext, cartridge, {

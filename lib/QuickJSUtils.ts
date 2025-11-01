@@ -69,12 +69,18 @@ export const evaluateScript = async (
   const valKeys = Object.keys(vars).filter(isIdent);
   const funcKeys = Object.keys(funcs)
     .filter(isIdent)
-    .filter((k) => !valKeys.includes(k));
+    .filter((k) => !valKeys.includes(k))
+    // `set` is a special case; don't allow re-definition
+    .filter((k) => k !== "set");
 
   const env = {
-    get: (k: string): TSerial => vars[k] ?? null,
+    get: (k: string): TSerial => vars[k] ?? null, // TODO: lodash.get
     set: (k: string, v: TSerial) => {
-      vars[k] = v;
+      if (typeof funcs.set === "function") {
+        funcs.set(k, v);
+      } else {
+        vars[k] = v;
+      }
       // We must return null here or QuickJS will crash when the following conditions are met:
       // (1) the expression is treated as a singleLine, (2) an array/object is returned
       return null;

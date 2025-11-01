@@ -256,11 +256,12 @@ export async function compileStory(
   };
   // Provide interpolation service to the metadata itself
   const metaStr = JSON.stringify(meta);
-  Object.assign(context.scope, meta); // Provide meta's own variables
-  const renderedMetaStr = await renderText(metaStr, context);
+  const renderedMetaStr = await renderText(metaStr, context.locals, {
+    ...context,
+    session: { ddv: context.ddv },
+  });
   const renderedMeta = safeJsonParse(renderedMetaStr);
   if (renderedMeta) {
-    Object.assign(context.scope, renderedMeta);
     Object.assign(meta, renderedMeta);
   }
 
@@ -355,7 +356,12 @@ async function compilePendingDataVoices(
 ): Promise<void> {
   for (let i = 0; i < pending.length; i++) {
     const voice = pending[i];
-    const prompt = snorm(await renderText(voice.prompt, context));
+    const prompt = snorm(
+      await renderText(voice.prompt, context.locals, {
+        ...context,
+        session: { ddv: context.ddv },
+      })
+    );
     if (isBlank(prompt)) {
       console.warn(`Skipping data voice ${voice.ref} with empty prompt`);
       continue;

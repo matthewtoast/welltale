@@ -71,11 +71,6 @@ export async function extractInput(
 ): Promise<Record<string, TSerial>> {
   const out: Record<string, TSerial> = {};
 
-  if (Object.keys(atts).length < 1) {
-    out["input"] = raw.trim();
-    return out;
-  }
-
   const groups = parseFieldGroups(omit(atts, ...SPECIAL_INPUT_FIELD_ATTS));
   // The case of <input key="foo" />
   if (Object.keys(groups).length < 1 && (atts.name ?? atts.key ?? atts.id)) {

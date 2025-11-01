@@ -29,7 +29,7 @@ async function compileMacroStory(xml: string): Promise<StoryNode> {
   const compilerContext: CompilerContext = {
     rng,
     provider,
-    scope: {},
+    locals: {},
     options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },

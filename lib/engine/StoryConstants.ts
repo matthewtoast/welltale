@@ -120,11 +120,41 @@ export function publicAtts<T extends Record<string, any>>(atts: T): T {
 }
 
 export function setState(
-  state: Record<string, TSerial>,
+  session: StorySession,
   key: string,
   value: TSerial
 ): void {
-  set(state, key, value);
+  const scope = findWritableScope(session);
+  set(scope ?? session.state, key, value);
+}
+
+export function findWritableScope(
+  session: StorySession
+): { [key: string]: TSerial } | null {
+  for (let i = session.stack.length - 1; i >= 0; i--) {
+    const writeableScope = session.stack[i].writeableScope;
+    if (writeableScope) {
+      return writeableScope;
+    }
+  }
+  return null;
+}
+
+export function getReadableScope(
+  session: StorySession,
+  scope: Record<string, TSerial> = {}
+) {
+  Object.assign(scope, session);
+  Object.assign(scope, session.meta);
+  Object.assign(scope, session.state);
+  if (Array.isArray(session.stack)) {
+    for (let i = session.stack.length - 1; i >= 0; i--) {
+      const entry = session.stack[i];
+      // @ts-ignore
+      Object.assign(scope, entry.readableScope, entry.writeableScope);
+    }
+  }
+  return scope;
 }
 
 export function collectDataDocs(cartridge: StoryCartridge) {

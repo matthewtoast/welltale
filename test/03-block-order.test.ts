@@ -81,7 +81,7 @@ async function testBlockOrder() {
   </p>
   <input pop.type="string" pop.default="" />
   <p>
-    P - input should appear here = ({{pop}})
+    P - input should appear here = ({{input.pop}})
   </p>
   <p>
     [[Q 1|Q 2|Q 3]]
@@ -112,6 +112,7 @@ async function testBlockOrder() {
   <while cond='empty(xx) || !xx.toLowerCase().startsWith("x")'>
     <p from="Bob">... Say a word beginning with the letter "x".</p>
     <input xx.type="string" xx.default="" />
+    <var name="xx" value="{{input.xx}}" />
     <if cond='xx.toLowerCase() == "invalid1"'>
       <continue />
     </if>
@@ -122,7 +123,7 @@ async function testBlockOrder() {
   </while>
 
   <p>
-    X - input finally started with x = "{{xx}}"
+    X - input finally started with x = "{{input.xx}}"
   </p>
   <jump to="when-test" />
 </sec>

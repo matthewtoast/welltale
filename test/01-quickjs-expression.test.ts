@@ -1,3 +1,4 @@
+import { getReadableScope } from "../lib/engine/StoryConstants";
 import { renderText } from "../lib/engine/StoryRenderMethods";
 import { MockStoryServiceProvider } from "../lib/engine/StoryServiceProvider";
 import {
@@ -30,7 +31,6 @@ async function run() {
       session,
       rng,
       provider,
-      scope,
       evaluator: async (expr, vars) => {
         return await evaluateScript(expr, vars, funcs, runner);
       },
@@ -47,15 +47,19 @@ async function run() {
     };
   }
 
+  const c1 = makeContext({ value: 3 });
   const first = await renderText(
     "value {$\n      value +\n      2\n    $}",
-    makeContext({ value: 3 })
+    getReadableScope(c1.session),
+    c1
   );
   expect(first, "value 5");
 
+  const c2 = makeContext({ items: [1, 2, 3], mult: 2 });
   const second = await renderText(
     "sum {$\n      items\n        .map((n) => n * mult)\n        .reduce((total, n) => total + n, 0)\n    $}",
-    makeContext({ items: [1, 2, 3], mult: 2 })
+    getReadableScope(c2.session),
+    c2
   );
   expect(second, "sum 12");
 }

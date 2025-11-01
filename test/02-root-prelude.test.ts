@@ -1,4 +1,3 @@
-import { setState } from "../lib/engine/StoryConstants";
 import { expect, runTestStory } from "./TestUtils";
 
 async function testRootPrelude() {
@@ -33,11 +32,6 @@ async function testRootPrelude() {
   const originBodies = originEvents.map((op) => op.event!.body.trim());
   expect(originBodies[0], "Earth");
   expect(seam2, "finish");
-
-  const state = {};
-  setState(state, "a.b", 4);
-  setState(state, "a.c", 6);
-  expect(state, { a: { b: 4, c: 6 } });
 
   const xmlInputMerge = `
 <p>first</p>

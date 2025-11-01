@@ -87,7 +87,7 @@ export async function runTestStory(
   const provider = new MockStoryServiceProvider();
   const options: LocalStoryRunnerOptions = {
     seed: "test-seed",
-    verbose: true,
+    verbose: false,
     ream: 100,
     maxCheckpoints: 20,
     inputRetryMax: 3,
@@ -100,7 +100,7 @@ export async function runTestStory(
   const compilerContext: CompilerContext = {
     rng,
     provider,
-    scope: {},
+    locals: {},
     options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },

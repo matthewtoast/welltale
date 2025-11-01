@@ -62,7 +62,7 @@ async function go() {
   const compilerContext: CompilerContext = {
     rng,
     provider: p,
-    scope: {},
+    locals: {},
     options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },
@@ -140,7 +140,7 @@ async function go() {
   const compilerContext2: CompilerContext = {
     rng: rng2,
     provider: p,
-    scope: {},
+    locals: {},
     options: { models: options.models },
     evaluator: async () => null,
     ddv: { cycles: {}, bags: {} },

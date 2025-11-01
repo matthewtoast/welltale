@@ -56,7 +56,7 @@ async function testTestStory() {
   const compilerContext: CompilerContext = {
     rng,
     provider,
-    scope: {},
+    locals: {},
     options: { models: options.models },
     evaluator: async (expr, scope) => {
       return await evaluateScript(expr, scope, funcs, runner);

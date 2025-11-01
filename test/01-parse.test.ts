@@ -146,7 +146,6 @@ async function test() {
     session: createDefaultSession("test", emptySource),
     rng,
     provider: mockProvider,
-    scope: {},
     evaluator: async () => null,
     options: {
       verbose: false,
@@ -161,25 +160,19 @@ async function test() {
   };
 
   expect(
-    await renderText("Hello {{name}}", {
-      ...baseContext,
-      scope: { name: "World" },
-    }),
+    await renderText("Hello {{name}}", { name: "World" }, baseContext),
     "Hello World"
   );
   expect(
-    await renderText("Num {{x.y}}", { ...baseContext, scope: { x: { y: 3 } } }),
+    await renderText("Num {{x.y}}", { x: { y: 3 } }, baseContext),
     "Num 3"
   );
   expect(
-    await renderText("Arr {{a.0.name}}", {
-      ...baseContext,
-      scope: { a: [{ name: "Z" }] },
-    }),
+    await renderText("Arr {{a.0.name}}", { a: [{ name: "Z" }] }, baseContext),
     "Arr Z"
   );
   expect(
-    await renderText("Obj {{o}}", { ...baseContext, scope: { o: { z: 1 } } }),
+    await renderText("Obj {{o}}", { o: { z: 1 } }, baseContext),
     'Obj {"z":1}'
   );
 
