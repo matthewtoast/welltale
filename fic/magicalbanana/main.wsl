@@ -1,4 +1,12 @@
 ---
+title: マジカルバナナ
+description: Japanese word association game where players take turns saying related words
+author: トロストマシュー
+language: ja
+tags:
+  - game
+  - kid-friendly
+initialWord: バナナ
 starterWords:
   - 黄色
   - サル
@@ -16,9 +24,9 @@ starterWords:
   マジカルバナナをプレイしましょう！始めます。
 </p>
 
-<var name="prevWord" type="string" value="バナナ">
+<var name="prevWord" type="string" value="{{initialWord}}">
 <var name="currWord" type="string" value="{$ randElement(starterWords) $}">
-<var name="wordsUsed" type="array<string>" value="{{currWord}}" />
+<var name="wordsUsed" type="array<string>" value="{{prevWord}}, {{currWord}}" />
 
 <loop>
   <p>{{prevWord}}と言ったら{{currWord}}</p>
@@ -27,16 +35,11 @@ starterWords:
 
   <llm:parse
     key="response"
-    promptWord="the word the player was given"
+    promptWord="the word the player was given - ok if omitted"
     answerWord="the word the player answered">
     The user is playing Magical Banana. Their answer should be in the form Xと言ったらY or similar. Flexibly parse what they said:
     {{input}}
   </llm:parse>
-
-  <if cond="response.promptWord != currWord">
-    <p>間違った言葉です!</p>
-    <jump to="lose" />
-  </if>
 
   <if cond="wordsUsed.includes(response.answerWord)">
     <p>言葉を繰り返しました！</p>
@@ -46,8 +49,9 @@ starterWords:
   <llm:score
     key="score"
     relevance="how relevant the answer word is to the given word">
-    The given word was {{currWord}}. The answer was {{response.answerWord}}.
-    How relevant is the word? Give a score 0.0-1.0.
+    Return a score indicating how related two words are.
+    The given word was {{currWord}}. The answer word was {{response.answerWord}}.
+    How related are the two words? Be a bit liberal in your interpretation.
     For example: Banana+yellow is 1.0. Banana+cat is 0.0. Banana+popsicle is 0.5. Car+engine is 1.0. Car+winter is 0.1.
   </llm:score>
 
@@ -56,15 +60,22 @@ starterWords:
     <jump to="lose" />
   </if>
 
+  <script>
+    set("wordsUsed", [...get("wordsUsed"), response.answerWord])
+  </script>
+
   <llm:text key="nextWord">
-    We're playing Magical Banana. The opponent's word was {{response.answerWord}}.
-    Your response is "{{response.answerWord}}と言ったら_"
+    We're playing Magical Banana! Your opponent's word was {{response.answerWord}}.
+    What is a word related to that word?
+    FORBIDDEN WORDS: {{wordsUsed}}
+    Your word must be in Japanese.
     Return ONLY the word you choose for your response:
   </llm:text>
 
   <script>
     set("prevWord", response.answerWord)
     set("currWord", nextWord)
+    set("wordsUsed", [...get("wordsUsed"), nextWord])
   </script>
 </loop>
 

@@ -170,7 +170,9 @@ export async function generateJson(
   sink: UsageSink | null
 ): Promise<Record<string, TSerial>> {
   const { model, fallbacks } = prepRoute(models, false);
-  const preface = "Return only a JSON object. Follow this schema:\n" + schema;
+  const preface =
+    "Return only a JSON object. This schema describes the output shape:\n" +
+    schema;
   const r = await openai.chat.completions.create({
     model,
     messages: [

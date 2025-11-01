@@ -5,8 +5,8 @@ import { join } from "path";
 const cwd = join(__dirname, "..");
 
 const runs = [
-  // { dir: "./fic/test", inp: [] },
-  // { dir: "./fic/simple", inp: ["Llama", "exit"] },
+  { dir: "./fic/test", inp: [] },
+  { dir: "./fic/simple", inp: ["Llama", "exit"] },
   { dir: "./fic/shiritori", inp: [] },
 ];
 

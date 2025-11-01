@@ -1,5 +1,6 @@
 ---
-test: 1
+title: 尻取り
+description: A Japanese word game where players take turns saying words that begin with the last syllable of the previous word
 ---
 
 <p id="start">

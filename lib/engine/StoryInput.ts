@@ -5,6 +5,7 @@ import { castToString, castToTypeEnhanced } from "../EvalCasting";
 import { parseFieldGroups, parseFieldGroupsNested } from "../InputHelpers";
 import { isBlank } from "../TextHelpers";
 import { normalizeModels } from "./StoryConstants";
+import { StoryServiceProvider } from "./StoryServiceProvider";
 import { BaseActionContext } from "./StoryTypes";
 
 export const SPECIAL_INPUT_FIELD_ATTS = [
@@ -38,29 +39,30 @@ function tryParseEnum(value: TSerial, enumString: string): string | null {
   return null;
 }
 
-async function extractWithLLM(
+export async function extractWithLLM(
   raw: string,
   atts: Record<string, string>,
-  ctx: BaseActionContext
+  provider: StoryServiceProvider,
+  options: { models: string[] }
 ): Promise<Record<string, TSerial>> {
   const schema = parseFieldGroupsNested(
     omit(atts, ...SPECIAL_INPUT_FIELD_ATTS)
   );
-  const enhanced = await ctx.provider.generateJson(
+  const enhanced = await provider.generateJson(
     dedent`
       Extract structured data from the input.
+
       <input>${raw}</input>
-      Example:
-      If the input is "my name is Bob and I'm 24", and the schema is {"name.type": "string", "name.description": "the user's name", "age.type": "number"}, your output should be: {"name": "Bob", "age": 25}.
-      Normalize and return JSON per the schema.
+
+      Example: If the input is "my name is Bob and I'm 24", and the schema is {"name.type": "string", "name.description": "the user's name", "age.type": "number"}, your output should be: {"name": "Bob", "age": 25}.
     `,
     schema,
     {
+      disableCache: true,
       useWebSearch: false,
-      models: normalizeModels(ctx.options, atts.models),
+      models: normalizeModels(options, atts.models),
     }
   );
-
   return enhanced;
 }
 
@@ -85,7 +87,7 @@ export async function extractInput(
 
   // Condition 1: Multiple fields always require LLM
   if (keys.length > 1) {
-    const enhanced = await extractWithLLM(raw, atts, ctx);
+    const enhanced = await extractWithLLM(raw, atts, ctx.provider, ctx.options);
     Object.assign(out, enhanced);
     return out;
   }
@@ -96,7 +98,7 @@ export async function extractInput(
 
   // Condition 2: If field has description, use LLM for semantic understanding
   if (fieldAtts.description) {
-    const enhanced = await extractWithLLM(raw, atts, ctx);
+    const enhanced = await extractWithLLM(raw, atts, ctx.provider, ctx.options);
     Object.assign(out, enhanced);
     return out;
   }
@@ -109,14 +111,14 @@ export async function extractInput(
       return out;
     }
     // If enum parsing failed, fall back to LLM
-    const enhanced = await extractWithLLM(raw, atts, ctx);
+    const enhanced = await extractWithLLM(raw, atts, ctx.provider, ctx.options);
     Object.assign(out, enhanced);
     return out;
   }
 
   // Condition 3b: If field has complex validation rules (range, or enum+range), use LLM
   if (fieldAtts.range) {
-    const enhanced = await extractWithLLM(raw, atts, ctx);
+    const enhanced = await extractWithLLM(raw, atts, ctx.provider, ctx.options);
     Object.assign(out, enhanced);
     return out;
   }
@@ -133,7 +135,7 @@ export async function extractInput(
       }
     }
     // Complex type or enum parsing failed, use LLM
-    const enhanced = await extractWithLLM(raw, atts, ctx);
+    const enhanced = await extractWithLLM(raw, atts, ctx.provider, ctx.options);
     Object.assign(out, enhanced);
     return out;
   }
@@ -150,7 +152,6 @@ export async function extractInput(
   // Step 3: Pattern validation
   if (fieldAtts.pattern) {
     const pattern = castToString(fieldAtts.pattern);
-    console.log(raw, value, pattern);
     if (!new RegExp(pattern).test(castToString(value))) {
       value = fallback;
     }

@@ -17,6 +17,7 @@ import {
   getReadableScope,
   HOST_ID,
   INPUT_TAGS,
+  LOOP_TAGS,
   normalizeModels,
   publicAtts,
   setState,
@@ -707,7 +708,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
   },
   {
-    tags: ["while", "loop"],
+    tags: LOOP_TAGS,
     docs: {
       desc: dedent`
         Repeats child elements while a condition remains true. The condition is evaluated before
@@ -782,7 +783,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {},
     },
     exec: async (ctx) => {
-      const w = nearestAncestorOfType(ctx.node, ctx.session.root, "while");
+      const w = nearestAncestorOfType(ctx.node, ctx.session.root, LOOP_TAGS);
       if (!w) {
         return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
@@ -800,7 +801,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {},
     },
     exec: async (ctx) => {
-      const w = nearestAncestorOfType(ctx.node, ctx.session.root, "while");
+      const w = nearestAncestorOfType(ctx.node, ctx.session.root, LOOP_TAGS);
       if (!w) {
         return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }

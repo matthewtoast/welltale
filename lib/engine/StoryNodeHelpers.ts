@@ -379,11 +379,11 @@ export function parentNodeOf(
 export function nearestAncestorOfType(
   node: StoryNode,
   root: StoryNode,
-  type: string
+  types: string[]
 ): StoryNode | null {
   let p = parentNodeOf(node, root);
   while (p) {
-    if (p.type === type) return p;
+    if (types.includes(p.type)) return p;
     p = parentNodeOf(p, root);
   }
   return null;

@@ -1,0 +1,1 @@
+make a simple マジカルバナナ type of game where you play vs the computer

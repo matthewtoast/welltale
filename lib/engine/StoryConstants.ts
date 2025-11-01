@@ -25,7 +25,7 @@ export const TEXT_TAG = "#text";
 
 export const NONRENDER_ATTS = ["id", "type", ".type", ".pattern"];
 
-export const LOOP_TAGS = ["while"];
+export const LOOP_TAGS = ["while", "loop"];
 
 export const INPUT_TAGS = ["input", "textarea"];
 

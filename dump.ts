@@ -92,7 +92,7 @@ Here’s a minimal example:
 </div>
 ```
 
-WSL supports many other expressions including loops, function-like blocks, scope, conditional text occlusion, a number of LLM-powered tags, and even macros. A sandboxed JavaScript environment is provided for scripting. For a list of all tags and structures, see the Welltale Story Language Reference.
+WSL supports many other tags and syntactical expressions including loops, function-like blocks, scope, conditional text occlusion, a number of LLM-powered tags - even macros. A sandboxed JavaScript environment is provided for scripting. For a list of all tags and structures, see the Welltale Story Language Reference.
 
 ## Vision
 
@@ -114,12 +114,12 @@ Desc: Pauses story execution to get input from the user.
 If the input can't be validated from attributes alone, AI will automatically be used to parse and validate the input.
 Raw input is stored in the `input` state variable. Extracted fields are stored under the `_` state variable, or the variable given by the `key` attribute if present.
 Note: Every `<input>` automatically create a story checkpoint.
-Attrs: {"id":{"type":"string","desc":"Unique identifier for this input point","req":false},"scope":{"type":"string","desc":"Set to 'global' to store extracted values in global state","req":false,"default":"local"},"retryMax":{"type":"number","desc":"Maximum retry attempts if extraction fails","req":false,"default":"3"},"catch":{"type":"string","desc":"ID of element to jump to if all retries fail","req":false},"[field].description":{"type":"string","desc":"Description for AI to extract this field from input","req":false},"[field].type":{"type":"string","desc":"Expected type: string, number, boolean","req":false,"default":"string"},"[field].default":{"type":"string","desc":"Default value if field not found in input","req":false}}
+Attrs: {"id":{"type":"string","desc":"Unique identifier for this input point","req":false},"scope":{"type":"string","desc":"Set to 'global' to store extracted values in global state","req":false,"default":"local"},"[field].description":{"type":"string","desc":"Description for AI to extract this field from input","req":false},"[field].type":{"type":"string","desc":"Expected type: string, number, boolean","req":false,"default":"string"},"[field].default":{"type":"string","desc":"Default value if field not found in input","req":false}}
 
 Tag: <var>
 Desc: Defines or updates a variable in the current scope. Variables can hold any type of data
 and can be used in template expressions like `{{variableName}}`.
-Attrs: {"name":{"type":"string","desc":"Variable name (aliases: key, id)","req":true},"value":{"type":"string","desc":"Value to assign. Can be literal or expression. If omitted, uses inner content.","req":false},"type":{"type":"string","desc":"Type to cast value to: string, number, boolean, array, object, date","req":false,"default":"string"}}
+Attrs: {"name":{"type":"string","desc":"Variable name (aliases: key, id)","req":true},"value":{"type":"string","desc":"Value to assign. If omitted, uses element's inner content.","req":false},"type":{"type":"string","desc":"Type to cast value to: string, number, boolean, array, object, date","req":false,"default":"string"}}
 
 Tag: <if>
 Desc: Conditional execution of story content. Evaluates a JavaScript expression and executes
@@ -148,7 +148,7 @@ Attrs: {"duration":{"type":"number","desc":"Pause duration in milliseconds (alia
 Tag: <while>
 Desc: Repeats child elements while a condition remains true. The condition is evaluated before
 each iteration. Supports `<break>` and `<continue>` statements for loop control.
-Attrs: {"cond":{"type":"string","desc":"JavaScript expression evaluated before each iteration","req":true}}
+Attrs: {"cond":{"type":"string","desc":"JavaScript expression evaluated before each iteration","req":false}}
 
 Tag: <sound>
 Desc: Plays audio content in the story.
