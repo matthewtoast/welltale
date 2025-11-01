@@ -31,7 +31,6 @@ export function StoryPlayer(props: { meta: StoryMeta; source: StorySource }) {
   const optionsRef = useRef<StoryOptions>({
     verbose: true,
     seed: `web-${props.meta.id}`,
-    loop: 0,
     ream: 100,
     doGenerateAudio: true,
     doGenerateImage: false,

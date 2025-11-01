@@ -5,7 +5,6 @@ struct StorySessionFactory {
             time: 0,
             turn: 0,
             cycle: 0,
-            loops: 0,
             resume: false,
             address: nil,
             input: nil,

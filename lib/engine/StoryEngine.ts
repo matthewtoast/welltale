@@ -3,7 +3,7 @@ import sift, { Query } from "sift";
 import { TSerial } from "../../typings";
 import { isTruthy } from "../EvalCasting";
 import { buildDefaultFuncs } from "../EvalMethods";
-import { createCostTracker } from "../MeteringUtils";
+import { CostTracker, createCostTracker } from "../MeteringUtils";
 import { createRunner, evaluateScript } from "../QuickJSUtils";
 import { PRNG } from "../RandHelpers";
 import { ACTION_HANDLERS } from "./StoryActions";
@@ -35,9 +35,9 @@ let calls = 0;
 export async function advanceStory(
   provider: StoryServiceProvider,
   session: StorySession,
-  options: StoryOptions
+  options: StoryOptions,
+  out: OP[] = []
 ): Promise<StoryAdvanceResult> {
-  const out: OP[] = [];
   const tracker = createCostTracker();
   provider.attachCostTracker(tracker);
 
@@ -53,8 +53,6 @@ export async function advanceStory(
   const origin =
     findNodes(session.root, (node) => node.type === "origin")[0] ??
     session.root;
-  const outro =
-    findNodes(session.root, (node) => node.type === "outro")[0] ?? null;
 
   function fnEvents(query: Query<any>) {
     const sifter = sift(query);
@@ -69,7 +67,6 @@ export async function advanceStory(
       return `${from}: ${body}`;
     });
   }
-
   const funcs = buildDefaultFuncs(
     {
       events: fnEvents,
@@ -130,6 +127,28 @@ export async function advanceStory(
     session.address = origin.addr;
   }
 
+  return advanceStoryInner(
+    provider,
+    session,
+    options,
+    rng,
+    tracker,
+    origin,
+    evaluator,
+    out
+  );
+}
+
+async function advanceStoryInner(
+  provider: StoryServiceProvider,
+  session: StorySession,
+  options: StoryOptions,
+  rng: PRNG,
+  tracker: CostTracker,
+  origin: StoryNode,
+  evaluator: EvaluatorFunc,
+  out: OP[] = []
+): Promise<StoryAdvanceResult> {
   function done(
     seam: SeamType,
     addr: string | null,
@@ -142,148 +161,170 @@ export async function advanceStory(
     return { ops: out, session, seam, addr, info, cost };
   }
 
-  while (true) {
-    if (session.address === OUTRO_RETURN_ADDR) {
-      session.address = null;
-      out.push({ type: "story-end" });
-      return done(SeamType.FINISH, null, {});
+  if (session.address === OUTRO_RETURN_ADDR) {
+    session.address = null;
+    out.push({ type: "story-end" });
+    return done(SeamType.FINISH, null, {});
+  }
+
+  let node: StoryNode | null =
+    findNodes(session.root, (node) => node.addr === session.address)[0] ?? null;
+
+  if (!node) {
+    const error = `Node ${session.address} not found`;
+    console.warn(error);
+    return done(SeamType.ERROR, null, { error });
+  }
+
+  const ctx: ActionContext = {
+    options,
+    origin,
+    node,
+    session,
+    rng,
+    provider,
+    // We need to get a new scope on every node since it may have introduced new scope
+    scope: createScope(session),
+    evaluator,
+  };
+
+  const handler = ACTION_HANDLERS.find(
+    (h) => h.tags.length === 0 || h.tags.includes(node.type)
+  )!;
+  let result: ActionResult | null = null;
+  const guardExpr = node.atts.if;
+  if (typeof guardExpr === "string") {
+    const renderedGuard = await renderText(guardExpr, ctx);
+    const guard = isTruthy(await evaluator(renderedGuard, ctx.scope));
+    if (!guard) {
+      result = { ops: [], next: nextNode(node, session.root, false) };
     }
+  }
+  if (result === null) {
+    result = await handler.exec(ctx);
+  }
+  const actionResult = result!;
+  out.push(...actionResult.ops);
 
-    let node: StoryNode | null =
-      findNodes(session.root, (node) => node.addr === session.address)[0] ??
-      null;
-
-    if (!node) {
-      const error = `Node ${session.address} not found`;
-      console.warn(error);
-      return done(SeamType.ERROR, null, { error });
+  if (out.length > 0) {
+    const latest = out[out.length - 1];
+    if (latest.type === "story-error") {
+      return done(SeamType.ERROR, node.addr, { reason: latest.reason });
     }
+  }
 
-    const ctx: ActionContext = {
-      options,
-      origin,
-      node,
-      session,
-      rng,
-      provider,
-      // We need to get a new scope on every node since it may have introduced new scope
-      scope: createScope(session),
-      evaluator,
-    };
+  if (options.verbose) {
+    console.info(
+      `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${actionResult.next?.node.addr} ${JSON.stringify(actionResult.ops)}`
+    );
+  }
 
-    const handler = ACTION_HANDLERS.find(
-      (h) => h.tags.length === 0 || h.tags.includes(node.type)
-    )!;
-    let result: ActionResult | null = null;
-    const guardExpr = node.atts.if;
-    if (typeof guardExpr === "string") {
-      const renderedGuard = await renderText(guardExpr, ctx);
-      const guard = isTruthy(await evaluator(renderedGuard, ctx.scope));
-      if (!guard) {
-        result = { ops: [], next: nextNode(node, session.root, false) };
-      }
-    }
-    if (result === null) {
-      result = await handler.exec(ctx);
-    }
-    const actionResult = result!;
-    out.push(...actionResult.ops);
-
-    if (out.length > 0) {
-      const recent = out[out.length - 1];
-      if (recent.type === "story-error") {
-        return done(SeamType.ERROR, node.addr, { reason: recent.reason });
-      }
-    }
-
-    if (options.verbose) {
-      console.info(
-        `<${node.type} ${node.addr}${isEmpty(node.atts) ? "" : " " + JSON.stringify(node.atts)}> ~> ${actionResult.next?.node.addr} ${JSON.stringify(actionResult.ops)}`
+  if (actionResult.next) {
+    if (session.target) {
+      session.address = session.target;
+      session.target = null;
+      return advanceStoryInner(
+        provider,
+        session,
+        options,
+        rng,
+        tracker,
+        origin,
+        evaluator,
+        out
       );
     }
-
-    if (actionResult.next) {
-      if (session.target) {
-        session.address = session.target;
-        session.target = null;
-        continue;
-      }
-      // Check if we're currently in a yielded block and the next node escapes it
-      if (
-        session.stack.length > 0 &&
-        wouldEscapeCurrentBlock(node, actionResult.next.node, session.root)
-      ) {
-        const topFrame = session.stack[session.stack.length - 1];
-        if (topFrame.blockType === "yield") {
-          session.address = actionResult.next.node.addr;
-        } else {
-          const frame = session.stack.pop()!;
-          if (frame.blockType === "intro" || frame.blockType === "resume") {
-            if (node.type === "jump") {
-              session.address = actionResult.next.node.addr;
-            } else {
-              session.address = frame.returnAddress;
-            }
+    // Check if we're currently in a yielded block and the next node escapes it
+    if (
+      session.stack.length > 0 &&
+      wouldEscapeCurrentBlock(node, actionResult.next.node, session.root)
+    ) {
+      const topFrame = session.stack[session.stack.length - 1];
+      if (topFrame.blockType === "yield") {
+        session.address = actionResult.next.node.addr;
+      } else {
+        const frame = session.stack.pop()!;
+        if (frame.blockType === "intro" || frame.blockType === "resume") {
+          if (node.type === "jump") {
+            session.address = actionResult.next.node.addr;
           } else {
             session.address = frame.returnAddress;
           }
+        } else {
+          session.address = frame.returnAddress;
         }
-      } else {
-        session.address = actionResult.next.node.addr;
       }
     } else {
-      // No next node - check if we should return from a block
-      if (session.stack.length > 0) {
-        const { returnAddress, blockType } = session.stack.pop()!;
-
-        // If we just finished a yield block and the return address is the same as the parent's return,
-        // we should pop the parent frame too to avoid double execution
-        if (blockType === "yield" && session.stack.length > 0) {
-          const parentFrame = session.stack[session.stack.length - 1];
-          if (parentFrame.returnAddress === returnAddress) {
-            // Pop the parent frame as well since we're at the end of both containers
-            session.stack.pop();
-          }
-        }
-
-        session.address = returnAddress;
-      } else {
-        if (session.loops < options.loop) {
-          session.loops += 1;
-          session.address = null;
-          session.outroed = false;
-        } else {
-          if (outro && !session.outroed) {
-            session.outroed = true;
-            session.stack.push({
-              returnAddress: OUTRO_RETURN_ADDR,
-              writeableScope: null,
-              readableScope: null,
-              blockType: "outro",
-            });
-            session.address = outro.addr;
-            continue;
-          }
-          out.push({ type: "story-end" });
-        }
-      }
+      session.address = actionResult.next.node.addr;
     }
+  } else {
+    // No next node - check if we should return from a block
+    if (session.stack.length > 0) {
+      const { returnAddress, blockType } = session.stack.pop()!;
 
-    if (out.length > 0) {
-      const last = out[out.length - 1];
-      switch (last.type) {
-        case "get-input":
-          return done(SeamType.INPUT, node.addr, {});
-        case "story-end":
-          return done(SeamType.FINISH, node.addr, {});
-        case "story-error":
-          return done(SeamType.ERROR, node.addr, { reason: last.reason });
-        case "play-media":
-          return done(SeamType.MEDIA, node.addr, {});
-        default:
+      // If we just finished a yield block and the return address is the same as the parent's return,
+      // we should pop the parent frame too to avoid double execution
+      if (blockType === "yield" && session.stack.length > 0) {
+        const parentFrame = session.stack[session.stack.length - 1];
+        if (parentFrame.returnAddress === returnAddress) {
+          // Pop the parent frame as well since we're at the end of both containers
+          session.stack.pop();
+        }
       }
+
+      session.address = returnAddress;
+    } else {
+      const outro =
+        findNodes(session.root, (node) => node.type === "outro")[0] ?? null;
+      if (outro && !session.outroed) {
+        session.outroed = true;
+        session.stack.push({
+          returnAddress: OUTRO_RETURN_ADDR,
+          writeableScope: null,
+          readableScope: null,
+          blockType: "outro",
+        });
+        session.address = outro.addr;
+        return advanceStoryInner(
+          provider,
+          session,
+          options,
+          rng,
+          tracker,
+          origin,
+          evaluator,
+          out
+        );
+      }
+      out.push({ type: "story-end" });
     }
   }
+
+  if (out.length > 0) {
+    const last = out[out.length - 1];
+    switch (last.type) {
+      case "get-input":
+        return done(SeamType.INPUT, node.addr, {});
+      case "story-end":
+        return done(SeamType.FINISH, node.addr, {});
+      case "story-error":
+        return done(SeamType.ERROR, node.addr, { reason: last.reason });
+      case "play-media":
+        return done(SeamType.MEDIA, node.addr, {});
+      default:
+    }
+  }
+
+  return advanceStoryInner(
+    provider,
+    session,
+    options,
+    rng,
+    tracker,
+    origin,
+    evaluator,
+    out
+  );
 }
 
 export function createScope(session: StorySession): { [key: string]: TSerial } {

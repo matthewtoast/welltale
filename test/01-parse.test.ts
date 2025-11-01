@@ -151,7 +151,6 @@ async function test() {
     options: {
       verbose: false,
       seed: "test",
-      loop: 0,
       ream: 100,
       doGenerateAudio: false,
       doGenerateImage: false,

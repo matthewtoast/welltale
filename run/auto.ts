@@ -108,7 +108,6 @@ async function runAutorun() {
     seed: argv.seed,
     verbose: argv.verbose,
     ream: 100,
-    loop: 0,
     maxCheckpoints: 20,
     inputRetryMax: 3,
     doGenerateAudio: argv.doGenerateAudio,

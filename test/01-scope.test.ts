@@ -51,7 +51,6 @@ async function go() {
     options: {
       verbose: false,
       seed: "test",
-      loop: 0,
       ream: 100,
       doGenerateAudio: false,
       doGenerateImage: false,
@@ -74,7 +73,7 @@ async function go() {
     readableScope: null,
     blockType: "intro",
   });
-  const introScope = createScope(introSession, {});
+  const introScope = createScope(introSession);
   introScope.introVar = "intro";
   expect(introSession.state.introVar, "intro");
 
@@ -92,7 +91,7 @@ async function go() {
     readableScope: null,
     blockType: "intro",
   });
-  const mixedScope = createScope(mixedSession, {});
+  const mixedScope = createScope(mixedSession);
   mixedScope.blockVar = "block";
   expect(scopeFrame.writeableScope!.blockVar, "block");
 
@@ -104,7 +103,7 @@ async function go() {
     blockType: "yield" as const,
   };
   yieldSession.stack.push(yieldFrame);
-  const yieldScope = createScope(yieldSession, {});
+  const yieldScope = createScope(yieldSession);
   yieldScope.param = "value";
   expect(yieldFrame.writeableScope!.param, "value");
 }

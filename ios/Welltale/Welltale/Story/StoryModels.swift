@@ -37,7 +37,6 @@ struct StorySession: Codable {
         time: Int,
         turn: Int,
         cycle: Int,
-        loops: Int,
         resume: Bool,
         address: String?,
         input: StoryInput?,

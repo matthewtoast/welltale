@@ -2401,7 +2401,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     },
     exec: async (ctx) => {
       // Trigger the same ending logic as natural story completion
-      ctx.session.loops = ctx.options.loop; // Force loop exhaustion
       ctx.session.address = null; // Clear current address
       return { ops: [], next: null }; // No next node triggers ending logic
     },
@@ -2437,7 +2436,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     exec: async (ctx) => {
       // Mark outro as done to skip it and trigger immediate end
       ctx.session.outroed = true;
-      ctx.session.loops = ctx.options.loop;
       ctx.session.address = null;
       return { ops: [], next: null };
     },

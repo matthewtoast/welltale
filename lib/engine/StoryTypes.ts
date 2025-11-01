@@ -77,7 +77,6 @@ export type StorySession = {
   time: number;
   turn: number;
   cycle: number;
-  loops: number;
   resume: boolean;
   address: string | null;
   input: {
@@ -181,7 +180,6 @@ export type ImageAspectRatio = (typeof IMAGE_ASPECT_RATIOS)[number];
 export type StoryOptions = {
   verbose: boolean;
   seed: string;
-  loop: number;
   ream: number;
   doGenerateAudio: boolean;
   doGenerateImage: boolean;
@@ -227,7 +225,6 @@ export function createDefaultSession(
     time: Date.now(),
     turn: 0,
     cycle: 0,
-    loops: 0,
     resume: false,
     address: null,
     input: null,

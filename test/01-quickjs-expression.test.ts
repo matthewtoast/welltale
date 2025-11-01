@@ -37,7 +37,6 @@ async function run() {
       options: {
         verbose: false,
         seed: "test",
-        loop: 0,
         ream: 100,
         doGenerateAudio: false,
         doGenerateImage: false,
