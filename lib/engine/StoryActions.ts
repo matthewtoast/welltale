@@ -342,19 +342,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         const { body } = ctx.session.input;
         const raw = snorm(body);
 
-        // TODO: if the input is "AUTO", then use LLM to auto-answer the input
-        // if (raw === "AUTO") {
-        //   raw = await ctx.provider.generateText(
-        //     dedent`
-        //     `,
-        //     {
-        //       seed: atts.seed,
-        //       models: normalizeModels(ctx.options, atts.models),
-        //       useWebSearch: false,
-        //     }
-        //   );
-        // }
-
         const from = atts.from ?? ctx.session.player.id;
         const to = atts.to ?? HOST_ID;
 

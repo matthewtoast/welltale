@@ -64,12 +64,12 @@ async function runAutorun() {
     .option("doGenerateThumbnails", {
       type: "boolean",
       description: "Generate thumbnails during compile",
-      default: true,
+      default: false,
     })
     .option("verbose", {
       type: "boolean",
       description: "Verbose logging on (true/false)",
-      default: true,
+      default: false,
     })
     .option("cartridgeDir", {
       type: "string",

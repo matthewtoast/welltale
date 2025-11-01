@@ -11,7 +11,7 @@ import {
   terminalRenderOps,
 } from "../lib/engine/StoryLocalRunnerUtils";
 import { instantiateREPL } from "../lib/engine/StoryREPLUtils";
-import { advanceToNext } from "../lib/engine/StoryRunnerCoreBlocking";
+import { advanceToNextUntilBlocking } from "../lib/engine/StoryRunnerCoreBlocking";
 import {
   CompilerContext,
   createDefaultSession,
@@ -163,7 +163,12 @@ async function runRepl() {
   const save = async () => {};
 
   async function run(input: string | null): Promise<StoryAdvanceResult> {
-    const result = await advanceToNext(input, session, runnerOptions, provider);
+    const result = await advanceToNextUntilBlocking(
+      input,
+      session,
+      runnerOptions,
+      provider
+    );
     await terminalRenderOps(result.ops, runnerOptions);
     return result;
   }

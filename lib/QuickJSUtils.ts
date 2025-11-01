@@ -74,7 +74,7 @@ export const evaluateScript = async (
     .filter((k) => k !== "set");
 
   const env = {
-    get: (k: string): TSerial => vars[k] ?? null, // TODO: lodash.get
+    get: (k: string): TSerial => vars[k] ?? null,
     set: (k: string, v: TSerial) => {
       if (typeof funcs.set === "function") {
         funcs.set(k, v);

@@ -2,16 +2,16 @@
 test: 1
 ---
 
-<p id="start">
-  Hello
+<p>
+  A
 </p>
 
 <while>
-  <p>Hi</p>
+  <p>B</p>
 
   <break />
 </while>
 
 <p>
-  Bye
+  C
 </p>
