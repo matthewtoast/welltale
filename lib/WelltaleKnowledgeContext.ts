@@ -1,3 +1,4 @@
+import dedent from "dedent";
 import { last } from "lodash";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -52,11 +53,18 @@ export async function renderContext(
       `Documentation on all supported special XML tags in Welltale:${SQUIGGLE_DELIM}` +
         tagDocs
           .map(({ docs, syntax, tags }) => {
-            return `
-Tag: <${tags[0]}>
-Desc: ${(docs?.desc ?? "").replace(/\n+/g, "\n")}
-Attrs: ${JSON.stringify(syntax?.atts)}
-`.trim();
+            return dedent`
+      Tag: <${tags[0]}>${
+        tags.length > 1
+          ? ` (${tags
+              .slice(1)
+              .map((t) => `<${t}>`)
+              .join(", ")})`
+          : ""
+      }
+      Desc: ${(docs?.desc ?? "").replace(/\n+/g, "\n")}
+      Attrs: ${JSON.stringify(syntax?.atts)}
+      `.trim();
           })
           .join("\n\n")
     );

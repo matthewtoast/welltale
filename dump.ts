@@ -101,7 +101,7 @@ Stories can be short or endless, linear or branching, purely human-written or pa
 ~~~~~
 Documentation on all supported special XML tags in Welltale:
 ~~~~~
-Tag: <p>
+Tag: <p> (<text>, <#text>, <span>, <b>, <strong>, <em>, <i>, <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <output>)
 Desc: Text content elements contain narration, dialogue - any content that gets played as spoken audio to the player.
 This content is rendered into audio clips automatically by Welltale using text-to-speech, and then played on the story client to the player.
 The `name` attribute can be used to indicate the person speaking. If none given, `"HOST"` is used.
@@ -109,7 +109,7 @@ The `voice` attribute can assign a specific text-to-speech voice to the speech. 
 Warning: The only tag you can place inside of a text content element is `<when>`. See the docs on `<when>` for adding expressive conditional logic to your text elements.
 Attrs: {"name":{"type":"string","desc":"Speaker/character name","req":false,"default":"HOST"},"voice":{"type":"string","desc":"Voice ID for text-to-speech generation","req":false},"to":{"type":"string","desc":"Comma-separated list of recipients who hear this","req":false,"default":"PLAYER"},"obs":{"type":"string","desc":"Comma-separated list of observers who witness but don't hear directly","req":false},"tags":{"type":"string","desc":"Comma-separated tags affecting speech generation","req":false},"volume":{"type":"number","desc":"Volume level from 0.0 to 1.0","req":false},"background":{"type":"boolean","desc":"Play narration in background without blocking","req":false,"default":"false"},"fadeAt":{"type":"number","desc":"Start fading at this time in milliseconds","req":false},"fadeDuration":{"type":"number","desc":"Duration of fade in milliseconds","req":false},"seed":{"type":"string","desc":"Seed for deterministic generation (provider-specific usage)","req":false}}
 
-Tag: <input>
+Tag: <input> (<textarea>)
 Desc: Pauses story execution to get input from the user.
 If the input can't be validated from attributes alone, AI will automatically be used to parse and validate the input.
 Raw input is stored in the `input` state variable. Extracted fields are stored under the `_` state variable, or the variable given by the `key` attribute if present.
@@ -133,7 +133,7 @@ The target must be an element with an id attribute (typically `<div>` elements, 
 This is the primary way to implement branching narratives and story choices.
 Attrs: {"to":{"type":"string","desc":"ID of the target element to jump to (aliases: target, destination)","req":true},"if":{"type":"string","desc":"JavaScript condition that must be true for the jump to execute","req":false}}
 
-Tag: <script>
+Tag: <script> (<code>)
 Desc: Executes JavaScript with access to state variables in the current scope.
 State variables can be read and modified directly using `get(key)` and `set(key, value)`.
 Code runs in a sandboxed environment.
@@ -145,12 +145,12 @@ audio play, or creating rhythm in the narrative. The duration is in milliseconds
 Note: During sleep, background audio continues playing.
 Attrs: {"duration":{"type":"number","desc":"Pause duration in milliseconds (aliases: for, ms)","req":false,"default":"1"}}
 
-Tag: <while>
+Tag: <while> (<loop>)
 Desc: Repeats child elements while a condition remains true. The condition is evaluated before
 each iteration. Supports `<break>` and `<continue>` statements for loop control.
 Attrs: {"cond":{"type":"string","desc":"JavaScript expression evaluated before each iteration","req":false}}
 
-Tag: <sound>
+Tag: <sound> (<audio>, <music>)
 Desc: Plays audio content in the story.
 If a `url` attribute is given, it is played directly.
 Otherwise the prompt (inner text content) is used, and the chosen tag determines the type:
@@ -160,7 +160,7 @@ The output of this tag is stored in the `_` state variable, or the variable give
 Attributes can used for volume control, fading, etc.
 Attrs: {"src":{"type":"string","desc":"URL of audio file to play (aliases: href, url)","req":false},"duration":{"type":"number","desc":"Duration in milliseconds for AI-generated audio","req":false,"default":"5000 for sound, 10000 for music"},"prompt":{"type":"string","desc":"Description for AI audio generation (aliases: make, description)","req":false},"background":{"type":"boolean","desc":"Play audio in background without blocking story flow","req":false,"default":"false"},"volume":{"type":"number","desc":"Volume level from 0.0 to 1.0","req":false,"default":"1.0"},"fadeAt":{"type":"number","desc":"Start fading at this time in milliseconds","req":false},"fadeDuration":{"type":"number","desc":"Duration of fade in milliseconds","req":false},"seed":{"type":"string","desc":"Seed for deterministic generation (provider-specific usage)","req":false}}
 
-Tag: <root>
+Tag: <root> (<html>, <body>, <div>, <ul>, <ol>, <li>, <section>, <sec>, <pre>, <origin>, <main>, <aside>, <article>, <details>, <summary>)
 Desc: Many container elements are available to structure the story content.
 They can contain any other tags to arbitrary depth.
 These tags organize the narrative into logical sections and can contain other tags.
@@ -300,7 +300,7 @@ Tag: <read>
 Desc: Reads and narrates text content from a URL or inline content.
 Attrs: {"src":{"type":"string","desc":"URL to fetch text content from (aliases: href, url)","req":false},"from":{"type":"string","desc":"Speaker/character reading the text (aliases: speaker, label)","req":false,"default":"HOST"},"voice":{"type":"string","desc":"Voice ID to use for narration","req":false},"to":{"type":"string","desc":"Comma-separated list of recipients","req":false,"default":"PLAYER"},"tags":{"type":"string","desc":"Comma-separated tags for the narration","req":false},"volume":{"type":"number","desc":"Volume level from 0.0 to 1.0","req":false},"background":{"type":"boolean","desc":"Play narration in background","req":false,"default":"false"},"fadeAt":{"type":"number","desc":"Start fading at this time in milliseconds","req":false},"fadeDuration":{"type":"number","desc":"Duration of fade in milliseconds","req":false},"seed":{"type":"string","desc":"Seed for deterministic generation (provider-specific usage)","req":false}}
 
-Tag: <image>
+Tag: <image> (<img>)
 Desc: Displays images in the story.
 If a `src`, `href`, or `url` attribute is given, it displays that image directly.
 Otherwise the prompt (inner text content) is used to generate an image using AI.
