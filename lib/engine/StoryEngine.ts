@@ -81,17 +81,22 @@ export async function advanceStory(
 
   // <var> etc may be declared at the top level so evaluate those sequentially
   if (session.turn === 1 && !session.resume) {
-    await execNodesList(
-      session.root.kids.filter((node) =>
-        ["var", "code", "script", "data"].includes(node.type)
-      ),
-      provider,
-      session,
-      options,
-      rng,
-      evaluator,
-      origin
+    const nodes = session.root.kids.filter((node) =>
+      ["var", "code", "script", "data"].includes(node.type)
     );
+    for (let i = 0; i < nodes.length; i++) {
+      const origAddr = session.address;
+      await enactNodeAction(
+        nodes[i],
+        provider,
+        session,
+        options,
+        rng,
+        origin,
+        evaluator
+      );
+      session.address = origAddr;
+    }
   }
 
   // Check for resume first (takes precedence over intro)
@@ -176,34 +181,16 @@ async function advanceStoryInner(
     return done(SeamType.ERROR, null, { error });
   }
 
-  const ctx: ActionContext = {
-    options,
-    origin,
+  const actionResult = await enactNodeAction(
     node,
-    session,
-    rng,
     provider,
-    // We need to get a new scope on every node since it may have introduced new scope
-    scope: createScope(session),
-    evaluator,
-  };
+    session,
+    options,
+    rng,
+    origin,
+    evaluator
+  );
 
-  const handler = ACTION_HANDLERS.find(
-    (h) => h.tags.length === 0 || h.tags.includes(node.type)
-  )!;
-  let result: ActionResult | null = null;
-  const guardExpr = node.atts.if;
-  if (typeof guardExpr === "string") {
-    const renderedGuard = await renderText(guardExpr, ctx);
-    const guard = isTruthy(await evaluator(renderedGuard, ctx.scope));
-    if (!guard) {
-      result = { ops: [], next: nextNode(node, session.root, false) };
-    }
-  }
-  if (result === null) {
-    result = await handler.exec(ctx);
-  }
-  const actionResult = result!;
   out.push(...actionResult.ops);
 
   if (out.length > 0) {
@@ -327,6 +314,45 @@ async function advanceStoryInner(
   );
 }
 
+export async function enactNodeAction(
+  node: StoryNode,
+  provider: StoryServiceProvider,
+  session: StorySession,
+  options: StoryOptions,
+  rng: PRNG,
+  origin: StoryNode,
+  evaluator: EvaluatorFunc
+) {
+  const ctx: ActionContext = {
+    options,
+    origin,
+    node,
+    session,
+    rng,
+    provider,
+    // We need to get a new scope on every node since it may have introduced new scope
+    scope: createScope(session),
+    evaluator,
+  };
+  const handler = ACTION_HANDLERS.find(
+    (h) => h.tags.length === 0 || h.tags.includes(node.type)
+  )!;
+  let result: ActionResult | null = null;
+  const guardExpr = node.atts.if;
+  if (typeof guardExpr === "string") {
+    const renderedGuard = await renderText(guardExpr, ctx);
+    const guard = isTruthy(await evaluator(renderedGuard, ctx.scope));
+    if (!guard) {
+      result = { ops: [], next: nextNode(node, session.root, false) };
+    }
+  }
+  if (result === null) {
+    result = await handler.exec(ctx);
+  }
+  const actionResult = result!;
+  return actionResult;
+}
+
 export function createScope(session: StorySession): { [key: string]: TSerial } {
   function findWritableScope(): { [key: string]: TSerial } | null {
     for (let i = session.stack.length - 1; i >= 0; i--) {
@@ -397,37 +423,4 @@ export function createScope(session: StorySession): { [key: string]: TSerial } {
       }
     },
   });
-}
-
-export async function execNodesList(
-  nodes: StoryNode[],
-  provider: StoryServiceProvider,
-  session: StorySession,
-  options: StoryOptions,
-  rng: PRNG,
-  evaluator: EvaluatorFunc,
-  origin: StoryNode
-): Promise<void> {
-  const prevAddress = session.address;
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
-    const handler = ACTION_HANDLERS.find(
-      (h) => h.tags.length === 0 || h.tags.includes(node.type)
-    );
-    if (!handler) {
-      continue;
-    }
-    const ctx: ActionContext = {
-      options,
-      origin,
-      node,
-      session,
-      rng,
-      provider,
-      scope: createScope(session),
-      evaluator,
-    };
-    await handler.exec(ctx);
-  }
-  session.address = prevAddress;
 }
