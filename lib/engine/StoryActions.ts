@@ -115,7 +115,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: TEXT_CONTENT_TAGS,
     docs: {
       desc: dedent`
-        Text content elements contain narration, dialogue - any content that gets played as spoken audio to the player.
+        Text content elements contain narration, dialogue - any content that gets played as spoken audio to the player. (Note: A set of HTML text tags is included just for convenience, so Welltale is able to interpret even regular webpages as stories.)
 
         This content is rendered into audio clips automatically by Welltale using text-to-speech, and then played on the story client to the player.
 
@@ -750,7 +750,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {
         cond: {
           type: "string",
-          desc: "JavaScript expression evaluated before each iteration",
+          desc: "JavaScript expression evaluated before each iteration. May be omitted and you can use <break /> to exit the loop",
           req: false,
         },
       },
@@ -801,18 +801,27 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       atts: {},
     },
     exec: async (ctx) => {
-      const w = nearestAncestorOfType(ctx.node, ctx.session.root, LOOP_TAGS);
-      if (!w) {
+      const whileNode = nearestAncestorOfType(
+        ctx.node,
+        ctx.session.root,
+        LOOP_TAGS
+      );
+      if (!whileNode) {
         return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
       }
-      const after = nextNode(w, ctx.session.root, false);
-      if (!after) {
-        return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
+      const afterWhile = nextNode(whileNode, ctx.session.root, false);
+      if (!afterWhile) {
+        // If nothing after the loop we're in, what else is there to do but end?
+        return { ops: [], next: null };
       }
-      const count = countStackContainersBetween(ctx.node, w, ctx.session.root);
+      const count = countStackContainersBetween(
+        ctx.node,
+        whileNode,
+        ctx.session.root
+      );
       const toPop = Math.min(count, ctx.session.stack.length);
       for (let i = 0; i < toPop; i++) ctx.session.stack.pop();
-      ctx.session.target = after.node.addr;
+      ctx.session.target = afterWhile.node.addr;
       return { ops: [], next: nextNode(ctx.node, ctx.session.root, false) };
     },
   },
@@ -1617,7 +1626,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
         relevant dialog between the NPC and listed participants, then prompts an LLM to
         produce the next line without a speaker prefix.
 
-        You must tag your input and output tags (e.g. <input> and <p>) with the \`from\` attribute
+        You must tag your input and output tags (e.g. &lt;input&gt; and &lt;p&gt;) with the \`from\` attribute
         and reference those in the <llm:line> tag's \`as\` and \`with\` for this tag to function.
         The \`as\` attribute is the NPC who is replying, whereas the \`\` with is a comma-delimited
         list of others with whom that NPC is talking.
@@ -2716,7 +2725,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["image", "img"],
     docs: {
       desc: dedent`
-        Displays images in the story.
+        If the client supports it, displays images in the story. This can be used to create accompanying visual content to go along with your audio story, for example an atmospheric image or a character portrait. This is only provided for convenience and it's recommended that your Welltale stories be autio-only!
 
         If a \`src\`, \`href\`, or \`url\` attribute is given, it displays that image directly.
 

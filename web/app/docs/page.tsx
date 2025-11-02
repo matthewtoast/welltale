@@ -20,15 +20,11 @@ const QUICKSTART_CODE = `<p>Welcome to your adventure!</p>
 function readExampleFiles() {
   try {
     const exampleDir = path.join(process.cwd(), "fic", "example");
-    const dataContent = fs.readFileSync(
-      path.join(exampleDir, "data.yml"),
-      "utf-8"
-    );
     const storyContent = fs.readFileSync(
       path.join(exampleDir, "main.wsl"),
       "utf-8"
     );
-    return { dataContent, storyContent };
+    return { storyContent };
   } catch (error) {
     console.warn("Could not read example files:", error);
     return { dataContent: null, storyContent: null };

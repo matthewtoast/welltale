@@ -6,6 +6,7 @@ import { ELEVENLABS_PRESET_VOICES } from "../ElevenLabsVoices";
 import { safeJsonParse } from "../JSONHelpers";
 import { isBlank, keywordize, snorm } from "../TextHelpers";
 import { collectDataArtifacts, collectDataDocs } from "./StoryConstants";
+import { injectDirectives } from "./StoryDirectives";
 import type { ParseSeverity } from "./StoryNodeHelpers";
 import { assignAddrs, BaseNode, parseXmlFragment } from "./StoryNodeHelpers";
 import { renderText } from "./StoryRenderMethods";
@@ -178,7 +179,8 @@ async function buildStoryRoot(
   for (let i = 0; i < keys.length; i++) {
     const path = keys[i];
     const rawContent = cartridge[path].toString("utf-8");
-    const { content, frontmatter } = extractFrontmatter(rawContent);
+    const withDirectives = injectDirectives(rawContent);
+    const { content, frontmatter } = extractFrontmatter(withDirectives);
     Object.assign(meta, frontmatter);
     if (verbose) {
       console.info("Parsing", path);

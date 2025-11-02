@@ -1,3 +1,5 @@
+import dedent from "dedent";
+
 export interface TemplateSyntaxDoc {
   syntax: string;
   desc: string;
@@ -85,6 +87,33 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
       },
     ],
   },
+  {
+    syntax: "--- Front matter ---",
+    desc: "Declare global data and metadata using YAML inside of front matter-like blocks. Note: Front matter is processed at compile time and all values are unscoped globals that can be referred to anywhere in your story.",
+    examples: [
+      {
+        code: dedent`
+          ---
+          a: welcome
+          b: to
+          c: welltale
+          ---
+          <p>
+            {{a}} {{b}} {{c}}, {{d.e.f}}
+          </p>
+          ---
+          d:
+            e:
+              f: hooray!
+          ---
+          <p>
+            Just an example!
+          </p>
+        `,
+        note: "AI generates atmospheric description",
+      },
+    ],
+  },
   //   {
   //     syntax: "Attribute values",
   //     desc: "Most tag attributes can use variables and expressions, not just the content inside tags.",
@@ -104,7 +133,7 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
   //   },
   {
     syntax: "Pattern processing order - important",
-    desc: "Templates are processed in this specific order: (1) {{variables}} first, (2) {$ expressions $} second, (3) [[random|variations]] third, (4) {% AI prompts %} last. Later patterns can use results from earlier ones.",
+    desc: "Templates (other than front matter) are processed at runtime, just as they are encountered, in this specific order: (1) {{variables}} first, (2) {$ expressions $} second, (3) [[random|variations]] third, (4) {% AI prompts %} last. In this way, later patterns can use results from earlier ones.",
     examples: [
       {
         code: `<var name="playerClass" value="warrior" />

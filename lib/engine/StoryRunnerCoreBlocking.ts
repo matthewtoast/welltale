@@ -1,4 +1,3 @@
-import type { CostEntry } from "./../MeteringUtils";
 import { assignInput } from "./StoryConstants";
 import { advanceStory } from "./StoryEngine";
 import { StoryServiceProvider } from "./StoryServiceProvider";
@@ -32,24 +31,14 @@ export async function advanceToNextUntilBlocking(
   provider: StoryServiceProvider
 ): Promise<StoryAdvanceResult> {
   const collected: OP[] = [];
-  const costItems: CostEntry[] = [];
-  let totalCost = 0;
   let current = await advanceToNext(input, session, options, provider);
   collected.push(...current.ops);
-  costItems.push(...current.cost.items);
-  totalCost += current.cost.total;
   while (current.seam === SeamType.MEDIA || current.seam === SeamType.GRANT) {
     current = await advanceToNext(null, session, options, provider);
     collected.push(...current.ops);
-    costItems.push(...current.cost.items);
-    totalCost += current.cost.total;
   }
   return {
     ...current,
     ops: collected,
-    cost: {
-      total: totalCost,
-      items: costItems,
-    },
   };
 }

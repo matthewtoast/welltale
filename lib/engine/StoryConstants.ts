@@ -48,10 +48,10 @@ export const TEXT_CONTENT_TAGS = [
 ];
 
 export const DESCENDABLE_TAGS = [
+  "div",
   "root",
   "html",
   "body",
-  "div",
   "ul",
   "ol",
   "li",

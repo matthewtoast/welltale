@@ -176,10 +176,6 @@ export const stringHelpers: Record<string, (...args: any[]) => P> = {
   },
 };
 
-const isString = (v: unknown): v is string => typeof v === "string";
-const toArrOrStr = (v: A): P[] | string =>
-  isString(v) ? v : Array.isArray(v) ? v : [v];
-
 export const unifiedHelpers: Record<string, (...args: any[]) => P | P[]> = {
   blank: (v: any) => {
     return isBlank(v);

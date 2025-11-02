@@ -64,6 +64,7 @@ export async function instantiateREPL(
       rl.prompt();
       return;
     }
+
     rl.close();
   });
 }
