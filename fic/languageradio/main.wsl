@@ -1,6 +1,19 @@
+---
+title: Language Radio
+author: Matthew Trost
+tags: [education, language, news]
+description: Streams audio of any topic you choose, in your target language, at your level.
+language: en
+announcer_voice: Albert
+max_chunks_len: 20
+confirm_every: 10
+---
+
+<<stdlib>>
+
 <intro>
   <p>
-    Welcome to Language Radio.
+    Welcome to Language Radio!
   </p>
 </intro>
 
@@ -39,21 +52,20 @@
 </p>
 
 <script>
-  set("chunks", [])
+  wsl.set("chunks", [])
 </script>
+
+<var name="i" type="number" value="0" />
 
 <while cond="true">
   <llm:text key="chunk">
-    Create a text script for an original audio program.
-    The listener wants the program to be on: {{topic.desc}}
-    The content should be suited for a someone who understands {{tl.name}} at a {{tl.level}} level.
-    Only use grammar and vocab suitable for that skill level.
+    Create a text script for an original audio program in {{tl.name}}.
+    The listener wants the program to be in {{tl.name}} on this topic: {{topic.desc}}
+    The grammar and vocab should suit someone who understands {{tl.name}} at a {{tl.level}} level.
 
     Return about 200 words, or enough for a full minute of listening.
-    Do not include any formatting - just the content.
-    Do not include any introductions or ceremony - straight into the content.
+    Do not include any formatting, introductions or ceremony - straight into the content.
     Do not add an intro or outro. Do not indicate the program is ending or beginning.
-    Just talk about the topic.
 
     <when cond="chunks.length > 0">
       This is the previous content of the program:
@@ -62,16 +74,27 @@
       ---
       Continue where the above leaves off.
       Avoid repeating anything already said.
+      Vary your paragraph and sentence structure.
     </when>
 
     Return only the text:
   </llm:text>
 
-  <p voice="Albert">
+  <p voice="{{announcer_voice}}">
     {{chunk}}
   </p>
 
   <script>
-    set("chunks", [...chunks, chunk].slice(-5));
+    wsl.set("chunks", [...chunks, chunk].slice(-max_chunks_len));
   </script>
+
+  <if cond="i > 0 && (i % confirm_every) === 0">
+    <p>Continue listening?</p>
+    <input-confirm key="confirm" />
+    <if cond="!confirm.answer">
+      <break />
+    </if>
+  </if>
+
+  <var name="i" value="{$ i + 1 $}" type="number" />
 </while>

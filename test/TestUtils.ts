@@ -1,13 +1,15 @@
 import { isDeepStrictEqual } from "util";
 import { compileStory } from "../lib/engine/StoryCompiler";
 import { LocalStoryRunnerOptions } from "../lib/engine/StoryLocalRunnerUtils";
-import { advanceToNextUntilBlocking } from "../lib/engine/StoryRunnerCoreBlocking";
+import { advanceToNext } from "../lib/engine/StoryRunnerCoreBlocking";
 import {
   CompilerContext,
   createDefaultSession,
   DEFAULT_LLM_SLUGS,
   OP,
   SeamType,
+  StoryAdvanceResult,
+  StoryOptions,
   StorySession,
   StorySource,
 } from "../lib/engine/StoryTypes";
@@ -16,6 +18,25 @@ import {
   StoryServiceProvider,
 } from "./../lib/engine/StoryServiceProvider";
 import { PRNG } from "./../lib/RandHelpers";
+
+export async function advanceToNextUntilBlocking(
+  input: string | null,
+  session: StorySession,
+  options: StoryOptions,
+  provider: StoryServiceProvider
+): Promise<StoryAdvanceResult> {
+  const collected: OP[] = [];
+  let current = await advanceToNext(input, session, options, provider);
+  collected.push(...current.ops);
+  while (current.seam === SeamType.MEDIA || current.seam === SeamType.GRANT) {
+    current = await advanceToNext(null, session, options, provider);
+    collected.push(...current.ops);
+  }
+  return {
+    ...current,
+    ops: collected,
+  };
+}
 
 export function expect(a: unknown, b: unknown, doThrow: boolean = true) {
   const ja = JSON.stringify(a);

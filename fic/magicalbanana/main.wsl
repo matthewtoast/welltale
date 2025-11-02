@@ -25,7 +25,7 @@ starterWords:
 </p>
 
 <var name="prevWord" type="string" value="{{initialWord}}">
-<var name="currWord" type="string" value="{$ randElement(starterWords) $}">
+<var name="currWord" type="string" value="{$ wsl.randElement(starterWords) $}">
 <var name="wordsUsed" type="array<string>" value="{{prevWord}}, {{currWord}}" />
 
 <loop>

@@ -1,4 +1,5 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import chalk from "chalk";
 import { last } from "lodash";
 import OpenAI from "openai";
 import yargs from "yargs";
@@ -11,7 +12,8 @@ import {
   terminalRenderOps,
 } from "../lib/engine/StoryLocalRunnerUtils";
 import { instantiateREPL } from "../lib/engine/StoryREPLUtils";
-import { advanceToNextUntilBlocking } from "../lib/engine/StoryRunnerCoreBlocking";
+import { advanceToNext } from "../lib/engine/StoryRunnerCoreBlocking";
+import { runWithPrefetch } from "../lib/engine/StoryRunnerCorePrefetch";
 import {
   CompilerContext,
   createDefaultSession,
@@ -163,13 +165,20 @@ async function runRepl() {
   const save = async () => {};
 
   async function run(input: string | null): Promise<StoryAdvanceResult> {
-    const result = await advanceToNextUntilBlocking(
+    const result = await runWithPrefetch(
       input,
-      session,
-      runnerOptions,
-      provider
+      async (next) =>
+        await advanceToNext(next, session, runnerOptions, provider),
+      async (ops) => {
+        await terminalRenderOps(ops, runnerOptions);
+      }
     );
-    await terminalRenderOps(result.ops, runnerOptions);
+    if (runnerOptions.verbose) {
+      console.log(
+        chalk.yellowBright(JSON.stringify(result.seam)),
+        chalk.yellowBright(JSON.stringify(result.ops))
+      );
+    }
     return result;
   }
 

@@ -1,6 +1,6 @@
 export const DIRECTIVES: Record<string, string> = {
   stdlib: `
-<macro match="input:confirm">
+<macro match="input-confirm">
   <rename to="input" />
   <set attr="answer.type" value="boolean" />
   <set attr="answer.description" value="true if the user said 'yes', 'let's go', 'why not', 'はい', 'ok', 'one more time', 'proceed', 'sí', 'confirm', (etc) or anything indicating the affirmative; false if not" />
