@@ -109,7 +109,7 @@ async function testBlockOrder() {
   </p>
 
   <var name="xx" />
-  <while cond='wsl.empty(xx) || !xx.toLowerCase().startsWith("x")'>
+  <while cond='wsl.blank(xx) || !xx.toLowerCase().startsWith("x")'>
     <p from="Bob">... Say a word beginning with the letter "x".</p>
     <input xx.type="string" xx.default="" />
     <var name="xx" value="{{input.xx}}" />
@@ -156,8 +156,8 @@ async function testBlockOrder() {
   <var name="testEmpty" value="" />
   <p>
     CC
-    <when cond="wsl.empty(testEmpty)">Variable is empty!</when>
-    <when cond="!wsl.empty(testStr)">String is not empty!</when>
+    <when cond="wsl.blank(testEmpty)">Variable is empty!</when>
+    <when cond="!wsl.blank(testStr)">String is not empty!</when>
   </p>
   
   <p>
