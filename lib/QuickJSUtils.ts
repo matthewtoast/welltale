@@ -4,6 +4,7 @@ import {
   SandboxFunction,
   SandboxOptions,
 } from "@sebastianwessel/quickjs";
+import { get, set } from "lodash";
 import { parseScript } from "meriyah";
 import { TSerial } from "../typings";
 import { NestedRecords } from "./engine/StoryTypes";
@@ -59,11 +60,11 @@ export const evaluateScript = async (
   options: EvalOptions = {
     allowFs: false,
     allowFetch: false,
-    executionTimeout: 5_000,
+    executionTimeout: 10_000,
     memoryLimit: Math.pow(1024, 2) * 10, // MB
     maxIntervalCount: 0,
     maxTimeoutCount: 0,
-    maxStackSize: 10_000,
+    maxStackSize: 20_000,
   }
 ): Promise<TSerial> => {
   const valKeys = Object.keys(vars).filter(isIdent);
@@ -74,25 +75,26 @@ export const evaluateScript = async (
     .filter((k) => k !== "set");
 
   const env = {
-    get: (k: string): TSerial => vars[k] ?? null,
-    set: (k: string, v: TSerial) => {
-      if (typeof funcs.set === "function") {
-        funcs.set(k, v);
-      } else {
-        vars[k] = v;
-      }
-      // We must return null here or QuickJS will crash when the following conditions are met:
-      // (1) the expression is treated as a singleLine, (2) an array/object is returned
-      return null;
+    wsl: {
+      ...Object.fromEntries(funcKeys.map((k) => [k, funcs[k]])),
+      get: (k: string): TSerial => get(vars, k) ?? null,
+      set: (k: string, v: TSerial) => {
+        if (typeof funcs.set === "function") {
+          funcs.set(k, v);
+        } else {
+          set(vars, k, v);
+        }
+        // We must return null here or QuickJS will crash when the following conditions are met:
+        // (1) the expression is treated as a singleLine, (2) an array/object is returned
+        return null;
+      },
+      state: Object.fromEntries(valKeys.map((k) => [k, vars[k]])),
     },
-    __v: Object.fromEntries(valKeys.map((k) => [k, vars[k]])),
-    __f: Object.fromEntries(funcKeys.map((k) => [k, funcs[k]])),
   };
 
   const prelude =
-    `const {get,set}=env;` +
-    (valKeys.length ? `const {${valKeys.join(",")}}=env.__v;` : "") +
-    (funcKeys.length ? `const {${funcKeys.join(",")}}=env.__f;` : "");
+    `var {wsl}=env;` +
+    (valKeys.length ? `var {${valKeys.join(",")}}=wsl.state;` : "");
 
   const lines = cleanSplit(expr, "\n");
   const imports = lines.filter((l) => l.startsWith("import ")).join("\n");
@@ -120,7 +122,7 @@ export const evaluateScript = async (
     } else if (error && typeof error === "object") {
       console.error(error.stack ?? error.message ?? error.name ?? error);
     }
-    console.info(`=====\n=====${prelude}\n${body}\n=====`);
+    console.info(`=====\n${body}\n=====`);
   }
 
   try {
@@ -132,12 +134,12 @@ export const evaluateScript = async (
 
     if (!res.ok) {
       logError(res.error);
-      return null;
+      throw res.error;
     }
 
     return (res.data ?? null) as TSerial;
   } catch (error) {
     logError(error);
-    return null;
+    throw error;
   }
 };

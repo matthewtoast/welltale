@@ -16,7 +16,7 @@ async function go() {
   );
 
   await evaluateScript(
-    'var x=1; set("y", x*2 + n + wim(5))',
+    'var x=1; wsl.set("y", x*2 + n + wsl.wim(5))',
     state,
     funcs,
     runner
@@ -26,7 +26,7 @@ async function go() {
   await evaluateScript(
     `
       import {fooo} from './foo.ts'
-      set("yum", 1)
+      wsl.set("yum", 1)
     `,
     state,
     funcs,
@@ -36,7 +36,7 @@ async function go() {
   expect(state, { n: 3, y: 30, yum: 1 });
 
   const a = await evaluateScript(
-    'clamp(toNumber("28"), 1, 120)',
+    'wsl.clamp(wsl.toNumber("28"), 1, 120)',
     {},
     funcs,
     runner
@@ -66,7 +66,7 @@ async function go() {
   expect(b, 4);
 
   const c = await evaluateScript(
-    `empty(xx) || !xx.toLowerCase().startsWith("x")`,
+    `wsl.empty(xx) || !xx.toLowerCase().startsWith("x")`,
     {
       xx: "foobar",
     },
@@ -76,7 +76,7 @@ async function go() {
   expect(c, true);
 
   const d = await evaluateScript(
-    `empty(xx) || !xx.toLowerCase().startsWith("x")`,
+    `wsl.empty(xx) || !xx.toLowerCase().startsWith("x")`,
     {
       xx: "",
     },
@@ -95,6 +95,15 @@ async function go() {
     runner
   );
   expect(e, true);
+
+  // Ensure we can redefine built-in var
+  const f = await evaluateScript(
+    // weekdayName is defined as a function so this raises "SyntaxError: invalid redefinition of lexical identifier"
+    `const weekdayName = "Wednesday"`,
+    {},
+    funcs,
+    runner
+  );
 }
 
 go();

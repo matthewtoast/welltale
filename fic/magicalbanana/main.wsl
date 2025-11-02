@@ -61,7 +61,7 @@ starterWords:
   </if>
 
   <script>
-    set("wordsUsed", [...get("wordsUsed"), response.answerWord])
+    wsl.set("wordsUsed", [...wsl.get("wordsUsed"), response.answerWord])
   </script>
 
   <llm:text key="nextWord">
@@ -73,9 +73,9 @@ starterWords:
   </llm:text>
 
   <script>
-    set("prevWord", response.answerWord)
-    set("currWord", nextWord)
-    set("wordsUsed", [...get("wordsUsed"), nextWord])
+    wsl.set("prevWord", response.answerWord)
+    wsl.set("currWord", nextWord)
+    wsl.set("wordsUsed", [...wsl.get("wordsUsed"), nextWord])
   </script>
 </loop>
 

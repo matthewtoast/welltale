@@ -60,8 +60,8 @@ async function testBlockOrder() {
     {{stash-1}}
   </p>
   <code>
-    set("em", "eminem");
-    set("en", "nono");
+    wsl.set("em", "eminem");
+    wsl.set("en", "nono");
   </code>
   <p>
     M {{em}}
@@ -109,7 +109,7 @@ async function testBlockOrder() {
   </p>
 
   <var name="xx" />
-  <while cond='empty(xx) || !xx.toLowerCase().startsWith("x")'>
+  <while cond='wsl.empty(xx) || !xx.toLowerCase().startsWith("x")'>
     <p from="Bob">... Say a word beginning with the letter "x".</p>
     <input xx.type="string" xx.default="" />
     <var name="xx" value="{{input.xx}}" />
@@ -156,8 +156,8 @@ async function testBlockOrder() {
   <var name="testEmpty" value="" />
   <p>
     CC
-    <when cond="empty(testEmpty)">Variable is empty!</when>
-    <when cond="!empty(testStr)">String is not empty!</when>
+    <when cond="wsl.empty(testEmpty)">Variable is empty!</when>
+    <when cond="!wsl.empty(testStr)">String is not empty!</when>
   </p>
   
   <p>

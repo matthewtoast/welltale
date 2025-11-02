@@ -8,7 +8,7 @@ async function testBlockOrder() {
 </p>
 <var name="x" value="12" type="number" />
 <script>
-  set("mum", x * 2)
+  wsl.set("mum", x * 2)
 </script>
 <p>
   The number is {{mum}}
@@ -17,7 +17,7 @@ async function testBlockOrder() {
   Player id is {{player.id}}
 </p>
 <script>
-  console.log(events({ from: "HOST" }))
+  console.log(wsl.events({ from: "HOST" }))
 </script>
 `;
 
