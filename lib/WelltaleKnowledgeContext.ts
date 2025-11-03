@@ -5,12 +5,14 @@ import { join } from "node:path";
 import { ACTION_HANDLERS } from "./engine/StoryActions";
 import { TEMPLATE_SYNTAX } from "./engine/StoryDocs";
 import { loadDirRecursive } from "./FileUtils";
+import { buildMethodDocGroups } from "./methods/MethodDocs";
 
 const ROOT_DIR = join(__dirname, "..");
 
 export type RenderContextOptions = {
   readme: boolean;
   tagDocs: boolean;
+  methodDocs: boolean;
   templateSyntax: boolean;
   example: boolean;
   languageConfig: boolean;
@@ -20,6 +22,7 @@ export type RenderContextOptions = {
 export const DEFAULT_RENDER_CTX_OPTIONS: RenderContextOptions = {
   readme: true,
   tagDocs: true,
+  methodDocs: true,
   templateSyntax: true,
   example: true,
   languageConfig: false,
@@ -50,7 +53,7 @@ export async function renderContext(
     );
 
     parts.push(
-      `Documentation on all supported special XML tags in Welltale:${SQUIGGLE_DELIM}` +
+      `Supported XML tags:${SQUIGGLE_DELIM}` +
         tagDocs
           .map(({ docs, syntax, tags }) => {
             return dedent`
@@ -70,9 +73,23 @@ export async function renderContext(
     );
   }
 
+  if (opts.methodDocs) {
+    const mdgs = buildMethodDocGroups();
+    parts.push(
+      `JavaScript environment built-in utility functions:${SQUIGGLE_DELIM}` +
+        mdgs
+          .flatMap((g) =>
+            g.items.map((i) => {
+              return `${i.example} ${i.description}`;
+            })
+          )
+          .join("\n")
+    );
+  }
+
   if (opts.templateSyntax) {
     parts.push(
-      `Documentation on template pattern syntax in Welltale:${SQUIGGLE_DELIM}` +
+      `Template pattern syntax:${SQUIGGLE_DELIM}` +
         TEMPLATE_SYNTAX.map(({ syntax, desc }) => {
           return `
 Syntax: ${syntax}
@@ -87,7 +104,7 @@ Desc: ${(desc ?? "").replace(/\n+/g, "\n")}
       join(ROOT_DIR, "fic/example")
     );
     parts.push(
-      `A longer Welltale story example, showcasing usage of multiple tags:${SQUIGGLE_DELIM}` +
+      `Story example using moss features:${SQUIGGLE_DELIM}` +
         Object.keys(exampleCartridge)
           .map((key) => {
             const filename = last(key.split("/"));
@@ -107,9 +124,7 @@ ${content}
     const langConfig = readFileSync(
       join(ROOT_DIR, ".vscode/extensions/welltale/language-configuration.json")
     ).toString();
-    parts.push(
-      `Welltale language configuration:${SQUIGGLE_DELIM}${langConfig}`
-    );
+    parts.push(`Lnguage configuration:${SQUIGGLE_DELIM}${langConfig}`);
   }
 
   if (opts.syntaxTmLanguage) {
@@ -119,7 +134,7 @@ ${content}
         ".vscode/extensions/welltale/syntaxes/welltale.tmLanguage.json"
       )
     ).toString();
-    parts.push(`Welltale tmLanguage syntax:${SQUIGGLE_DELIM}${tmLang}`);
+    parts.push(`Syntax definition:${SQUIGGLE_DELIM}${tmLang}`);
   }
 
   return parts.join(SQUIGGLE_DELIM).trim();

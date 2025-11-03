@@ -2,12 +2,16 @@ import fs from "fs";
 import path from "path";
 import { ACTION_HANDLERS } from "../../../lib/engine/StoryActions";
 import { TEMPLATE_SYNTAX } from "../../../lib/engine/StoryDocs";
+import { buildMethodDocGroups } from "../../../lib/methods/MethodDocs";
 import { CodeBlock } from "../../components/CodeBlock";
 import styles from "./docs.module.css";
 import DocsClient, { HandlerEntry } from "./DocsClient";
+import { MethodDocsSection } from "./MethodDocsSection";
 
 const QUICKSTART_CODE = `<p>Welcome to your adventure!</p>
-<input name.description="your character's name" />
+
+<p>What's your name?</p>
+<input name.description="extract the user's name" />
 <p>Hello {{name}}, ready to begin?</p>
 
 <if cond="name === 'Alex'">
@@ -75,6 +79,7 @@ function buildHandlerEntries(): HandlerEntry[] {
 export default function DocsPage() {
   const handlerEntries = buildHandlerEntries();
   const { dataContent, storyContent } = readExampleFiles();
+  const methodGroups = buildMethodDocGroups();
 
   return (
     <div className={styles.docsContainer}>
@@ -163,40 +168,30 @@ export default function DocsPage() {
 
       <DocsClient handlers={handlerEntries} />
 
+      <MethodDocsSection groups={methodGroups} />
+
       {(dataContent || storyContent) && (
         <section id="complete-example" className={styles.completeExample}>
           <h2 className={styles.sectionTitle}>Complete Example</h2>
           <p className={styles.sectionDescription}>
             Below is a complete interactive story that demonstrates most WSL
             features. A Welltale story can comprise multiple files in any
-            directory structure you prefer. The engine loads and combines all
-            files together - data files (.yml/.yaml/.json) for configuration and
-            metadata, and story files (.wsl/.xml) for the actual story content
-            and logic.
+            directory structure you prefer. When the compiler compiles a
+            directory of Welltale content, all files - from data files
+            (.yml/.yaml/.json) for configuration and metadata, to story files
+            (.wsl/.xml) for the actual story content and logic - are loaded
+            together and processed into an executable format.
           </p>
-
-          {dataContent && (
-            <div className={styles.exampleFile}>
-              <h3 className={styles.fileName}>data.yml</h3>
-              <p className={styles.fileDescription}>
-                Story metadata and configuration. You can define story data,
-                custom voices, and macros in data files.
-              </p>
-              <CodeBlock
-                code={dataContent}
-                language="yaml"
-                className={styles.codeBlock}
-                theme="github-dark"
-              />
-            </div>
-          )}
 
           {storyContent && (
             <div className={styles.exampleFile}>
               <h3 className={styles.fileName}>main.wsl</h3>
               <p className={styles.fileDescription}>
-                The story content and interactive logic. This is where your
-                actual story unfolds using WSL tags and templating patterns.
+                The entrypoint of your story should be placed in a file called{" "}
+                <code>main</code>. From here, the engine will execute your
+                compiled story in sequence. Please read through this example to
+                undertand how the many features of WSL can be combined to create
+                dynamic audio story content.
               </p>
               <CodeBlock
                 code={storyContent}

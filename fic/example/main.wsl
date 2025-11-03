@@ -1,32 +1,30 @@
-<!-- This is an example interactive audio story written in Welltale Story Language (WSL). -->
+<!--
+This is an example interactive audio story written in Welltale Story Language (WSL).
+WSL is, at its simplest, just XML. Tags are used to structure your content and specify your story flow.
+Basic tags like <p> or <audio> will play content to the listener.
+By default, story flow occurs in a linear manner; when tags are nested, traversal occurs depth-first.
+Things get more interesting with tags like <jump> and <if> and <while>, which let you create complex, nonlinear story logic.
+The <script> tag can be used if you need more advanced logic with a full sandboxed JavaScript environment.
+And importantly, the <input> tag lets you prompt the listener for input.
+WSL also supports templating and interpolation syntax to make it even easier to create dynamic content that changes every playthru.
+-->
 
-<!-- We start by setting up some basic metadata about the story, which we can embed as YAML front matter. -->
+<!--
+We can define metadata and variables by embedding YAML inside of front matter blocks.
+You could also put this into a separate file such as data.yml, and it will be loaded.
+-->
 ---
 title: Example Quest
 author: Matthew Trost
 tags: [example, fantasy]
 description: This example Welltale story shows how to use all Welltale Story Language features.
 
-# Pronunciation mappings for the speech engine - for any less common words or fantastical terms
+# For words that the text-to-speech engine might not be familiar with, you can include a simple pronunciation dictionary like so:
 pronunciations:
   Trost: Troast
   Examplaria: exampLAHria
 
-# Game data - you can define any custom data your story needs and reference it
-# in template patterns like {{player.gold}} or scripts like <code>shop.potion * 3</code>
-player:
-  gold: 35
-  inventory: ["bread"]
-
-shop:
-  potion: 30
-  compass: 50
-  sword: 20
-
-# Macros are now defined directly in story files using <macro> tags
-# These transform your tags based on rules to make story authoring easier
-
-# Voices are defined in data files using this format
+# You can define custom voices and then reference them in your game script by id, e.g. <p voice="someVoice">.
 voices:
   narrator:
     prompt: British storybook narrator, classic deep voice, expressive
@@ -38,9 +36,21 @@ voices:
     prompt: Wretched forest creature, lowly British accent, voice like a whisper through clenched teeth
   troll:
     prompt: Large deep-voiced troll with a growl, hungry and menacing, British accent
+  
+# You can also define the initial values of state variables your story will use
+player:
+  gold: 35
+  inventory: ["bread"]
+shop:
+  potion: 30
+  compass: 50
+  sword: 20
 ---
 
-<!-- The <intro> tag plays content only once: when the player first begins a story. -->
+<!--
+After the front matter YAML, this file looks much more like a typical WSL story file.
+Here, the <intro> tag plays content only once: when the player first begins a story.
+-->
 <intro>
   <!-- The <music> tag generates a music clip according to a prompt -->
   <music duration="10000" background="true">
@@ -68,7 +78,10 @@ voices:
   </p>
 </resume>
 
-<!-- Macro definitions - these transform tags to make story authoring easier -->
+<!--
+  Macro definitions are available to transform tags to make your authoring experience more expressive.
+  You can rename tags and add attributes on the fly, reducing the amount of boilerplate in your story.
+-->
 <macro match="merchant">
   <rename to="p" />
   <set attr="voice" value="merchant" />
@@ -362,9 +375,8 @@ voices:
         Excellent choice! The {{item}} is yours for {{price}} gold.
       </merchant>
       <script>
-        // Write to session state to persist beyond block scope
-        ctx.session.state.gold = gold - price;
-        ctx.session.state.inventory = [...inventory, item];
+        wsl.set("gold", gold - price)
+        wsl.set("inventory", [...inventory, item])
       </script>
       <narrator>
         You purchase the {{item}}. You now have {{gold}} gold remaining.
@@ -387,9 +399,8 @@ voices:
         I'll give you {{price}} gold for your {{item}}.
       </merchant>
       <script>
-        // Write to session state to persist beyond block scope
-        ctx.session.state.gold = gold + price;
-        ctx.session.state.inventory = inventory.filter(i => i !== item);
+        wsl.set("gold", gold + price)
+        wsl.set("inventory", inventory.filter(i => i !== item))
       </script>
       <narrator>
         You sell the {{item}}. You now have {{gold}} gold.

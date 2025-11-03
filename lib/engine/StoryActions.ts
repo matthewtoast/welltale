@@ -406,8 +406,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["var"],
     docs: {
       desc: dedent`
-        Defines or updates a variable in the current scope. Variables can hold any type of data
-        and can be used in template expressions like \`{{variableName}}\`.
+        Defines or updates a variable in the current scope. Variables can hold any type of data and can be used in template expressions like \`{{variableName}}\`.
       `,
       ex: [
         {
@@ -482,8 +481,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["if"],
     docs: {
       desc: dedent`
-        Conditional execution of story content. Evaluates a JavaScript expression and executes
-        child elements only if the condition is true.
+        Conditional execution of story content. Evaluates the JavaScript expression in the \`cond\` attribute and executes child elements only if the condition is true.
         
         Note: \`<else>\` blocks are *not* supported currently.
       `,
@@ -547,7 +545,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     docs: {
       desc: dedent`
         Navigates to another section of the story by ID. Can be conditional using the 'if' attribute.
+
         The target must be an element with an id attribute (typically \`<div>\` elements, but can be any type of element).
+
         This is the primary way to implement branching narratives and story choices.
       `,
       ex: [
@@ -608,9 +608,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["script", "code"],
     docs: {
       desc: dedent`
-        Executes JavaScript with access to state variables in the current scope.
+        Executes JavaScript. All defined state variables, story metadata, and session information are provided in the script's scope automatically.
 
-        State variables can be read and modified directly using \`get(key)\` and \`set(key, value)\`.
+        State variables you wish to mutate and persist after the script block exits can be done using \`wsl.set(key, value)\`.
+
+        Please also see the scripting API reference for a variety of other built-in utility functions available.
         
         Code runs in a sandboxed environment.
       `,
@@ -662,10 +664,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["sleep"],
     docs: {
       desc: dedent`
-        Pauses story execution for a specified duration. Useful for dramatic timing, letting
-        audio play, or creating rhythm in the narrative. The duration is in milliseconds.
+        Pauses story execution for a specified duration. Useful for dramatic timing, letting audio play, or creating rhythm in the narrative. The duration is in milliseconds.
 
-        Note: During sleep, background audio continues playing.
+        Note: During sleep, audio marked as "background" will continue playing.
       `,
       ex: [
         {
@@ -711,8 +712,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: LOOP_TAGS,
     docs: {
       desc: dedent`
-        Repeats child elements while a condition remains true. The condition is evaluated before
-        each iteration. Supports \`<break>\` and \`<continue>\` statements for loop control.
+        Repeats child elements while a Javascript condition in its \`cond\` attribute remains true.
+        
+        The condition is evaluated before each iteration. Supports \`<break />\` and \`<continue />\` statements for loop control.
       `,
       ex: [
         {
@@ -984,9 +986,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: DESCENDABLE_TAGS.filter((tag) => tag !== "scope"),
     docs: {
       desc: dedent`
-        Many container elements are available to structure the story content.
+        \`<div>\` and many other logicless container elements are available to structure your story content.
 
-        They can contain any other tags to arbitrary depth.
+        All container tags are synonymous and have no function other than grouping.
+
+        Various HTML tags are included to allow Welltale to play HTML pages as well.
+
+        These container tags can contain any other tags to arbitrary depth.
 
         These tags organize the narrative into logical sections and can contain other tags.
       `,
@@ -1032,11 +1038,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["llm:text"],
     docs: {
       desc: dedent`
-        Generates unstructured text content using AI based on a prompt. This is useful for creating
-        narrative content, descriptions, dialogue, or any text that doesn't need to be parsed into
-        structured data. The generated text is stored as a simple string.
+        Generates unstructured text content using AI based on a prompt. This is useful for creating narrative content, descriptions, dialogue, or any text that doesn't need to be parsed into structured data.
         
-        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
+        The generated text is stored as a simple string.
+        
+        The output of this tag is stored in variable given by the \`key\` attribute if present, else the \`_\` variable.
       `,
       ex: [
         {
@@ -1116,9 +1122,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       desc: dedent`
         Classifies input text into predefined categories using AI.
         
-        The tag analyzes the text content and returns an array of matching labels based on their
-        descriptions. Each attribute becomes a potential label with its value serving as the description
-        for classification.
+        The tag analyzes the text content and returns an array of matching labels based on their descriptions.
+        
+        Each attribute becomes a potential label with its value serving as the description for classification.
         
         The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
         
@@ -1197,9 +1203,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["llm:score"],
     docs: {
       desc: dedent`
-        Scores text content on multiple dimensions using AI. Each attribute becomes a scoring dimension,
-        and the AI returns a numeric score between \`0.0\` and \`1.0\` for each dimension. This is useful for
-        sentiment analysis, content moderation, or any scenario requiring quantitative text evaluation.
+        Scores text content on multiple dimensions using AI.
+        
+        Each attribute becomes a scoring dimension, and the AI returns a numeric score between \`0.0\` and \`1.0\` for each dimension.
+        
+        This is useful for sentiment analysis, content moderation, or any scenario requiring quantitative text evaluation.
         
         The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
       `,
@@ -1282,8 +1290,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       desc: dedent`
         Evaluates text against safety categories and returns scores plus a flagged status.
         
-        Provide an input body and optionally adjust the moderation threshold. A flagged result becomes
-        true when any category score exceeds the threshold.
+        Provide an input body and optionally adjust the moderation threshold.
+        
+        A flagged result becomes true when any category score exceeds the threshold.
       `,
       ex: [
         {
@@ -1364,10 +1373,12 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["llm:parse"],
     docs: {
       desc: dedent`
-        Extracts structured data from text content using AI. The tag analyzes the inner text and extracts
-        values according to a schema defined by the attributes. Each attribute becomes a field in the extracted
-        data, with optional type and description properties specified using dot notation.
+        Extracts structured data from text content using AI.
         
+        The tag analyzes the inner text and extracts values according to a schema defined by the attributes.
+        
+        Each attribute becomes a field in the extracted data, with optional type and description properties specified using dot notation.
+
         The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
       `,
       ex: [
@@ -1496,8 +1507,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
       desc: dedent`
         Generates structured content using AI based on instructions and a schema.
         
-        Unlike \`<llm:parse>\` which extracts data from existing text, this tag creates new content
-        according to specifications. Supports complex nested structures and various data types.
+        Unlike \`<llm:parse>\` which extracts data from existing text, this tag creates new content according to specifications. Supports complex nested structures and various data types.
         
         The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
       `,
@@ -1622,14 +1632,15 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["llm:line"],
     docs: {
       desc: dedent`
-        Generates a single NPC response using recent conversation history. The tag gathers
-        relevant dialog between the NPC and listed participants, then prompts an LLM to
-        produce the next line without a speaker prefix.
+        Generates a single NPC response using recent conversation history.
+        
+        The internals of this tag are somewhat complext to support the use case of conversation. It gathers relevant dialog between the NPC and listed participants, then prompts an LLM to produce the next line without a speaker prefix.
 
-        You must tag your input and output tags (e.g. &lt;input&gt; and &lt;p&gt;) with the \`from\` attribute
-        and reference those in the <llm:line> tag's \`as\` and \`with\` for this tag to function.
-        The \`as\` attribute is the NPC who is replying, whereas the \`\` with is a comma-delimited
-        list of others with whom that NPC is talking.
+        In order for this tag to work, you *must* tag your story's input and output tags (e.g. &lt;input&gt; and &lt;p&gt;) with the appropriate \`from\` attribute indicating who spoke, and that must align with this tag's \`as\` and \`with\` attributes.
+
+        The \`as\` attribute is the NPC who is replying, whereas the \`with\` with is a comma-delimited list of others with whom that NPC is talking. Think of them as "people in the room."
+
+        If you want to implement a dialog part of your story with off-the-shelf, transparent conversation history, use this tag.
       `,
       ex: [
         {
@@ -1758,9 +1769,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["block"],
     docs: {
       desc: dedent`
-        Defines a reusable content block that can be invoked with \`<yield>\`. Blocks are skipped during
-        normal story flow and only execute when explicitly yielded to. They can receive parameters
-        from the \`<yield>\` tag, making them similar to functions in programming.
+        Defines a reusable content block that can be invoked with \`<yield>\`.
+        
+        Blocks are skipped during normal story flow and only execute when explicitly yielded to.
+        
+        They can receive parameters from the \`<yield>\` tag, making them similar to functions in programming.
       `,
       ex: [
         {
@@ -1831,12 +1844,13 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["yield"],
     docs: {
       desc: dedent`
-        Invokes a defined \`<block>\` with optional parameters. Acts like a function call, jumping to the
-        block's content with the provided parameters available as variables. After the block completes,
-        execution returns to the point after the \`<yield>\` tag — or to a specified return point
-        specified by the \`returnTo\` attribute.
+        Invokes a defined \`<block>\` with optional parameters.
+        
+        Acts like a function call, jumping to the block's content with the provided parameters available as variables.
+        
+        After the block completes, execution returns to the point after the \`<yield>\` tag — or to a specified return point specified by the \`returnTo\` attribute.
 
-        For examples, see \`<block>\`.
+        For examples, see the documentation for \`<block>\`.
       `,
       ex: [],
       cats: ["descendable", "control_flow"],
@@ -1923,9 +1937,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["scope"],
     docs: {
       desc: dedent`
-        Creates a new state variable scope for child elements. State variables defined within the scope are
-        isolated and don't affect the parent scope. Useful for temporary variables, loop iterations,
-        or any situation where you want to prevent variable pollution.
+        Creates a new state variable scope for child elements.
+
+        By default, state variables are global, but this lets you isolate them wherever you need to avoid polluting the global namespace.
+
+        State variables defined within the scope are isolated and don't affect the parent scope.
       `,
       ex: [
         {
@@ -2051,8 +2067,7 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["include"],
     docs: {
       desc: dedent`
-        When the compiler sees an \`<include>\` tag, it replaces it with the content within the node
-        that has the given \`id\` attribute.
+        When the compiler sees an \`<include>\` tag, it replaces it with the content within the node that has the given \`id\` attribute.
       `,
       ex: [
         {
@@ -2176,8 +2191,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     docs: {
       desc: dedent`
         Loads structured data from JSON or YAML format, either from the tag's content or from a URL.
-        Useful for loading configuration, game data, or any structured information. The data is stored
-        in the state variable given by the \`key\` attribute.
+
+        Useful for loading configuration, game data, or any structured information.
+        
+        The data is stored in the state variable given by the \`key\` attribute.
       `,
       ex: [
         {
@@ -2293,11 +2310,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["checkpoint"],
     docs: {
       desc: dedent`
-        Creates a save point in the story that users can resume from. Checkpoints store the current
-        state, variables, and conversation history.
+        Creates a save point in the story that users can resume from.
         
-        Note: Checkpoits are automatically created at section boundaries
-        and before input prompts, but can also be manually placed for important story moments.
+        Checkpoints store the current state, variables, and conversation history.
+        
+        Note: Checkpoits will already be automatically created at section boundaries and before input prompts by the Welltale engine, but using this tag they can also be manually placed for important story moments.
       `,
       ex: [
         {
@@ -2327,9 +2344,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["intro"],
     docs: {
       desc: dedent`
-        Defines content that plays at the start of a story or when starting fresh. Typically contains
-        introductory narration, music, or scene-setting. This content is skipped when resuming a saved
-        story. Only one intro section should exist per story file.
+        Defines content that plays at the start of a story or when starting fresh.
+        
+        This tag typically contains introductory narration, music, or scene-setting.
+        
+        Note: This content is skipped when resuming a saved story. Only one intro section should exist per story.
       `,
       ex: [
         {
@@ -2371,8 +2390,9 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["outro"],
     docs: {
       desc: dedent`
-        Defines content that plays when a story ends. Can contain credits, final narration, or
-        closing music. The outro is triggered by the story engine when reaching a story endpoint.
+        Defines content that plays when a story ends. Can contain credits, final narration, or closing music.
+        
+        The outro is triggered by the story engine when reaching a story endpoint.
       `,
       ex: [
         {
@@ -2415,9 +2435,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["resume"],
     docs: {
       desc: dedent`
-        Defines content that only plays when resuming a saved story. Useful for recaps, reminders,
-        or re-establishing context. This content is skipped during normal story flow and only
-        executes when a user returns to a saved checkpoint.
+        Defines content that only plays when resuming a saved story.
+        
+        Useful for recaps, reminders, or re-establishing context.
+        
+        This content is skipped during normal story flow and only executes when a user returns to a saved checkpoint.
       `,
       ex: [
         {
@@ -2476,7 +2498,10 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["end"],
     docs: {
       desc: dedent`
-        Immediately ends the story. If an \`<outro>\` block exists, it will be played before ending.
+        Immediately ends the story.
+        
+        If an \`<outro>\` block exists, it will be played before ending.
+
         This tag provides explicit story termination points for branching narratives.
       `,
       ex: [
@@ -2521,8 +2546,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["exit"],
     docs: {
       desc: dedent`
-        Immediately exits the story without playing any outro. Use this for abrupt endings or 
-        when you want to skip the outro entirely. Compare with \`<end />\` which plays the outro if present.
+        Immediately exits the story without playing any outro.
+        
+        Use this for abrupt endings or  when you want to skip the outro entirely.
+        
+        Compare with \`<end />\` which plays the outro if present.
       `,
       ex: [
         {
@@ -2723,39 +2751,6 @@ export const ACTION_HANDLERS: ActionHandler[] = [
   },
   {
     tags: ["image", "img"],
-    docs: {
-      desc: dedent`
-        If the client supports it, displays images in the story. This can be used to create accompanying visual content to go along with your audio story, for example an atmospheric image or a character portrait. This is only provided for convenience and it's recommended that your Welltale stories be autio-only!
-
-        If a \`src\`, \`href\`, or \`url\` attribute is given, it displays that image directly.
-
-        Otherwise the prompt (inner text content) is used to generate an image using AI.
-        
-        The output of this tag is stored in the \`_\` state variable, or the variable given by the \`key\` attribute if present.
-      `,
-      ex: [
-        {
-          code: dedent`
-            <!-- Display from URL -->
-            <image src="https://example.com/castle.jpg" />
-            <img url="https://example.com/portrait.png" />
-            
-            <!-- AI-generated images -->
-            <image key="castleImg" model="google/gemini-2.5-flash-image-preview" aspectRatio="16:9">
-              A majestic castle on a hilltop at sunset, fantasy art style
-            </image>
-            
-            <img aspectRatio="1:1">
-              Portrait of a wise old wizard with a long white beard
-            </img>
-            
-            <!-- Access stored URL -->
-            <p>The castle image URL is: {{castleImg}}</p>
-          `,
-        },
-      ],
-      cats: ["media"],
-    },
     syntax: {
       block: true,
       atts: {
@@ -2831,9 +2826,11 @@ export const ACTION_HANDLERS: ActionHandler[] = [
     tags: ["log"],
     docs: {
       desc: dedent`
-        Outputs debug information to the console. Useful for story development and debugging.
-        Can display messages, variable values, or dump the entire current state. Only visible
-        in development mode; not shown to end users.
+        Outputs debug information to the console.
+        
+        Useful for story development and debugging.
+
+        Can display messages, variable values, or dump the entire current state.
       `,
       ex: [
         {

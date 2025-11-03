@@ -89,7 +89,7 @@ export const TEMPLATE_SYNTAX: TemplateSyntaxDoc[] = [
   },
   {
     syntax: "--- Front matter ---",
-    desc: "Declare global data and metadata using YAML inside of front matter-like blocks. Note: Front matter is processed at compile time and all values are unscoped globals that can be referred to anywhere in your story.",
+    desc: "Declare global data and metadata using YAML inside of front matter-like blocks anywhere inside your .wsl file. Note: Front matter is processed at compile time and all values are unscoped globals that can be referred to anywhere in your story.",
     examples: [
       {
         code: dedent`

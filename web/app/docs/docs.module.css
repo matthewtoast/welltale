@@ -399,6 +399,68 @@
   font-size: 0.75rem;
 }
 
+.methodSection {
+  margin-bottom: 2rem;
+}
+
+.methodGroup {
+  margin-top: 0.8rem;
+}
+
+.methodGroup:first-child {
+  margin-top: 0;
+}
+
+.methodGroupTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: #fff;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+.methodList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0rem;
+}
+
+.methodItem {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  background-color: #070707;
+  padding: 0.2rem 0rem 0rem;
+}
+
+.methodDescription {
+  margin: 0;
+  color: #8f8b8b;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.methodExample {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: #66d9ff;
+  background-color: #101010;
+  border: 1px solid #1f1f1f;
+  border-radius: 4px;
+  padding: 0.25rem 0.25rem;
+  margin-right: 0.25rem;
+  font-family:
+    ui-monospace, "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono",
+    "Oxygen Mono", "Ubuntu Monospace", "Source Code Pro", "Fira Code",
+    "Droid Sans Mono", "Courier New", monospace;
+  white-space: pre-wrap;
+}
+
 .attrDesc {
   color: #ccc;
   margin-left: 0.2rem;

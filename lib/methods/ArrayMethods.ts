@@ -117,26 +117,6 @@ export const arrayHelpers: Record<string, MethodDef> = {
         0
       ),
   },
-  mapAdd: {
-    doc: `Returns the array with each number incremented by n`,
-    ex: `wsl.mapAdd([1,2,3], 10) // => [11,12,13]`,
-    fn: (a: A, n: P) => toArr(a).map((x) => num(x) + num(n)),
-  },
-  mapSub: {
-    doc: `Returns the array with each number decremented by n`,
-    ex: `wsl.mapSub([11,12,13], 10) // => [1,2,3]`,
-    fn: (a: A, n: P) => toArr(a).map((x) => num(x) - num(n)),
-  },
-  mapMul: {
-    doc: `Returns the array with each number multiplied by n`,
-    ex: `wsl.mapMul([1,2,3], 2) // => [2,4,6]`,
-    fn: (a: A, n: P) => toArr(a).map((x) => num(x) * num(n)),
-  },
-  mapDiv: {
-    doc: `Returns the array with each number divided by n`,
-    ex: `wsl.mapDiv([2,4,6], 2) // => [1,2,3]`,
-    fn: (a: A, n: P) => toArr(a).map((x) => num(x) / num(n)),
-  },
   union: {
     doc: `Returns the union of two arrays with duplicates removed`,
     ex: `wsl.union([1,2], [2,3]) // => [1,2,3]`,
